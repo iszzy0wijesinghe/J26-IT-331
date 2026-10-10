@@ -1,0 +1,82 @@
+# ============================================================
+# GeoNex Git Ignore
+# ============================================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.python-version
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Testing / linting / type checking
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Environment variables / secrets
+.env
+.env.*
+!.env.example
+
+# IDEs / editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Logs / runtime files
+logs/
+*.log
+*.pid
+
+# Build / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ML model artifacts
+models/artifacts/*
+!models/artifacts/.gitkeep
+
+models/preprocessors/*
+!models/preprocessors/.gitkeep
+
+models/calibrators/*
+!models/calibrators/.gitkeep
+
+# Generated / processed datasets
+data/processed/*
+!data/processed/.gitkeep
+
+# Local database / temporary storage
+*.sqlite
+*.sqlite3
+tmp/
+temp/
+
+# Local test outputs
+test-results/
+coverage.xml

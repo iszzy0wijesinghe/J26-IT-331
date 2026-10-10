@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "geonex"
+version = "0.1.0"
+description = "GeoNex smart landslide early warning research platform"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+
+dependencies = [
+    "pydantic>=2.9,<3",
+    "pydantic-settings>=2.5,<3",
+    "sqlalchemy>=2.0,<3",
+    "alembic>=1.14,<2",
+    "psycopg[binary]>=3.2,<4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<9",
+    "pytest-cov>=5,<8",
+    "ruff>=0.7,<1",
+]
+
+# ------------------------------------------------------------
+# Python package discovery
+#
+# GeoNex is a modular monorepo. Only runtime Python packages
+# under apps/, components/, and shared/ are installed as part
+# of the geonex Python distribution.
+#
+# Directories such as data/, models/, configs/, database/,
+# firmware/, experiments/, notebooks/, deployment/, docs/,
+# scripts/, and tests/ are repository resources rather than
+# importable application packages.
+# ------------------------------------------------------------
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+    "apps*",
+    "components*",
+    "shared*",
+    "database*",
+]
+exclude = [
+    "tests*",
+    "data*",
+    "models*",
+    "configs*",
+    "firmware*",
+    "experiments*",
+    "notebooks*",
+    "deployment*",
+    "docs*",
+    "scripts*",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
