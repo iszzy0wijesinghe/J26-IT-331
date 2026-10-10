@@ -1,8 +1,9 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import URL
 
 
 class GeoNexSettings(BaseSettings):
@@ -18,11 +19,11 @@ class GeoNexSettings(BaseSettings):
 
     env: Literal["development", "test", "demo", "production"] = "development"
 
-    db_host: str = "localhost"
-    db_port: int = Field(default=5432, ge=1, le=65535)
+    db_host: str = "127.0.0.1"
+    db_port: int = Field(default=5433, ge=1, le=65535)
     db_name: str = "geonex"
-    db_user: str = "geonex"
-    db_password: str = ""
+    db_user: str = "geonex_app"
+    db_password: SecretStr = SecretStr("")
 
     log_level: Literal[
         "DEBUG",
@@ -33,12 +34,16 @@ class GeoNexSettings(BaseSettings):
     ] = "INFO"
 
     @property
-    def database_url(self) -> str:
-        """Return a PostgreSQL SQLAlchemy-compatible connection URL."""
+    def database_url(self) -> URL:
+        """Build a PostgreSQL URL with safely encoded credentials."""
 
-        return (
-            f"postgresql+psycopg://{self.db_user}:{self.db_password}"
-            f"@{self.db_host}:{self.db_port}/{self.db_name}"
+        return URL.create(
+            drivername="postgresql+psycopg",
+            username=self.db_user,
+            password=self.db_password.get_secret_value(),
+            host=self.db_host,
+            port=self.db_port,
+            database=self.db_name,
         )
 
 

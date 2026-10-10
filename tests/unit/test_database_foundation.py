@@ -22,9 +22,7 @@ def make_test_settings() -> GeoNexSettings:
 def test_database_url_uses_postgresql_psycopg():
     settings = make_test_settings()
 
-    assert settings.database_url.startswith(
-        "postgresql+psycopg://"
-    )
+    assert settings.database_url.drivername == "postgresql+psycopg"
 
 
 def test_session_factory_configuration():

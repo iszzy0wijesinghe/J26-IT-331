@@ -2,6 +2,11 @@
 requires = ["setuptools>=75"]
 build-backend = "setuptools.build_meta"
 
+
+# ============================================================
+# GeoNex — Python Project Configuration
+# ============================================================
+
 [project]
 name = "geonex"
 version = "0.1.0"
@@ -17,6 +22,11 @@ dependencies = [
     "psycopg[binary]>=3.2,<4",
 ]
 
+
+# ============================================================
+# Development Dependencies
+# ============================================================
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8,<9",
@@ -24,48 +34,118 @@ dev = [
     "ruff>=0.7,<1",
 ]
 
-# ------------------------------------------------------------
-# Python package discovery
-#
-# GeoNex is a modular monorepo. Only runtime Python packages
-# under apps/, components/, and shared/ are installed as part
-# of the geonex Python distribution.
-#
-# Directories such as data/, models/, configs/, database/,
-# firmware/, experiments/, notebooks/, deployment/, docs/,
-# scripts/, and tests/ are repository resources rather than
-# importable application packages.
-# ------------------------------------------------------------
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = [
-    "apps*",
-    "components*",
-    "shared*",
-    "database*",
+# ============================================================
+# Python Package Configuration
+#
+# GeoNex uses a modular monorepo architecture.
+#
+# Explicit package registration ensures that all required
+# Python packages are included in editable installations.
+#
+# Main runtime packages:
+#
+# apps/        -> Application services
+# components/  -> Research components C1, C2, C3, C4
+# shared/      -> Contracts, configurations and utilities
+# database/    -> Database foundation and persistence
+#
+# Non-Python resources such as datasets, model artifacts,
+# documentation, firmware and experiments are not included
+# as importable application packages.
+#
+# IMPORTANT:
+# When adding a new Python subpackage, register it below.
+# ============================================================
+
+[tool.setuptools]
+
+include-package-data = false
+
+packages = [
+
+    # --------------------------------------------------------
+    # Application Services
+    # --------------------------------------------------------
+
+    "apps",
+    "apps.api",
+    "apps.decision_engine",
+    "apps.ingestion",
+    "apps.runtime_orchestrator",
+
+
+    # --------------------------------------------------------
+    # Research Components
+    # --------------------------------------------------------
+
+    "components",
+    "components.c1_credibility",
+    "components.c2_diagnostics",
+    "components.c3_forecasting",
+    "components.c4_trust",
+
+
+    # --------------------------------------------------------
+    # Shared Infrastructure
+    # --------------------------------------------------------
+
+    "shared",
+    "shared.config",
+    "shared.contracts",
+    "shared.enums",
+    "shared.features",
+    "shared.logging",
+    "shared.schemas",
+    "shared.telemetry",
+    "shared.time",
+    "shared.utils",
+    "shared.simulation",
+
+
+    # --------------------------------------------------------
+    # Database Infrastructure
+    # --------------------------------------------------------
+
+    "database",
+
 ]
-exclude = [
-    "tests*",
-    "data*",
-    "models*",
-    "configs*",
-    "firmware*",
-    "experiments*",
-    "notebooks*",
-    "deployment*",
-    "docs*",
-    "scripts*",
-]
+
+
+# ============================================================
+# Pytest Configuration
+# ============================================================
 
 [tool.pytest.ini_options]
+
 testpaths = ["tests"]
+
 pythonpath = ["."]
+
 addopts = "-ra"
 
+
+# ============================================================
+# Ruff Configuration
+# ============================================================
+
 [tool.ruff]
+
 line-length = 100
+
 target-version = "py312"
 
+
+# ============================================================
+# Ruff Lint Rules
+# ============================================================
+
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B"]
+
+select = [
+    "E",   # Pycodestyle errors
+    "F",   # Pyflakes
+    "I",   # Import sorting
+    "UP",  # Python modernization
+    "B",   # Bugbear
+]

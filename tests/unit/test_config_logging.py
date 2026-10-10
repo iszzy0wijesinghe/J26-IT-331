@@ -15,16 +15,20 @@ from shared.logging import (
 
 
 def test_default_settings_are_development_safe():
+    """Verify that default GeoNex settings are suitable for development."""
+
     settings = GeoNexSettings(_env_file=None)
 
     assert settings.env == "development"
-    assert settings.db_host == "localhost"
-    assert settings.db_port == 5432
+    assert settings.db_host == "127.0.0.1"
+    assert settings.db_port == 5433
     assert settings.db_name == "geonex"
     assert settings.log_level == "INFO"
 
 
 def test_database_url_is_built_from_settings():
+    """Verify that SQLAlchemy connection URLs use the configured values."""
+
     settings = GeoNexSettings(
         _env_file=None,
         db_host="db.internal",
@@ -34,13 +38,49 @@ def test_database_url_is_built_from_settings():
         db_password="secret",
     )
 
-    assert settings.database_url == (
-        "postgresql+psycopg://tester:secret"
-        "@db.internal:5433/geonex_test"
+    url = settings.database_url
+
+    assert url.drivername == "postgresql+psycopg"
+    assert url.username == "tester"
+    assert url.password == "secret"
+    assert url.host == "db.internal"
+    assert url.port == 5433
+    assert url.database == "geonex_test"
+
+    # Credentials must not appear in normal URL rendering.
+    assert "secret" not in str(url)
+
+
+def test_database_url_supports_special_characters_in_password():
+    """Verify that database passwords containing special characters work."""
+
+    password = "test@pass:/#word"
+
+    settings = GeoNexSettings(
+        _env_file=None,
+        db_host="127.0.0.1",
+        db_port=5433,
+        db_name="geonex_test",
+        db_user="tester",
+        db_password=password,
     )
+
+    url = settings.database_url
+
+    assert url.password == password
+
+    # Verify that SQLAlchemy can render a valid connection URL.
+    assert url.render_as_string(hide_password=False).startswith(
+        "postgresql+psycopg://"
+    )
+
+    # Credentials must remain hidden in normal string output.
+    assert password not in str(url)
 
 
 def test_invalid_database_port_is_rejected():
+    """Verify that invalid PostgreSQL ports are rejected."""
+
     with pytest.raises(ValidationError):
         GeoNexSettings(
             _env_file=None,
@@ -49,6 +89,8 @@ def test_invalid_database_port_is_rejected():
 
 
 def test_unknown_environment_is_rejected():
+    """Verify that unsupported GeoNex environments are rejected."""
+
     with pytest.raises(ValidationError):
         GeoNexSettings(
             _env_file=None,
@@ -57,6 +99,8 @@ def test_unknown_environment_is_rejected():
 
 
 def test_json_formatter_includes_trace_context():
+    """Verify that structured logs include correlation and component IDs."""
+
     formatter = JsonFormatter()
 
     correlation_token = set_correlation_id("CORR_001")
@@ -86,6 +130,8 @@ def test_json_formatter_includes_trace_context():
 
 
 def test_json_formatter_preserves_structured_extra_fields():
+    """Verify that structured logging preserves additional metadata."""
+
     formatter = JsonFormatter()
 
     record = logging.LogRecord(
