@@ -1,3 +1,4 @@
+
 """Transactional persistence of normalized GeoNex telemetry."""
 
 import json
@@ -13,7 +14,7 @@ from shared.telemetry.identifiers import make_observation_id
 
 
 class PersistenceStatus(StrEnum):
-    """Outcome of a telemetry persistence attempt."""
+    """Outcome of a telemetry persistence operation."""
 
     CREATED = "CREATED"
     ALREADY_EXISTS = "ALREADY_EXISTS"
@@ -33,10 +34,7 @@ class PersistenceResult:
 
 
 def _packet_fingerprint(packet: TelemetryPacket) -> str:
-    """Calculate a deterministic fingerprint of normalized packet content.
-
-    JSON object keys are sorted, while measurement-array order is retained.
-    """
+    """Calculate a deterministic fingerprint of normalized packet content."""
 
     normalized_payload = packet.model_dump(mode="json")
 
@@ -67,6 +65,8 @@ def _record_matches_packet(
         "observed_at": record.observed_at,
         "received_at": record.received_at,
         "message_type": record.message_type,
+        "tx_interval_s": record.tx_interval_s,
+        "freshness_status": record.freshness_status,
         "measurements": record.measurements,
         "device_health": record.device_health,
         "transport": record.transport,
@@ -87,10 +87,9 @@ def persist_telemetry_packet(
 ) -> PersistenceResult:
     """Stage a packet and its observations in the current transaction.
 
-    The caller owns transaction commit/rollback through session_scope.
-
-    A matching existing packet is treated as an idempotent retry.
-    A conflicting packet ID is rejected.
+    The caller owns transaction commit and rollback through session_scope.
+    Matching packet IDs are treated as idempotent retries.
+    Conflicting packet IDs are rejected.
     """
 
     if not isinstance(packet, TelemetryPacket):
@@ -123,6 +122,8 @@ def persist_telemetry_packet(
         observed_at=packet.observed_at,
         received_at=packet.received_at,
         message_type=packet.message_type,
+        tx_interval_s=packet.tx_interval_s,
+        freshness_status=packet.freshness_status,
         measurements=[
             measurement.model_dump(mode="json")
             for measurement in packet.measurements

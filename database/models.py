@@ -72,6 +72,16 @@ class TelemetryPacketRecord(Base):
         nullable=False,
     )
 
+    tx_interval_s: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
+
+    freshness_status: Mapped[str | None] = mapped_column(
+        String(16),
+        nullable=True,
+    )
+
     measurements: Mapped[list] = mapped_column(
         JSONB,
         nullable=False,

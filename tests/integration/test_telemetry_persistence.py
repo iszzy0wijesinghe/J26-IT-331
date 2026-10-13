@@ -228,3 +228,38 @@ def test_identical_retry_across_independent_sessions(db_session):
 
     finally:
         second_session.close()
+
+def test_behavioral_metadata_is_persisted_and_retry_is_idempotent(db_session):
+    packet = make_packet().model_copy(
+        update={
+            "tx_interval_s": 30.0,
+            "freshness_status": "fresh",
+        }
+    )
+
+    first = persist_telemetry_packet(db_session, packet)
+    second = persist_telemetry_packet(db_session, packet)
+
+    stored = db_session.get(TelemetryPacketRecord, packet.packet_id)
+
+    assert first.status is PersistenceStatus.CREATED
+    assert second.status is PersistenceStatus.ALREADY_EXISTS
+    assert stored is not None
+    assert stored.tx_interval_s == 30.0
+    assert stored.freshness_status == "fresh"
+
+def test_changed_behavioral_metadata_is_a_packet_conflict(db_session):
+    packet = make_packet().model_copy(
+        update={
+            "tx_interval_s": 30.0,
+            "freshness_status": "fresh",
+        }
+    )
+    persist_telemetry_packet(db_session, packet)
+
+    changed = packet.model_copy(
+        update={"tx_interval_s": 60.0}
+    )
+
+    with pytest.raises(PacketConflictError):
+        persist_telemetry_packet(db_session, changed)
