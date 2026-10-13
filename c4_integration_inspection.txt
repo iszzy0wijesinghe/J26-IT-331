@@ -1,0 +1,356 @@
+﻿========== C4 DEMO SERVICE SETUP ==========
+
+"""DEMO ONLY â€” synthetic C4 credentials and evidence; not production security."""
+
+from pathlib import Path
+
+from components.c4_trust import (
+    C4TrustService,
+    DeviceCredential,
+    DeviceKind,
+    DeviceRegistry,
+)
+from components.c4_trust.pipeline import C4TelemetryGate
+from components.c4_trust.quarantine import QuarantineManager
+from shared.contracts.telemetry import SecurityMetadata, TransportMetadata
+from shared.simulation.scheduled_telemetry import ScheduledTelemetry
+from shared.simulation.topology import get_all_demo_pipes
+
+HUB_BY_ZONE = {
+    "ZONE_01": "H001",
+    "ZONE_02": "H002",
+}
+
+
+def build_demo_c4_gate(
+    quarantine_dir: str | Path = Path("quarantine/c4"),
+) -> tuple[C4TelemetryGate, dict[str, DeviceCredential]]:
+    """Build an isolated C4 gate for synthetic demonstration telemetry."""
+
+    registry = DeviceRegistry()
+    credentials: dict[str, DeviceCredential] = {}
+
+    kind_by_role = {
+        "TYPE_A": DeviceKind.TYPE_A,
+        "TYPE_B": DeviceKind.TYPE_B,
+        "BACKUP": DeviceKind.BACKUP,
+    }
+
+    for pipe in get_all_demo_pipes():
+        credential = DeviceCredential(
+            credential_id=f"DEMO-CRED-{pipe.device_id}",
+            secret=f"demo-only-secret-{pipe.device_id}".encode(),
+        )
+        credentials[pipe.device_id] = credential
+
+        registry.register(
+            device_id=pipe.device_id,
+            device_kind=kind_by_role[pipe.role.value],
+            zone_id=pipe.zone_id,
+            hub_id=HUB_BY_ZONE[pipe.zone_id],
+            credential=credential,
+        )
+        registry.activate(pipe.device_id)
+
+    def verify_demo_attestation(packet, device):
+        return packet.security.attestation_evidence == {
+            "demo_attestation": packet.device_id
+        }
+
+    def verify_demo_provenance(packet, device):
+        return packet.security.provenance_evidence == {
+            "demo_provenance": packet.packet_id
+        }
+
+    service = C4TrustService(
+        registry,
+        attestation_verifier=verify_demo_attestation,
+        provenance_verifier=verify_demo_provenance,
+        allow_deterministic_only=True,
+        max_age_seconds=30,
+        future_tolerance_seconds=5,
+    )
+
+    gate = C4TelemetryGate(
+        trust_service=service,
+        quarantine_manager=QuarantineManager(
+            quarantine_dir=quarantine_dir,
+        ),
+    )
+
+    return gate, credentials
+
+
+def prepare_and_sign_demo_packet(
+    item: ScheduledTelemetry,
+    credentials: dict[str, DeviceCredential],
+) -> tuple:
+    """Prepare and sign synthetic telemetry for the isolated C4 demo."""
+
+    packet = item.packet
+    credential = credentials[packet.device_id]
+    hub_id = HUB_BY_ZONE[packet.zone_id]
+
+    prepared_packet = packet.model_copy(
+        update={
+            "transport": TransportMetadata(gateway_id=hub_id),
+            "security": SecurityMetadata(
+                credential_id=credential.credential_id,
+                integrity_present=True,
+                freshness_counter=packet.sequence_no,
+                session_id=f"DEMO-SESSION-{packet.device_id}",
+                attestation_evidence={
+                    "demo_attestation": packet.device_id
+                },
+                provenance_evidence={
+                    "demo_provenance": packet.packet_id
+                },
+            ),
+        }
+    )
+
+    signature = C4TrustService.sign_packet(
+        prepared_packet,
+        credential.secret,
+    )
+
+    return prepared_packet, signature
+
+========== SIMULATION LOADER ==========
+
+"""Database loaders for GeoNex simulated telemetry."""
+
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import datetime
+from enum import StrEnum
+
+from sqlalchemy.orm import Session
+
+from apps.ingestion.persistence import (
+    PersistenceStatus,
+    persist_telemetry_packet,
+)
+from components.c4_trust.pipeline import C4TelemetryGate
+from shared.contracts.telemetry import TelemetryPacket
+from shared.simulation.scheduled_telemetry import ScheduledTelemetry
+
+
+class SimulationLoadStatus(StrEnum):
+    """Outcome of loading a simulation batch."""
+
+    COMPLETED = "COMPLETED"
+
+
+@dataclass(frozen=True)
+class SimulationLoadResult:
+    """Summary of a simulated telemetry database load."""
+
+    status: SimulationLoadStatus
+    total_packets: int
+    created_packets: int
+    existing_packets: int
+    created_observations: int
+
+
+@dataclass(frozen=True)
+class C4SimulationLoadResult:
+    """Summary of a simulation batch processed through C4."""
+
+    status: SimulationLoadStatus
+    total_packets: int
+    accepted_packets: int
+    created_packets: int
+    existing_packets: int
+    quarantined_packets: int
+    created_observations: int
+
+
+def load_simulated_telemetry(
+    session: Session,
+    items: list[ScheduledTelemetry],
+) -> SimulationLoadResult:
+    """Persist simulated telemetry using the existing ingestion logic.
+
+    The caller owns the transaction and must commit or roll back.
+    This function does not create a database connection or commit.
+    """
+
+    created_packets = 0
+    existing_packets = 0
+    created_observations = 0
+
+    for item in items:
+        result = persist_telemetry_packet(
+            session=session,
+            packet=item.packet,
+        )
+
+        if result.status == PersistenceStatus.CREATED:
+            created_packets += 1
+            created_observations += result.observation_count
+
+        elif result.status == PersistenceStatus.ALREADY_EXISTS:
+            existing_packets += 1
+
+        else:
+            raise ValueError(
+                f"Unexpected persistence status: {result.status}"
+            )
+
+    return SimulationLoadResult(
+        status=SimulationLoadStatus.COMPLETED,
+        total_packets=len(items),
+        created_packets=created_packets,
+        existing_packets=existing_packets,
+        created_observations=created_observations,
+    )
+
+
+def load_simulated_telemetry_with_c4(
+    session: Session,
+    items: list[ScheduledTelemetry],
+    *,
+    gate: C4TelemetryGate,
+    prepare_and_sign: Callable[
+        [ScheduledTelemetry], tuple[TelemetryPacket, str]
+    ],
+    now_provider: Callable[[TelemetryPacket], datetime] | None = None,
+) -> C4SimulationLoadResult:
+    """Validate simulated telemetry through C4 before persistence.
+
+    prepare_and_sign must return a prepared packet and its valid signature.
+    In production, credentials and verification evidence must come from
+    trusted security providers rather than test fixtures.
+
+    If now_provider is omitted, C4 uses its normal clock. Historical
+    simulation packets may fail freshness validation.
+
+    Rejected packets are quarantined by the C4 gate and are never sent
+    to database persistence by this function.
+
+    The caller owns the database transaction. This function does not
+    create a database connection or commit.
+    """
+
+    accepted_packets = 0
+    created_packets = 0
+    existing_packets = 0
+    quarantined_packets = 0
+    created_observations = 0
+
+    for item in items:
+        packet, signature = prepare_and_sign(item)
+
+        gate_kwargs: dict[str, datetime] = {}
+
+        if now_provider is not None:
+            gate_kwargs["now"] = now_provider(packet)
+
+        gate_result = gate.process(
+            packet,
+            signature,
+            **gate_kwargs,
+        )
+
+        eligible_packet = gate_result.eligible_packet
+
+        if eligible_packet is None:
+            quarantined_packets += 1
+            continue
+
+        accepted_packets += 1
+
+        persistence_result = persist_telemetry_packet(
+            session=session,
+            packet=eligible_packet,
+        )
+
+        if persistence_result.status == PersistenceStatus.CREATED:
+            created_packets += 1
+            created_observations += persistence_result.observation_count
+
+        elif (
+            persistence_result.status
+            == PersistenceStatus.ALREADY_EXISTS
+        ):
+            existing_packets += 1
+
+        else:
+            raise ValueError(
+                "Unexpected persistence status: "
+                f"{persistence_result.status}"
+            )
+
+    return C4SimulationLoadResult(
+        status=SimulationLoadStatus.COMPLETED,
+        total_packets=len(items),
+        accepted_packets=accepted_packets,
+        created_packets=created_packets,
+        existing_packets=existing_packets,
+        quarantined_packets=quarantined_packets,
+        created_observations=created_observations,
+    )
+
+========== INGESTION AND C4 REFERENCES ==========
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\apps\ingestion\persistence.py:10: from database.models import SensorObservationRecord, TelemetryPacketRecord
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\apps\ingestion\persistence.py:11: from shared.contracts.telemetry import TelemetryPacket
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\apps\ingestion\persistence.py:35: def _packet_fingerprint(packet: TelemetryPacket) -> str:
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\apps\ingestion\persistence.py:55: record: TelemetryPacketRecord,
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\apps\ingestion\persistence.py:56: packet: TelemetryPacket,
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\apps\ingestion\persistence.py:79: existing_packet = TelemetryPacket.model_validate(existing_payload)
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\apps\ingestion\persistence.py:86: packet: TelemetryPacket,
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\apps\ingestion\persistence.py:96: if not isinstance(packet, TelemetryPacket):
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\apps\ingestion\persistence.py:98: "packet must be a validated TelemetryPacket instance"
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\apps\ingestion\persistence.py:101: existing = session.get(TelemetryPacketRecord, packet.packet_id)
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\apps\ingestion\persistence.py:116: packet_record = TelemetryPacketRecord(
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\apps\ingestion\simulation_loader.py:11: from apps.ingestion.persistence import (
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\apps\ingestion\simulation_loader.py:15: from components.c4_trust.pipeline import C4TelemetryGate
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\apps\ingestion\simulation_loader.py:16: from shared.contracts.telemetry import TelemetryPacket
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\apps\ingestion\simulation_loader.py:54: """Persist simulated telemetry using the existing ingestion logic.
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\apps\ingestion\simulation_loader.py:95: gate: C4TelemetryGate,
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\apps\ingestion\simulation_loader.py:97: [ScheduledTelemetry], tuple[TelemetryPacket, str]
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\apps\ingestion\simulation_loader.py:99: now_provider: Callable[[TelemetryPacket], datetime] | None = None,
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\models.py:20: from shared.contracts.telemetry import TelemetryPacket
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\models.py:187: class C4BehavioralModelRunner:
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\models.py:198: feature_builder: Callable[[TelemetryPacket], pd.DataFrame],
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\models.py:212: feature_builder: Callable[[TelemetryPacket], pd.DataFrame],
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\models.py:213: ) -> C4BehavioralModelRunner:
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\models.py:219: feature_builder: Function to extract features from a TelemetryPacket
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\models.py:222: C4BehavioralModelRunner instance
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\models.py:242: def __call__(self, packet: TelemetryPacket) -> float:
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\models.py:246: packet: TelemetryPacket to score
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\pipeline.py:12: from shared.contracts import C4TrustAssessment, TelemetryPacket
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\pipeline.py:21: eligible_packet: TelemetryPacket | None
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\pipeline.py:29: class C4TelemetryGate:
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\pipeline.py:42: packet: TelemetryPacket,
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\service.py:15: from shared.contracts import C4TrustAssessment, TelemetryPacket
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\service.py:18: EvidenceVerifier = Callable[[TelemetryPacket, DeviceRecord | None], bool | None]
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\service.py:19: BehaviouralScorer = Callable[[TelemetryPacket], float | None]
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\service.py:48: behavioural_scorer: BehaviouralScorer | None = None,
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\service.py:74: self._behavioural_scorer = behavioural_scorer
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\service.py:85: def _canonical_packet(packet: TelemetryPacket) -> bytes:
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\service.py:97: packet: TelemetryPacket,
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\service.py:163: packet: TelemetryPacket,
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\service.py:199: packet: TelemetryPacket,
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\service.py:212: packet: TelemetryPacket,
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\service.py:411: if score is None and self._behavioural_scorer is not None:
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\service.py:413: score_value = self._behavioural_scorer(packet)
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\__init__.py:1: from components.c4_trust.pipeline import C4GateResult, C4TelemetryGate
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\components\c4_trust\__init__.py:19: "C4TelemetryGate",
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\shared\contracts\telemetry.py:83: class TelemetryPacket(TimeAwareContractModel):
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\shared\contracts\telemetry.py:84: """Normalized gateway-to-ingestion telemetry packet."""
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\shared\contracts\__init__.py:39: TelemetryPacket,
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\shared\contracts\__init__.py:70: "TelemetryPacket",
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\shared\simulation\c4_demo.py:12: from components.c4_trust.pipeline import C4TelemetryGate
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\shared\simulation\c4_demo.py:26: ) -> tuple[C4TelemetryGate, dict[str, DeviceCredential]]:
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\shared\simulation\c4_demo.py:73: gate = C4TelemetryGate(
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\shared\simulation\generator.py:7: from shared.contracts.telemetry import TelemetryPacket
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\shared\simulation\generator.py:34: ) -> list[TelemetryPacket]:
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\shared\simulation\generator.py:54: packets: list[TelemetryPacket] = []
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\shared\simulation\generator.py:67: packet = TelemetryPacket(
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\shared\simulation\runner.py:7: from shared.contracts.telemetry import TelemetryPacket
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\shared\simulation\runner.py:40: ) -> list[TelemetryPacket]:
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\shared\simulation\runner.py:52: packets: list[TelemetryPacket] = []
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\shared\simulation\scheduled_telemetry.py:6: from shared.contracts.telemetry import TelemetryPacket
+C:\Users\User\Desktop\FInal_GeoNex_Repo\J26-IT-331\shared\simulation\scheduled_telemetry.py:18: packet: TelemetryPacket
