@@ -4,8 +4,8 @@ This script:
 1. Loads the C4_Trust.csv dataset
 2. Extracts behavioral features (B0-B5)
 3. Excludes deterministic security fields to prevent leakage
-4. Adds rolling historical features per device
-5. Saves clean behavioral dataset for ML training
+4. Preserves device timestamps for split-local historical features
+5. Saves the unsplit behavioral dataset for ML training
 """
 
 import sys
@@ -15,7 +15,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from components.c4_trust.features import FeatureExtractor
+from components.c4_trust.features import FeatureExtractor  # noqa: E402
 
 
 def main() -> None:

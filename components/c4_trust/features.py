@@ -57,16 +57,12 @@ class BehavioralFeatures:
             "retry_count": self.retry_count,
             # B2 - Packet
             "packet_size_bytes": self.packet_size_bytes,
-            "counter_delta": self.counter_delta,
             # B3 - Health
             "battery_pct": self.battery_pct,
             "battery_voltage_v": self.battery_voltage_v,
             "current_ma": self.current_ma,
             "reboot_count_24h": self.reboot_count_24h,
             "sensor_fault_flag": self.sensor_fault_flag,
-            # B4 - Path
-            "zone_match": self.zone_match,
-            "hub_match_flag": self.hub_match_flag,
             # B5 - Historical (if available)
             "rolling_interval_mean": self.rolling_interval_mean,
             "rolling_interval_std": self.rolling_interval_std,
@@ -147,11 +143,42 @@ class FeatureExtractor:
         "hub_id",
     }
 
+    TRAINING_FEATURE_FIELDS = (
+        "tx_interval_s",
+        "rx_delay_s",
+        "freshness_status_encoded",
+        "rssi_dbm",
+        "rssi_deviation_db",
+        "snr_db",
+        "retry_count",
+        "packet_size_bytes",
+        "battery_pct",
+        "battery_voltage_v",
+        "current_ma",
+        "reboot_count_24h",
+        "sensor_fault_flag",
+        "rolling_interval_mean",
+        "rolling_interval_std",
+        "rolling_rssi_mean",
+        "rolling_rssi_std",
+        "rolling_retry_mean",
+    )
+
     def __init__(self) -> None:
         self._freshness_status_encoding = {
             "fresh": 0,
             "delayed": 1,
             "stale": 2,
+        }
+        # Expected intervals per mode (in seconds) - reserved for future use
+        # These should be configured based on actual sampling policies
+        self._mode_expected_intervals = {
+            "IDLE": 30.0,  # Normal low-power mode
+            "ACTIVE": 10.0,  # Normal active sampling
+            "WARNING": 5.0,  # High-risk mode, frequent sampling
+            "CRITICAL": 1.0,  # Emergency mode, very frequent sampling
+            "DEEP_SLEEP": 300.0,  # Very low power mode
+            "UNKNOWN": 10.0,  # Default fallback
         }
 
     def extract_from_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -171,14 +198,6 @@ class FeatureExtractor:
             "freshness_status"
         ].map(self._freshness_status_encoding).fillna(0)
 
-        # Create comparison flags for path/location
-        features_df["zone_match"] = (
-            features_df["zone_registered"] == features_df["zone_reported"]
-        ).astype(int)
-        features_df["hub_match_flag"] = (
-            features_df["hub_registered"] == features_df["hub_id"]
-        ).astype(int)
-
         # Select only behavioral fields
         selected_columns = [
             # B0 - Timing
@@ -192,21 +211,40 @@ class FeatureExtractor:
             "retry_count",
             # B2 - Packet
             "packet_size_bytes",
-            "counter_delta",
             # B3 - Health
             "battery_pct",
             "battery_voltage_v",
             "current_ma",
             "reboot_count_24h",
             "sensor_fault_flag",
-            # B4 - Path
-            "zone_match",
-            "hub_match_flag",
         ]
 
         features_df = features_df[selected_columns]
 
         return features_df
+
+    def add_mode_aware_features(
+        self,
+        df: pd.DataFrame,
+        mode_col: str = "mode",
+    ) -> pd.DataFrame:
+        """Add mode-aware interval deviation features.
+
+        Reserved for future use when mode information is available.
+
+        Args:
+            df: Input dataframe with mode and tx_interval_s columns
+            mode_col: Name of mode column
+
+        Returns:
+            DataFrame with added mode-aware features (empty for now)
+        """
+        df = df.copy()
+
+        # Mode-aware features are not currently supported in the dataset
+        # This method is reserved for future implementation when mode information
+        # is available in the telemetry protocol
+        return df
 
     def add_historical_features(
         self,
@@ -224,41 +262,58 @@ class FeatureExtractor:
         Returns:
             DataFrame with added historical features
         """
-        df = df.copy()
+        if device_id_col not in df.columns:
+            raise ValueError(f"{device_id_col} is required to calculate historical features")
+        if "device_timestamp" not in df.columns:
+            raise ValueError("device_timestamp is required to calculate historical features")
 
-        # Sort by device_id and timestamp if available
-        if "device_timestamp" in df.columns:
-            df = df.sort_values([device_id_col, "device_timestamp"])
-        else:
-            df = df.sort_values(device_id_col)
+        timestamps = pd.to_datetime(
+            df["device_timestamp"], format="mixed", utc=True, errors="coerce"
+        )
+        if timestamps.isna().any():
+            raise ValueError("device_timestamp contains missing or invalid values")
 
-        # Compute rolling features per device
-        for device_id, group in df.groupby(device_id_col):
-            device_idx = df[device_id_col] == device_id
+        original_index = df.index
+        timestamp_key = "__c4_history_timestamp"
+        position_key = "__c4_history_position"
+        while timestamp_key in df.columns:
+            timestamp_key = f"_{timestamp_key}"
+        while position_key in df.columns or position_key == timestamp_key:
+            position_key = f"_{position_key}"
 
-            # Rolling interval statistics
-            if "tx_interval_s" in df.columns:
-                df.loc[device_idx, "rolling_interval_mean"] = group[
-                    "tx_interval_s"
-                ].rolling(window=window, min_periods=1).mean()
-                df.loc[device_idx, "rolling_interval_std"] = group[
-                    "tx_interval_s"
-                ].rolling(window=window, min_periods=1).std()
+        df = df.copy().reset_index(drop=True)
+        df[position_key] = range(len(df))
+        df[timestamp_key] = timestamps.array
+        df = df.sort_values([device_id_col, timestamp_key], kind="stable")
 
-            # Rolling RSSI statistics
-            if "rssi_dbm" in df.columns:
-                df.loc[device_idx, "rolling_rssi_mean"] = group[
-                    "rssi_dbm"
-                ].rolling(window=window, min_periods=1).mean()
-                df.loc[device_idx, "rolling_rssi_std"] = group[
-                    "rssi_dbm"
-                ].rolling(window=window, min_periods=1).std()
+        # Treat tied timestamps as one step so peers cannot affect one another.
+        feature_sources = {
+            "tx_interval_s": ("rolling_interval_mean", "rolling_interval_std"),
+            "rssi_dbm": ("rolling_rssi_mean", "rolling_rssi_std"),
+            "retry_count": ("rolling_retry_mean", None),
+        }
+        for _, device_group in df.groupby(device_id_col, sort=False):
+            timestamp_groups = device_group.groupby(timestamp_key, sort=True)
+            for source_column, (mean_column, std_column) in feature_sources.items():
+                if source_column not in df.columns:
+                    continue
 
-            # Rolling retry statistics
-            if "retry_count" in df.columns:
-                df.loc[device_idx, "rolling_retry_mean"] = group[
-                    "retry_count"
-                ].rolling(window=window, min_periods=1).mean()
+                timestamp_means = timestamp_groups[source_column].mean()
+                previous_values = timestamp_means.shift(1)
+                rolling_mean = previous_values.rolling(
+                    window=window, min_periods=1
+                ).mean()
+                df.loc[device_group.index, mean_column] = device_group[timestamp_key].map(
+                    rolling_mean
+                ).to_numpy()
+
+                if std_column is not None:
+                    rolling_std = previous_values.rolling(
+                        window=window, min_periods=1
+                    ).std()
+                    df.loc[device_group.index, std_column] = device_group[timestamp_key].map(
+                        rolling_std
+                    ).to_numpy()
 
         # Fill NaN values with 0 for first rows
         historical_cols = [
@@ -272,6 +327,9 @@ class FeatureExtractor:
             if col in df.columns:
                 df[col] = df[col].fillna(0)
 
+        positions = df.pop(position_key).to_numpy()
+        df = df.drop(columns=timestamp_key)
+        df.index = original_index.take(positions)
         return df
 
     def extract_for_training(
@@ -290,16 +348,58 @@ class FeatureExtractor:
         Returns:
             Tuple of (features DataFrame, labels Series)
         """
-        # Extract behavioral features
-        features_df = self.extract_from_dataframe(df)
+        # Accept either raw C4 rows or an already-extracted behavioral dataset.
+        if self.BEHAVIORAL_FIELDS.issubset(df.columns):
+            features_df = self.extract_from_dataframe(df)
+        else:
+            available_fields = [
+                column for column in self.TRAINING_FEATURE_FIELDS if column in df.columns
+            ]
+            if not available_fields:
+                raise ValueError("Input dataframe has no recognized C4 behavioral features")
+            features_df = df[available_fields].copy()
 
         # Add historical features if requested
-        if add_historical:
-            features_df = self.add_historical_features(
-                df,
+        history_sources = {"tx_interval_s", "rssi_dbm", "retry_count"} & set(df.columns)
+        if add_historical and history_sources:
+            if "device_id" not in df.columns:
+                raise ValueError("device_id is required to calculate historical features")
+            history_input_columns = [
+                column
+                for column in (
+                    "device_id",
+                    "device_timestamp",
+                    "tx_interval_s",
+                    "rssi_dbm",
+                    "retry_count",
+                )
+                if column in df.columns
+            ]
+            history_features = self.add_historical_features(
+                df[history_input_columns],
                 device_id_col="device_id",
                 window=historical_window,
             )
+            historical_columns = [
+                "rolling_interval_mean",
+                "rolling_interval_std",
+                "rolling_rssi_mean",
+                "rolling_rssi_std",
+                "rolling_retry_mean",
+            ]
+            features_df = features_df.drop(
+                columns=[column for column in historical_columns if column in features_df]
+            )
+            features_df = features_df.join(
+                history_features[
+                    [column for column in historical_columns if column in history_features]
+                ]
+            )
+
+        feature_columns = [
+            column for column in self.TRAINING_FEATURE_FIELDS if column in features_df
+        ]
+        features_df = features_df[feature_columns]
 
         # Extract labels
         labels = df["trust_label"].copy()
@@ -334,9 +434,9 @@ class FeatureExtractor:
         # Combine features with labels and metadata
         output_df = features_df.copy()
         output_df["trust_label"] = labels
-        output_df["split"] = df["split"]
         output_df["scenario"] = df["scenario"]
         output_df["device_id"] = df["device_id"]
+        output_df["device_timestamp"] = df["device_timestamp"]
 
         # Save to CSV
         output_df.to_csv(output_path, index=False)
