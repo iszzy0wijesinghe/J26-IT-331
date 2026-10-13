@@ -67,7 +67,8 @@ def load_splits(data_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFram
     test_df = pd.read_csv(data_dir / "C4_test.csv")
 
     ScenarioAwareSplitter.validate_splits(
-        {"train": train_df, "val": val_df, "test": test_df}
+        {"train": train_df, "val": val_df, "test": test_df},
+        device_id_col="device_id",
     )
     return train_df, val_df, test_df
 
