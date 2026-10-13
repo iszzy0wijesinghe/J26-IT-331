@@ -1,5 +1,6 @@
+
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field, model_validator
 
@@ -8,11 +9,7 @@ from shared.enums import SourceOrigin
 
 
 class MeasurementEntry(TimeAwareContractModel):
-    """One measurement contained inside a telemetry packet.
-
-    Sensor type remains a controlled string for now because the final
-    sensor registry is explicitly deferred by Integration Contract v1.
-    """
+    """One measurement contained inside a telemetry packet."""
 
     sensor_instance_id: str = Field(min_length=1)
     sensor_type: str = Field(min_length=1)
@@ -35,14 +32,16 @@ class MeasurementEntry(TimeAwareContractModel):
 
 
 class DeviceHealth(TimeAwareContractModel):
-    """Device/system-health metadata carried with telemetry.
-
-    This is intentionally separate from environmental measurements.
-    """
+    """Device/system-health metadata carried with telemetry."""
 
     battery_voltage: float | None = None
     supply_current: float | None = None
     restart_count: int | None = Field(default=None, ge=0)
+
+    battery_pct: float | None = Field(default=None, ge=0, le=100)
+    reboot_count_24h: int | None = Field(default=None, ge=0)
+    sensor_fault_flag: bool | None = None
+
     sensor_read_error: bool | None = None
     sd_status: str | None = None
 
@@ -55,17 +54,17 @@ class TransportMetadata(TimeAwareContractModel):
     rssi_dbm: float | None = None
     snr_db: float | None = None
     retry_count: int | None = Field(default=None, ge=0)
+
+    rssi_deviation_db: float | None = None
+    packet_size_bytes: int | None = None  # Optional: can be derived from packet
+
     gateway_id: str | None = None
 
     extra_metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class SecurityMetadata(TimeAwareContractModel):
-    """Non-secret security metadata associated with telemetry.
-
-    Secret keys, passwords, tokens and raw credentials must never be
-    placed in this contract.
-    """
+    """Non-secret security metadata associated with telemetry."""
 
     credential_id: str | None = None
     integrity_present: bool | None = None
@@ -73,7 +72,7 @@ class SecurityMetadata(TimeAwareContractModel):
     session_id: str | None = None
     firmware_hash: str | None = None
     config_hash: str | None = None
-    # Opaque protocol evidence; C4 must verify these through configured verifiers.
+
     attestation_evidence: dict[str, Any] | None = None
     provenance_evidence: dict[str, Any] | None = None
 
@@ -96,6 +95,9 @@ class TelemetryPacket(TimeAwareContractModel):
     received_at: datetime
 
     message_type: str = Field(default="TELEMETRY", min_length=1)
+
+    tx_interval_s: float | None = Field(default=None, gt=0)
+    freshness_status: Literal["fresh", "delayed", "stale"] | None = None
 
     measurements: list[MeasurementEntry] = Field(default_factory=list)
 

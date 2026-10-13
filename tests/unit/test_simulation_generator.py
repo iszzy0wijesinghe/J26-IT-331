@@ -133,3 +133,62 @@ def test_configuration_changes_do_not_mutate_original():
     assert original.seed == 42
     assert modified.seed == 99
     assert original.packet_count == modified.packet_count
+
+
+def test_generated_packets_include_interval_and_transport_metadata():
+    config = SimulationConfig(
+        seed=42,
+        operating_mode=OperatingMode.WARNING,
+        packet_count=4,
+    )
+
+    packets = generate_baseline_packets(config)
+
+    assert len(packets) == 4
+
+    for packet in packets:
+        assert packet.tx_interval_s == 15.0
+        assert packet.transport.rssi_dbm is not None
+        assert packet.transport.snr_db is not None
+        assert packet.transport.retry_count in range(3)
+
+
+def test_synthetic_transport_metadata_is_reproducible():
+    config = SimulationConfig(seed=42, packet_count=5)
+
+    first = generate_baseline_packets(config)
+    second = generate_baseline_packets(config)
+
+    first_metadata = [
+        (
+            packet.transport.rssi_dbm,
+            packet.transport.snr_db,
+            packet.transport.retry_count,
+        )
+        for packet in first
+    ]
+
+    second_metadata = [
+        (
+            packet.transport.rssi_dbm,
+            packet.transport.snr_db,
+            packet.transport.retry_count,
+        )
+        for packet in second
+    ]
+
+    assert first_metadata == second_metadata
+
+
+def test_simulator_does_not_invent_undefined_features():
+    packets = generate_baseline_packets(
+        SimulationConfig(packet_count=2)
+    )
+
+    for packet in packets:
+        # freshness_status is now calculated by simulator for realistic testing
+        assert packet.freshness_status in ("fresh", "delayed", "stale")
+        # rssi_deviation_db is calculated at runtime from device history
+        assert packet.transport.rssi_deviation_db is None
+        # packet_size_bytes is calculated at runtime from packet serialization
+        assert packet.transport.packet_size_bytes is None

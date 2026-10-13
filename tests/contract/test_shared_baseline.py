@@ -1,3 +1,4 @@
+
 from datetime import UTC, datetime
 
 import pytest
@@ -119,4 +120,81 @@ def test_packet_rejects_naive_timestamp():
             observed_at=datetime.now(),
             received_at=utc_now(),
             source_origin=SourceOrigin.SIMULATED,
+        )
+
+
+def test_packet_accepts_behavioral_metadata():
+    now = utc_now()
+
+    packet = TelemetryPacket(
+        schema_version="1.0",
+        packet_id="PKT_FEATURES_001",
+        zone_id="ZONE_01",
+        device_id="PIPE_A1",
+        observed_at=now,
+        received_at=now,
+        source_origin=SourceOrigin.SIMULATED,
+        tx_interval_s=30.0,
+        freshness_status="fresh",
+        device_health={
+            "battery_pct": 82.5,
+            "reboot_count_24h": 1,
+            "sensor_fault_flag": False,
+        },
+        transport={
+            "rssi_dbm": -78.0,
+            "rssi_deviation_db": 2.5,
+            "packet_size_bytes": 118,
+            "snr_db": 6.5,
+            "retry_count": 1,
+        },
+    )
+
+    assert packet.tx_interval_s == 30.0
+    assert packet.freshness_status == "fresh"
+    assert packet.device_health.battery_pct == 82.5
+    assert packet.device_health.reboot_count_24h == 1
+    assert packet.transport.packet_size_bytes == 118
+
+
+@pytest.mark.parametrize(
+    "status",
+    ["unknown", "FRESH", "invalid"],
+)
+def test_packet_rejects_invalid_freshness_status(status):
+    now = utc_now()
+
+    with pytest.raises(ValidationError):
+        TelemetryPacket(
+            schema_version="1.0",
+            packet_id="PKT_INVALID_FRESHNESS",
+            zone_id="ZONE_01",
+            device_id="PIPE_A1",
+            observed_at=now,
+            received_at=now,
+            source_origin=SourceOrigin.SIMULATED,
+            freshness_status=status,
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("battery_pct", 101),
+        ("reboot_count_24h", -1),
+    ],
+)
+def test_packet_rejects_invalid_device_health_values(field, value):
+    now = utc_now()
+
+    with pytest.raises(ValidationError):
+        TelemetryPacket(
+            schema_version="1.0",
+            packet_id="PKT_INVALID_HEALTH",
+            zone_id="ZONE_01",
+            device_id="PIPE_A1",
+            observed_at=now,
+            received_at=now,
+            source_origin=SourceOrigin.SIMULATED,
+            device_health={field: value},
         )
