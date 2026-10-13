@@ -71,6 +71,11 @@ class SecurityMetadata(TimeAwareContractModel):
     integrity_present: bool | None = None
     freshness_counter: int | None = Field(default=None, ge=0)
     session_id: str | None = None
+    firmware_hash: str | None = None
+    config_hash: str | None = None
+    # Opaque protocol evidence; C4 must verify these through configured verifiers.
+    attestation_evidence: dict[str, Any] | None = None
+    provenance_evidence: dict[str, Any] | None = None
 
     extra_metadata: dict[str, Any] = Field(default_factory=dict)
 

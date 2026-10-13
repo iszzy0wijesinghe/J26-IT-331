@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from shared.enums import DeviceLifecycleState
 
 
-class DeviceKind(str, Enum):
+class DeviceKind(StrEnum):
     """Device type classification."""
 
     TYPE_A = "type_a"

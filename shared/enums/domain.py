@@ -64,6 +64,7 @@ class C4TrustLabel(StrEnum):
     TRUSTED = "TRUSTED"
     SUSPICIOUS = "SUSPICIOUS"
     UNTRUSTED = "UNTRUSTED"
+    UNKNOWN = "UNKNOWN"
 
 
 # ---------------------------------------------------------------------------
@@ -110,6 +111,7 @@ class C4RoutingOutcome(StrEnum):
     ACCEPT = "ACCEPT"
     QUARANTINE = "QUARANTINE"
     REJECT = "REJECT"
+    SECURITY_REVIEW = "SECURITY_REVIEW"
 
 
 class SilenceState(StrEnum):

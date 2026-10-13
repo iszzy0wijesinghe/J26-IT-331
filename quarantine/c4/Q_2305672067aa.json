@@ -1,0 +1,20 @@
+{
+  "quarantine_id": "Q_2305672067aa",
+  "packet_id": "test-002",
+  "device_id": "TEST-001",
+  "trust_label": "SUSPICIOUS",
+  "routing_outcome": "ACCEPT",
+  "reason_codes": [
+    "BEHAVIOURAL_ANOMALY"
+  ],
+  "quarantine_reason": "BEHAVIOURAL_ANOMALY",
+  "quarantined_at": "2026-10-12T23:31:34.110069+00:00",
+  "packet_data": {
+    "rssi_dbm": -110
+  },
+  "assessment": null,
+  "released": true,
+  "released_at": "2026-10-12T23:31:34.110778+00:00",
+  "release_reason": "Review confirmed legitimate",
+  "metadata": {}
+}
