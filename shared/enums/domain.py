@@ -64,6 +64,7 @@ class C4TrustLabel(StrEnum):
     TRUSTED = "TRUSTED"
     SUSPICIOUS = "SUSPICIOUS"
     UNTRUSTED = "UNTRUSTED"
+    
     UNKNOWN = "UNKNOWN"
 
 
