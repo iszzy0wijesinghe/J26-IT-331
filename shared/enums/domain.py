@@ -191,3 +191,13 @@ class AlertStatus(StrEnum):
 
     ACTIVE = "ACTIVE"
     RESOLVED = "RESOLVED"
+
+
+class DeviceLifecycleState(StrEnum):
+    """Device lifecycle states for C4 device registry."""
+
+    PROVISIONED = "PROVISIONED"
+    ACTIVE = "ACTIVE"
+    SUSPENDED = "SUSPENDED"
+    REVOKED = "REVOKED"
+    RETIRED = "RETIRED"
