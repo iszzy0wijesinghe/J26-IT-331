@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -16,14 +17,46 @@ from sklearn.metrics import (
 )
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 
+from shared.contracts.telemetry import TelemetryPacket
 
-class ModelType(str, Enum):
+try:
+    import xgboost as xgb
+    XGBOOST_AVAILABLE = True
+except ImportError:
+    XGBOOST_AVAILABLE = False
+
+
+class ModelType(StrEnum):
     """Supported model types."""
 
     LOGISTIC_REGRESSION = "logistic_regression"
     RANDOM_FOREST = "random_forest"
     ISOLATION_FOREST = "isolation_forest"
-    XGBOOST = "xgboost"  # To be implemented
+    XGBOOST = "xgboost"
+
+
+class ModelSchemaError(ValueError):
+    """A model artifact or feature frame does not match the expected schema."""
+
+
+def _validate_feature_frame(
+    features: pd.DataFrame,
+    expected_feature_names: Sequence[str],
+) -> None:
+    expected = list(expected_feature_names)
+    actual = list(features.columns)
+    if actual != expected:
+        raise ModelSchemaError(
+            f"Feature schema mismatch: expected ordered columns {expected}, got {actual}"
+        )
+    if not all(pd.api.types.is_numeric_dtype(dtype) for dtype in features.dtypes):
+        raise ModelSchemaError("All model features must be numeric")
+    try:
+        values = features.to_numpy(dtype=float)
+    except (TypeError, ValueError) as exc:
+        raise ModelSchemaError("Model features must be numeric") from exc
+    if not np.isfinite(values).all():
+        raise ModelSchemaError("Model features must not contain missing or non-finite values")
 
 
 @dataclass
@@ -73,12 +106,68 @@ class TrainedModel:
         """
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-
-        joblib.dump(self, path)
+        created = False
+        try:
+            with path.open("xb") as artifact_file:
+                created = True
+                joblib.dump(self, artifact_file)
+        except Exception:
+            if created:
+                path.unlink(missing_ok=True)
+            raise
         print(f"Model saved to {path}")
 
+    def validate_feature_schema(self, expected_feature_names: Sequence[str]) -> None:
+        if self.feature_names != list(expected_feature_names):
+            raise ModelSchemaError(
+                "Model artifact feature schema does not match the requested C4 schema"
+            )
+
+    def predict(self, features: pd.DataFrame) -> np.ndarray:
+        _validate_feature_frame(features, self.feature_names)
+        if self.model_type == ModelType.ISOLATION_FOREST:
+            if not {"Trusted", "Suspicious"}.issubset(self.label_encoder.classes_):
+                raise ModelSchemaError(
+                    "Isolation Forest can only map anomalies to SUSPICIOUS and "
+                    "normal points to TRUSTED"
+                )
+            values = self.scaler.transform(features) if self.scaler is not None else features.values
+            return np.where(self.model.predict(values) == 1, "Trusted", "Suspicious")
+
+        values = self.scaler.transform(features) if self.scaler is not None else features.values
+        encoded = self.model.predict(values)
+        return self.label_encoder.inverse_transform(encoded)
+
+    def predict_proba(self, features: pd.DataFrame) -> np.ndarray:
+        _validate_feature_frame(features, self.feature_names)
+        if self.model_type == ModelType.ISOLATION_FOREST:
+            raise ModelSchemaError(
+                "Isolation Forest has no calibrated class probabilities for C4 fusion"
+            )
+        values = self.scaler.transform(features) if self.scaler is not None else features.values
+        probabilities = self.model.predict_proba(values)
+        if probabilities.shape[1] != len(self.label_encoder.classes_):
+            raise ModelSchemaError("Model probability columns do not match encoded labels")
+        return probabilities
+
+    def behavioural_anomaly_score(self, features: pd.DataFrame) -> np.ndarray:
+        if self.model_type == ModelType.ISOLATION_FOREST:
+            raise ModelSchemaError(
+                "Isolation Forest requires a separately calibrated anomaly threshold"
+            )
+        try:
+            trusted_index = list(self.label_encoder.classes_).index("Trusted")
+        except ValueError as exc:
+            raise ModelSchemaError("Model artifact has no Trusted class") from exc
+        return 1.0 - self.predict_proba(features)[:, trusted_index]
+
     @classmethod
-    def load(cls, path: Path) -> TrainedModel:
+    def load(
+        cls,
+        path: Path,
+        *,
+        expected_feature_names: Sequence[str] | None = None,
+    ) -> TrainedModel:
         """Load model from disk.
 
         Args:
@@ -87,7 +176,97 @@ class TrainedModel:
         Returns:
             TrainedModel instance
         """
-        return joblib.load(path)
+        trained = joblib.load(path)
+        if not isinstance(trained, cls):
+            raise ModelSchemaError("Artifact is not a C4 TrainedModel")
+        if expected_feature_names is not None:
+            trained.validate_feature_schema(expected_feature_names)
+        return trained
+
+
+class C4BehavioralModelRunner:
+    """Load a compatible artifact and score one packet through a feature adapter.
+
+    This interface provides safe model loading with explicit schema validation.
+    If the model cannot be loaded or has an incompatible schema, the load method
+    will raise ModelSchemaError with a clear error message.
+    """
+
+    def __init__(
+        self,
+        model: TrainedModel,
+        feature_builder: Callable[[TelemetryPacket], pd.DataFrame],
+    ) -> None:
+        if model.model_type == ModelType.ISOLATION_FOREST:
+            raise ModelSchemaError(
+                "Isolation Forest is not calibrated for C4 trust-score fusion"
+            )
+        self._model = model
+        self._feature_builder = feature_builder
+
+    @classmethod
+    def load(
+        cls,
+        path: Path,
+        expected_feature_names: Sequence[str],
+        feature_builder: Callable[[TelemetryPacket], pd.DataFrame],
+    ) -> C4BehavioralModelRunner:
+        """Load a model from disk with schema validation.
+
+        Args:
+            path: Path to model artifact
+            expected_feature_names: Expected feature schema
+            feature_builder: Function to extract features from a TelemetryPacket
+
+        Returns:
+            C4BehavioralModelRunner instance
+
+        Raises:
+            FileNotFoundError: If model file does not exist
+            ModelSchemaError: If model artifact is corrupted or has incompatible schema
+        """
+        try:
+            model = TrainedModel.load(path, expected_feature_names=expected_feature_names)
+        except FileNotFoundError as exc:
+            raise FileNotFoundError(
+                f"Model artifact not found at {path}. "
+                "Cannot perform behavioral scoring without a trained model."
+            ) from exc
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            raise ModelSchemaError(
+                f"Failed to load model artifact from {path}: {exc}. "
+                "The model may be corrupted or incompatible with the current schema."
+            ) from exc
+        return cls(model, feature_builder)
+
+    def __call__(self, packet: TelemetryPacket) -> float:
+        """Score a single telemetry packet.
+
+        Args:
+            packet: TelemetryPacket to score
+
+        Returns:
+            Behavioral anomaly score (0.0 = normal, 1.0 = anomalous)
+
+        Raises:
+            ModelSchemaError: If feature extraction fails or schema mismatch
+        """
+        try:
+            features = self._feature_builder(packet)
+        except Exception as exc:
+            raise ModelSchemaError(
+                f"Feature extraction failed for packet {packet.packet_id}: {exc}"
+            ) from exc
+
+        if len(features) != 1:
+            raise ModelSchemaError("A packet feature builder must return exactly one row")
+
+        try:
+            return float(self._model.behavioural_anomaly_score(features)[0])
+        except Exception as exc:
+            raise ModelSchemaError(
+                f"Behavioral scoring failed for packet {packet.packet_id}: {exc}"
+            ) from exc
 
 
 class BaselineModel:
@@ -135,6 +314,19 @@ class BaselineModel:
                 contamination=0.1,
             )
             self.scaler = None
+        elif self.model_type == ModelType.XGBOOST:
+            if not XGBOOST_AVAILABLE:
+                raise ImportError(
+                    "XGBoost is not installed. Install it with: pip install xgboost"
+                )
+            self.model = xgb.XGBClassifier(
+                n_estimators=100,
+                random_state=self.random_state,
+                n_jobs=-1,
+                use_label_encoder=False,
+                eval_metric="mlogloss",
+            )
+            self.scaler = None
         else:
             raise ValueError(f"Unsupported model type: {self.model_type}")
 
@@ -157,6 +349,7 @@ class BaselineModel:
             TrainedModel instance
         """
         self.feature_names = list(X_train.columns)
+        _validate_feature_frame(X_train, self.feature_names)
 
         # Encode labels
         y_train_encoded = self.label_encoder.fit_transform(y_train)
@@ -207,17 +400,20 @@ class BaselineModel:
         Returns:
             Predicted labels
         """
+        _validate_feature_frame(X, self.feature_names)
         if self.scaler is not None:
             X_scaled = self.scaler.transform(X)
         else:
             X_scaled = X.values
 
         if self.model_type == ModelType.ISOLATION_FOREST:
-            # Isolation Forest returns -1 (anomaly) or 1 (normal)
             predictions = self.model.predict(X_scaled)
-            # Map: 1 -> Trusted (label 0), -1 -> Untrusted (label 1)
-            # This is a simplification; in practice, map based on anomaly score
-            encoded_pred = np.where(predictions == 1, 0, 1)
+            if not {"Trusted", "Suspicious"}.issubset(self.label_encoder.classes_):
+                raise ModelSchemaError(
+                    "Isolation Forest can only map anomalies to SUSPICIOUS and "
+                    "normal points to TRUSTED"
+                )
+            return np.where(predictions == 1, "Trusted", "Suspicious")
         else:
             encoded_pred = self.model.predict(X_scaled)
 
@@ -234,23 +430,16 @@ class BaselineModel:
         Returns:
             Prediction probabilities
         """
+        _validate_feature_frame(X, self.feature_names)
         if self.model_type == ModelType.ISOLATION_FOREST:
-            # Isolation Forest has anomaly scores, not probabilities
-            # Return dummy probabilities for now
-            predictions = self.predict(X)
-            n_classes = len(self.label_encoder.classes_)
-            proba = np.zeros((len(X), n_classes))
-            for i, pred in enumerate(predictions):
-                idx = np.where(self.label_encoder.classes_ == pred)[0][0]
-                proba[i, idx] = 1.0
-            return proba
+            raise ModelSchemaError(
+                "Isolation Forest has no calibrated class probabilities for C4 fusion"
+            )
+        if self.scaler is not None:
+            X_scaled = self.scaler.transform(X)
         else:
-            if self.scaler is not None:
-                X_scaled = self.scaler.transform(X)
-            else:
-                X_scaled = X.values
-
-            return self.model.predict_proba(X_scaled)
+            X_scaled = X.values
+        return self.model.predict_proba(X_scaled)
 
     def evaluate(self, X: pd.DataFrame, y: pd.Series) -> ModelMetrics:
         """Evaluate model on dataset.
@@ -277,9 +466,9 @@ class BaselineModel:
 
         # Per-class metrics
         classes = self.label_encoder.classes_
-        precision_per_class = {cls: prec for cls, prec in zip(classes, precision)}
-        recall_per_class = {cls: rec for cls, rec in zip(classes, recall)}
-        f1_per_class = {cls: f for cls, f in zip(classes, f1)}
+        precision_per_class = {cls: prec for cls, prec in zip(classes, precision, strict=False)}
+        recall_per_class = {cls: rec for cls, rec in zip(classes, recall, strict=False)}
+        f1_per_class = {cls: f for cls, f in zip(classes, f1, strict=False)}
 
         # Confusion matrix
         cm = confusion_matrix(y, y_pred, labels=classes)
@@ -303,7 +492,7 @@ class BaselineModel:
         """
         if self.model_type == ModelType.RANDOM_FOREST:
             importances = self.model.feature_importances_
-            return dict(zip(self.feature_names, importances))
+            return dict(zip(self.feature_names, importances, strict=True))
         elif self.model_type == ModelType.LOGISTIC_REGRESSION:
             # For multi-class, get mean absolute coefficient across classes
             coef = np.abs(self.model.coef_)
@@ -311,7 +500,7 @@ class BaselineModel:
                 importances = coef.mean(axis=0)
             else:
                 importances = coef
-            return dict(zip(self.feature_names, importances))
+            return dict(zip(self.feature_names, importances, strict=True))
         else:
             return None
 

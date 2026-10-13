@@ -4,14 +4,35 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import math
 import threading
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-from components.c4_trust.registry import DeviceCredential, DeviceRegistry
+from components.c4_trust.registry import DeviceCredential, DeviceRecord, DeviceRegistry
 from shared.contracts import C4TrustAssessment, TelemetryPacket
 from shared.enums import C4RoutingOutcome, C4TrustLabel
+
+EvidenceVerifier = Callable[[TelemetryPacket, DeviceRecord | None], bool | None]
+BehaviouralScorer = Callable[[TelemetryPacket], float | None]
+
+
+@dataclass
+class RecoveryContext:
+    """Context for authorized C2 recovery replay.
+
+    This distinguishes legitimate C2-requested historical data replay
+    from malicious replay attacks.
+    """
+
+    recovery_request_id: str
+    authorized_device_id: str
+    authorized_start_time: datetime
+    authorized_end_time: datetime
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    is_active: bool = True
 
 
 class C4TrustService:
@@ -22,6 +43,13 @@ class C4TrustService:
         max_age_seconds: float = 30.0,
         future_tolerance_seconds: float = 5.0,
         suspicious_score_threshold: float = 0.7,
+        attestation_verifier: EvidenceVerifier | None = None,
+        provenance_verifier: EvidenceVerifier | None = None,
+        behavioural_scorer: BehaviouralScorer | None = None,
+        allow_deterministic_only: bool = False,
+        require_sequence: bool = True,
+        require_firmware_approval: bool = False,
+        require_config_approval: bool = False,
     ) -> None:
         if max_age_seconds <= 0:
             raise ValueError("max_age_seconds must be positive")
@@ -41,8 +69,16 @@ class C4TrustService:
         self._max_age = timedelta(seconds=max_age_seconds)
         self._future_tolerance = timedelta(seconds=future_tolerance_seconds)
         self._suspicious_score_threshold = suspicious_score_threshold
+        self._attestation_verifier = attestation_verifier
+        self._provenance_verifier = provenance_verifier
+        self._behavioural_scorer = behavioural_scorer
+        self._allow_deterministic_only = allow_deterministic_only
+        self._require_sequence = require_sequence
+        self._require_firmware_approval = require_firmware_approval
+        self._require_config_approval = require_config_approval
         self._seen_packets: set[tuple[str, str]] = set()
         self._last_sequence: dict[tuple[str, str | None], int] = {}
+        self._recovery_contexts: dict[str, RecoveryContext] = {}
         self._lock = threading.Lock()
 
     @staticmethod
@@ -67,6 +103,110 @@ class C4TrustService:
             hashlib.sha256,
         ).hexdigest()
 
+    def create_recovery_context(
+        self,
+        recovery_request_id: str,
+        authorized_device_id: str,
+        authorized_start_time: datetime,
+        authorized_end_time: datetime,
+    ) -> RecoveryContext:
+        """Create an authorized recovery context for C2 replay.
+
+        Args:
+            recovery_request_id: Unique identifier for the recovery request
+            authorized_device_id: Device authorized to replay data
+            authorized_start_time: Start of authorized time window
+            authorized_end_time: End of authorized time window
+
+        Returns:
+            RecoveryContext
+        """
+        for name, value in (
+            ("authorized_start_time", authorized_start_time),
+            ("authorized_end_time", authorized_end_time),
+        ):
+            if value.tzinfo is None or value.utcoffset() is None:
+                raise ValueError(f"{name} must be timezone-aware")
+        if authorized_end_time < authorized_start_time:
+            raise ValueError("authorized_end_time must not precede authorized_start_time")
+
+        context = RecoveryContext(
+            recovery_request_id=recovery_request_id,
+            authorized_device_id=authorized_device_id,
+            authorized_start_time=authorized_start_time,
+            authorized_end_time=authorized_end_time,
+        )
+
+        with self._lock:
+            self._recovery_contexts[recovery_request_id] = context
+
+        return context
+
+    def revoke_recovery_context(self, recovery_request_id: str) -> bool:
+        """Revoke an authorized recovery context.
+
+        Args:
+            recovery_request_id: Recovery request ID to revoke
+
+        Returns:
+            True if context was found and revoked, False otherwise
+        """
+        with self._lock:
+            if recovery_request_id in self._recovery_contexts:
+                context = self._recovery_contexts[recovery_request_id]
+                context.is_active = False
+                return True
+            return False
+
+    def _check_authorized_replay(
+        self,
+        packet: TelemetryPacket,
+        recovery_request_id: str | None,
+    ) -> bool:
+        """Check if replay is authorized under a recovery context.
+
+        Args:
+            packet: Telemetry packet to check
+            recovery_request_id: Recovery request ID from packet metadata
+
+        Returns:
+            True if replay is authorized, False otherwise
+        """
+        if not recovery_request_id:
+            return False
+
+        with self._lock:
+            context = self._recovery_contexts.get(recovery_request_id)
+
+        if context is None or not context.is_active:
+            return False
+
+        # Check device authorization
+        if packet.device_id != context.authorized_device_id:
+            return False
+
+        # Check time window
+        if not (
+            context.authorized_start_time <= packet.observed_at <= context.authorized_end_time
+        ):
+            return False
+
+        return True
+
+    @staticmethod
+    def _verify_evidence(
+        verifier: EvidenceVerifier | None,
+        packet: TelemetryPacket,
+        device_record: DeviceRecord | None,
+    ) -> bool | None:
+        """Return None when evidence is absent or cannot be verified."""
+        if verifier is None:
+            return None
+        try:
+            return verifier(packet, device_record)
+        except Exception:
+            return None
+
     def assess(
         self,
         packet: TelemetryPacket,
@@ -74,103 +214,231 @@ class C4TrustService:
         *,
         now: datetime | None = None,
         behavioural_score: float | None = None,
+        recovery_request_id: str | None = None,
     ) -> C4TrustAssessment:
         assessed_at = now or datetime.now(UTC)
 
         if assessed_at.tzinfo is None or assessed_at.utcoffset() is None:
             raise ValueError("now must be timezone-aware")
 
-        if behavioural_score is not None and not (
-            0.0 <= behavioural_score <= 1.0
-        ):
-            raise ValueError("behavioural_score must be between 0 and 1")
+        if behavioural_score is not None:
+            try:
+                behavioural_score = float(behavioural_score)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("behavioural_score must be numeric") from exc
+            if not math.isfinite(behavioural_score) or not 0.0 <= behavioural_score <= 1.0:
+                raise ValueError("behavioural_score must be finite and between 0 and 1")
 
-        reasons: list[str] = []
+        failures: list[str] = []
+        security_unknowns: list[str] = []
+        behavioural_unknowns: list[str] = []
+        verified: list[str] = []
+        device_record: DeviceRecord | None = None
 
-        # Get credential from registry or legacy credentials mapping
+        # Resolve identity and credential from the registry or legacy mapping.
         if self._registry is not None:
             device_record = self._registry.get(packet.device_id)
             if device_record is None:
-                reasons.append("DEVICE_UNKNOWN")
+                failures.append("DEVICE_UNKNOWN")
             elif not self._registry.is_active(packet.device_id):
-                reasons.append("DEVICE_NOT_ACTIVE")
+                failures.append("DEVICE_NOT_ACTIVE")
             credential = device_record.credential if device_record else None
+            if device_record is not None:
+                if packet.zone_id != device_record.zone_id:
+                    failures.append("ZONE_MISMATCH")
+                else:
+                    verified.append("ZONE_VALID")
+                if packet.transport.gateway_id is None:
+                    security_unknowns.append("HUB_ID_MISSING")
+                elif packet.transport.gateway_id != device_record.hub_id:
+                    failures.append("HUB_MISMATCH")
+                else:
+                    verified.append("HUB_VALID")
+
+                if self._require_firmware_approval and not device_record.approved_firmware:
+                    security_unknowns.append("FIRMWARE_APPROVAL_MISSING")
+                elif device_record.approved_firmware:
+                    if not device_record.firmware_hash or not packet.security.firmware_hash:
+                        security_unknowns.append("FIRMWARE_EVIDENCE_MISSING")
+                    elif device_record.firmware_hash != packet.security.firmware_hash:
+                        failures.append("FIRMWARE_UNAPPROVED")
+                    else:
+                        verified.append("FIRMWARE_VALID")
+
+                if self._require_config_approval and not device_record.approved_config:
+                    security_unknowns.append("CONFIG_APPROVAL_MISSING")
+                elif device_record.approved_config:
+                    if not device_record.config_hash or not packet.security.config_hash:
+                        security_unknowns.append("CONFIG_EVIDENCE_MISSING")
+                    elif device_record.config_hash != packet.security.config_hash:
+                        failures.append("CONFIG_MISMATCH")
+                    else:
+                        verified.append("CONFIG_VALID")
         else:
             credential = self._credentials.get(packet.device_id)
             if credential is None:
-                reasons.append("DEVICE_UNKNOWN")
+                failures.append("DEVICE_UNKNOWN")
+            else:
+                verified.append("IDENTITY_VALID")
 
-        if credential is None:
-            # Already added DEVICE_UNKNOWN or DEVICE_NOT_ACTIVE above
-            pass
-        elif not packet.security.credential_id:
-            reasons.append("CREDENTIAL_ID_MISSING")
-        elif not hmac.compare_digest(
-            packet.security.credential_id,
-            credential.credential_id,
-        ):
-            reasons.append("CREDENTIAL_ID_MISMATCH")
+        if device_record is not None and self._registry is not None:
+            if credential is None:
+                security_unknowns.append("CREDENTIAL_NOT_CONFIGURED")
+            else:
+                verified.append("IDENTITY_VALID")
+
+        if credential is not None:
+            if not packet.security.credential_id:
+                security_unknowns.append("CREDENTIAL_ID_MISSING")
+            elif not hmac.compare_digest(
+                packet.security.credential_id,
+                credential.credential_id,
+            ):
+                failures.append("CREDENTIAL_ID_MISMATCH")
+            else:
+                verified.append("CREDENTIAL_ID_VALID")
+
+            for name, value in (
+                ("CREDENTIAL_ISSUED_AT_INVALID", credential.issued_at),
+                ("CREDENTIAL_EXPIRES_AT_INVALID", credential.expires_at),
+            ):
+                if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+                    security_unknowns.append(name)
+            if (
+                credential.issued_at is not None
+                and credential.issued_at.tzinfo is not None
+                and credential.issued_at.utcoffset() is not None
+            ):
+                if credential.issued_at > assessed_at:
+                    failures.append("CREDENTIAL_NOT_YET_VALID")
+            if (
+                credential.expires_at is not None
+                and credential.expires_at.tzinfo is not None
+                and credential.expires_at.utcoffset() is not None
+            ):
+                if credential.expires_at <= assessed_at:
+                    failures.append("CREDENTIAL_EXPIRED")
+            if not any(
+                reason.startswith("CREDENTIAL_")
+                for reason in security_unknowns + failures
+            ):
+                verified.append("CREDENTIAL_VALID")
+        elif self._registry is not None and device_record is None:
+            security_unknowns.append("CREDENTIAL_UNAVAILABLE")
 
         if not signature:
-            reasons.append("SIGNATURE_MISSING")
-        elif credential is not None:
+            security_unknowns.append("SIGNATURE_MISSING")
+        elif credential is None:
+            security_unknowns.append("SIGNATURE_UNVERIFIABLE")
+        else:
             expected = self.sign_packet(packet, credential.secret)
             if not hmac.compare_digest(expected, signature.lower()):
-                reasons.append("INTEGRITY_INVALID")
+                failures.append("INTEGRITY_INVALID")
+            else:
+                verified.append("INTEGRITY_VALID")
 
-        if packet.observed_at > assessed_at + self._future_tolerance:
-            reasons.append("TIMESTAMP_IN_FUTURE")
-        elif assessed_at - packet.observed_at > self._max_age:
-            reasons.append("FRESHNESS_EXPIRED")
+        attestation = self._verify_evidence(
+            self._attestation_verifier, packet, device_record
+        )
+        if attestation is True:
+            verified.append("ATTESTATION_VALID")
+        elif attestation is False:
+            failures.append("ATTESTATION_INVALID")
+        else:
+            security_unknowns.append("ATTESTATION_UNVERIFIED")
+
+        provenance = self._verify_evidence(
+            self._provenance_verifier, packet, device_record
+        )
+        if provenance is True:
+            verified.append("PROVENANCE_VALID")
+        elif provenance is False:
+            failures.append("PROVENANCE_INVALID")
+        else:
+            security_unknowns.append("PROVENANCE_UNVERIFIED")
+
+        if packet.observed_at.tzinfo is None or packet.observed_at.utcoffset() is None:
+            security_unknowns.append("TIMESTAMP_UNVERIFIABLE")
+        elif packet.observed_at > assessed_at + self._future_tolerance:
+            failures.append("TIMESTAMP_IN_FUTURE")
+        else:
+            authorized_replay = self._check_authorized_replay(
+                packet, recovery_request_id
+            )
+            if assessed_at - packet.observed_at > self._max_age and not authorized_replay:
+                failures.append("FRESHNESS_EXPIRED")
+            elif authorized_replay and assessed_at - packet.observed_at > self._max_age:
+                verified.append("AUTHORIZED_REPLAY_FRESHNESS_EXCEPTION")
+            else:
+                verified.append("FRESHNESS_VALID")
 
         packet_key = (packet.device_id, packet.packet_id)
         sequence_key = (packet.device_id, packet.boot_id)
+        is_authorized_replay = self._check_authorized_replay(packet, recovery_request_id)
+        if self._require_sequence and (packet.boot_id is None or packet.sequence_no is None):
+            security_unknowns.append("SEQUENCE_EVIDENCE_MISSING")
 
-        with self._lock:
-            if packet_key in self._seen_packets:
-                reasons.append("REPLAY_DETECTED")
-
-            if packet.sequence_no is not None:
-                previous = self._last_sequence.get(sequence_key)
-                if previous is not None and packet.sequence_no <= previous:
-                    reasons.append("SEQUENCE_REPLAY_DETECTED")
-
-            reasons = list(dict.fromkeys(reasons))
-            mandatory_pass = not reasons
-
-            if mandatory_pass:
-                self._seen_packets.add(packet_key)
+        if not failures and not security_unknowns:
+            with self._lock:
+                if packet_key in self._seen_packets and not is_authorized_replay:
+                    failures.append("REPLAY_DETECTED")
                 if packet.sequence_no is not None:
-                    self._last_sequence[sequence_key] = packet.sequence_no
+                    previous = self._last_sequence.get(sequence_key)
+                    if (
+                        previous is not None
+                        and packet.sequence_no <= previous
+                        and not is_authorized_replay
+                    ):
+                        failures.append("SEQUENCE_REPLAY_DETECTED")
+                if not failures and not is_authorized_replay:
+                    self._seen_packets.add(packet_key)
+                    if packet.sequence_no is not None:
+                        self._last_sequence[sequence_key] = packet.sequence_no
+                if not failures:
+                    verified.append("REPLAY_CHECK_VALID")
 
-        if not mandatory_pass:
+        score = behavioural_score
+        mandatory_security_pass = not failures and not security_unknowns
+        if failures:
             trust_label = C4TrustLabel.UNTRUSTED
             routing_outcome = C4RoutingOutcome.REJECT
             trust_score = 0.0
-        elif (
-            behavioural_score is not None
-            and behavioural_score >= self._suspicious_score_threshold
-        ):
-            trust_label = C4TrustLabel.SUSPICIOUS
-            routing_outcome = C4RoutingOutcome.QUARANTINE
-            trust_score = 1.0 - behavioural_score
-            reasons.append("BEHAVIOURAL_ANOMALY")
+        elif security_unknowns:
+            trust_label = C4TrustLabel.UNKNOWN
+            routing_outcome = C4RoutingOutcome.SECURITY_REVIEW
+            trust_score = None
         else:
-            trust_label = C4TrustLabel.TRUSTED
-            routing_outcome = C4RoutingOutcome.ACCEPT
-            trust_score = 1.0
+            if score is None and self._behavioural_scorer is not None:
+                try:
+                    score_value = self._behavioural_scorer(packet)
+                    score = None if score_value is None else float(score_value)
+                except Exception:
+                    behavioural_unknowns.append("BEHAVIOURAL_INFERENCE_FAILED")
+            if score is None and not self._allow_deterministic_only:
+                behavioural_unknowns.append("BEHAVIOURAL_SCORE_UNAVAILABLE")
+            if score is not None and (
+                not math.isfinite(score) or not 0.0 <= score <= 1.0
+            ):
+                behavioural_unknowns.append("BEHAVIOURAL_SCORE_INVALID")
+                score = None
 
-        if mandatory_pass:
-            reasons = (
-                reasons
-                if "BEHAVIOURAL_ANOMALY" in reasons
-                else [
-                    "IDENTITY_VALID",
-                    "INTEGRITY_VALID",
-                    "FRESHNESS_VALID",
-                    "REPLAY_CHECK_VALID",
-                ]
-            )
+            if behavioural_unknowns:
+                trust_label = C4TrustLabel.UNKNOWN
+                routing_outcome = C4RoutingOutcome.SECURITY_REVIEW
+                trust_score = None
+            elif score is not None and score >= self._suspicious_score_threshold:
+                trust_label = C4TrustLabel.SUSPICIOUS
+                routing_outcome = C4RoutingOutcome.QUARANTINE
+                trust_score = 1.0 - score
+                verified.append("BEHAVIOURAL_ANOMALY")
+            else:
+                trust_label = C4TrustLabel.TRUSTED
+                routing_outcome = C4RoutingOutcome.ACCEPT
+                trust_score = 1.0 if score is None else 1.0 - score
+                if score is None:
+                    verified.append("DETERMINISTIC_ONLY_POLICY")
+                else:
+                    verified.append("BEHAVIOURAL_NORMAL")
 
         return C4TrustAssessment(
             schema_version="1.0",
@@ -179,9 +447,13 @@ class C4TrustService:
             device_id=packet.device_id,
             trust_label=trust_label,
             trust_score=trust_score,
-            mandatory_security_pass=mandatory_pass,
-            reason_codes=reasons,
-            behavioural_score=behavioural_score,
+            mandatory_security_pass=mandatory_security_pass,
+            reason_codes=list(
+                dict.fromkeys(
+                    verified + failures + security_unknowns + behavioural_unknowns
+                )
+            ),
+            behavioural_score=score,
             routing_outcome=routing_outcome,
             model_version="C4_RULE_BASELINE_001",
             security_policy_version="C4_POLICY_1.1",

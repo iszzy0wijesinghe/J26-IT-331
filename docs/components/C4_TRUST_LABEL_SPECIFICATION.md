@@ -16,6 +16,12 @@ This document defines the trust labels used by Component 4 (C4) to classify tele
 - **TRUSTED**: Mandatory security checks pass, behavioral evidence is normal
 - **SUSPICIOUS**: Mandatory checks pass, but behavioral/contextual evidence is anomalous
 - **UNTRUSTED**: Mandatory security condition failed or strong evidence determines ineligibility
+- **UNKNOWN**: Required security or behavioral evidence is missing or cannot be verified
+
+UNKNOWN telemetry must use the `SECURITY_REVIEW` routing outcome and must not
+be forwarded to C1 or the Golden Timeline. A configured deterministic-only
+policy may accept telemetry without behavioral ML only after all mandatory
+security evidence has been verified.
 
 ---
 
@@ -37,14 +43,19 @@ C4 Trust Classification
 │   ├── Replay check valid
 │   └── Behavioral/contextual anomaly detected
 │
-└── UNTRUSTED
-    ├── Unknown device
+├── UNTRUSTED
+    ├── Unregistered device
     ├── Invalid authentication
     ├── Integrity failure
     ├── Unauthorized replay
     ├── Firmware/config not approved
     ├── Path/location mismatch
     └── Revoked device
+└── UNKNOWN
+    ├── Required attestation/provenance evidence unavailable
+    ├── Freshness or sequence evidence unavailable
+    └── Behavioral model unavailable when deterministic-only policy is disabled
+        → SECURITY_REVIEW; never eligible for C1/Golden Timeline
 ```
 
 ---

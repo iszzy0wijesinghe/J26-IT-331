@@ -18,7 +18,9 @@ import pandas as pd
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from components.c4_trust.models import (
+from components.c4_trust.data_split import ScenarioAwareSplitter  # noqa: E402
+from components.c4_trust.features import FeatureExtractor  # noqa: E402
+from components.c4_trust.models import (  # noqa: E402
     BaselineModel,
     ModelType,
 )
@@ -37,6 +39,10 @@ def load_splits(data_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFram
     val_df = pd.read_csv(data_dir / "C4_val.csv")
     test_df = pd.read_csv(data_dir / "C4_test.csv")
 
+    ScenarioAwareSplitter.validate_splits(
+        {"train": train_df, "val": val_df, "test": test_df},
+        device_id_col="device_id",
+    )
     return train_df, val_df, test_df
 
 
@@ -51,30 +57,7 @@ def prepare_features_labels(
     Returns:
         Tuple of (features, labels)
     """
-    # Exclude non-feature columns and label-derived fields
-    exclude_cols = [
-        "trust_label",
-        "split",
-        "scenario",
-        "device_id",
-        # Label-derived fields that cause leakage
-        "label_id",
-        "is_malicious",
-        "label_untrusted_binary",
-        "c4_decision",
-        "c4_trust_score",
-        "reason_code",
-        # Also exclude any other string/object columns
-    ]
-
-    # Only include numeric columns
-    numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
-    feature_cols = [col for col in numeric_cols if col not in exclude_cols]
-
-    X = df[feature_cols]
-    y = df["trust_label"]
-
-    return X, y
+    return FeatureExtractor().extract_for_training(df)
 
 
 def main() -> None:
