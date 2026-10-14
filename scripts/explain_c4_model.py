@@ -4,9 +4,9 @@
 import sys
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
@@ -17,9 +17,9 @@ except ImportError:
     print("SHAP is not installed. Install it with: pip install shap")
     sys.exit(1)
 
-from components.c4_trust.data_split import ScenarioAwareSplitter
-from components.c4_trust.features import FeatureExtractor
-from components.c4_trust.models import TrainedModel
+from components.c4_trust.data_split import ScenarioAwareSplitter  # noqa: E402
+from components.c4_trust.features import FeatureExtractor  # noqa: E402
+from components.c4_trust.models import TrainedModel  # noqa: E402
 
 
 def load_splits(

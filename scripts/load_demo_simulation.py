@@ -19,6 +19,7 @@ from shared.simulation.scheduled_telemetry import (
     generate_scheduled_demo_telemetry,
 )
 
+
 def main() -> None:
     """Generate, validate, persist, and summarize demo telemetry."""
 
