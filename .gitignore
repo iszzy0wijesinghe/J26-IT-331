@@ -86,3 +86,5 @@ coverage.xml
 # Local C4 experiment backups
 experiments/c4/data/backup_before_device_split_20261013_054519/
 experiments/c4/model_backups/
+# Local C4 frontend backups
+apps/c4_frontend/*.backup
