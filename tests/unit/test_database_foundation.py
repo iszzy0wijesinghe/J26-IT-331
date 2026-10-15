@@ -114,9 +114,7 @@ def test_session_scope_rolls_back_on_failure():
         pass
 
     with engine.connect() as connection:
-        count = connection.execute(
-            text("SELECT COUNT(*) FROM test_items")
-        ).scalar_one()
+        count = connection.execute(text("SELECT COUNT(*) FROM test_items")).scalar_one()
 
     assert count == 0
 

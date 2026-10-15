@@ -24,25 +24,13 @@ def test_same_configuration_produces_identical_packets():
 
 
 def test_different_seeds_produce_different_sensor_values():
-    first = generate_baseline_packets(
-        SimulationConfig(seed=42, packet_count=3)
-    )
+    first = generate_baseline_packets(SimulationConfig(seed=42, packet_count=3))
 
-    second = generate_baseline_packets(
-        SimulationConfig(seed=99, packet_count=3)
-    )
+    second = generate_baseline_packets(SimulationConfig(seed=99, packet_count=3))
 
-    first_values = [
-        measurement.value
-        for packet in first
-        for measurement in packet.measurements
-    ]
+    first_values = [measurement.value for packet in first for measurement in packet.measurements]
 
-    second_values = [
-        measurement.value
-        for packet in second
-        for measurement in packet.measurements
-    ]
+    second_values = [measurement.value for packet in second for measurement in packet.measurements]
 
     assert first_values != second_values
 
@@ -68,9 +56,7 @@ def test_operating_mode_controls_sampling_interval(mode, expected_interval):
     assert MODE_INTERVALS_SECONDS[mode] == expected_interval
 
     for previous, current in zip(packets, packets[1:], strict=False):
-        assert current.observed_at - previous.observed_at == timedelta(
-            seconds=expected_interval
-        )
+        assert current.observed_at - previous.observed_at == timedelta(seconds=expected_interval)
 
 
 def test_generated_packets_preserve_simulation_provenance():
@@ -102,9 +88,7 @@ def test_generated_packets_preserve_simulation_provenance():
 
 
 def test_zero_packets_returns_empty_list():
-    packets = generate_baseline_packets(
-        SimulationConfig(packet_count=0)
-    )
+    packets = generate_baseline_packets(SimulationConfig(packet_count=0))
 
     assert packets == []
 
@@ -115,9 +99,7 @@ def test_zero_packets_returns_empty_list():
         SimulationConfig(packet_count=-1),
         SimulationConfig(zone_id=""),
         SimulationConfig(device_id=""),
-        SimulationConfig(
-            start_time=datetime(2026, 10, 10, 0, 0)
-        ),
+        SimulationConfig(start_time=datetime(2026, 10, 10, 0, 0)),
     ],
 )
 def test_invalid_configuration_is_rejected(invalid_config):

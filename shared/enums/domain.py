@@ -170,6 +170,7 @@ class AssessmentContext(StrEnum):
     RUNTIME = "RUNTIME"
     RETROSPECTIVE = "RETROSPECTIVE"
 
+
 class DecisionType(StrEnum):
     """High-level Decision Engine action category."""
 

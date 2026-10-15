@@ -40,18 +40,14 @@ class Decision(TimeAwareContractModel):
             self.decision_type is DecisionType.MODE_CHANGE
             and self.previous_mode is self.selected_mode
         ):
-            raise ValueError(
-                "MODE_CHANGE decision requires different previous "
-                "and selected modes"
-            )
+            raise ValueError("MODE_CHANGE decision requires different previous and selected modes")
 
         if (
             self.decision_type is DecisionType.MAINTAIN_MODE
             and self.previous_mode is not self.selected_mode
         ):
             raise ValueError(
-                "MAINTAIN_MODE decision requires identical previous "
-                "and selected modes"
+                "MAINTAIN_MODE decision requires identical previous and selected modes"
             )
 
         return self

@@ -74,8 +74,6 @@ class ProcessingError(TimeAwareContractModel):
         }
 
         if value in invalid_values:
-            raise ValueError(
-                "ProcessingError status cannot be OK or PARTIAL"
-            )
+            raise ValueError("ProcessingError status cannot be OK or PARTIAL")
 
         return value

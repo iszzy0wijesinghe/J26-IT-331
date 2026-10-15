@@ -112,9 +112,7 @@ def test_multi_pipe_generation_has_independent_readings():
 
 
 def test_multi_pipe_packets_are_chronologically_sorted():
-    packets = generate_demo_packets(
-        MultiPipeSimulationConfig(packets_per_pipe=3)
-    )
+    packets = generate_demo_packets(MultiPipeSimulationConfig(packets_per_pipe=3))
 
     assert packets == sorted(
         packets,
@@ -191,22 +189,13 @@ def test_scheduled_telemetry_is_deterministic():
 
     assert len({item.packet.packet_id for item in first}) == 60
 
-    assert all(
-        item.packet.source_origin is SourceOrigin.SIMULATED
-        for item in first
-    )
+    assert all(item.packet.source_origin is SourceOrigin.SIMULATED for item in first)
 
 
 def test_scheduled_telemetry_preserves_mode_context():
-    packets = generate_scheduled_demo_telemetry(
-        ScheduledTelemetryConfig()
-    )
+    packets = generate_scheduled_demo_telemetry(ScheduledTelemetryConfig())
 
-    pipe_a1 = [
-        item
-        for item in packets
-        if item.packet.device_id == "PIPE_A1"
-    ]
+    pipe_a1 = [item for item in packets if item.packet.device_id == "PIPE_A1"]
 
     assert len(pipe_a1) == 10
 
@@ -227,15 +216,9 @@ def test_scheduled_telemetry_preserves_mode_context():
 
 
 def test_scheduled_telemetry_uses_expected_timestamps():
-    packets = generate_scheduled_demo_telemetry(
-        ScheduledTelemetryConfig()
-    )
+    packets = generate_scheduled_demo_telemetry(ScheduledTelemetryConfig())
 
-    pipe_a1 = [
-        item
-        for item in packets
-        if item.packet.device_id == "PIPE_A1"
-    ]
+    pipe_a1 = [item for item in packets if item.packet.device_id == "PIPE_A1"]
 
     for index, item in enumerate(pipe_a1):
         assert item.packet.received_at == item.packet.observed_at

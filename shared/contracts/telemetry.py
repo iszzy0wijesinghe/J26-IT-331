@@ -27,9 +27,7 @@ class MeasurementEntry(TimeAwareContractModel):
     @model_validator(mode="after")
     def require_measurement_value(self) -> "MeasurementEntry":
         if self.raw_value is None and self.value is None:
-            raise ValueError(
-                "A measurement must contain raw_value, value, or both"
-            )
+            raise ValueError("A measurement must contain raw_value, value, or both")
 
         return self
 
@@ -136,8 +134,6 @@ class SensorObservation(TimeAwareContractModel):
     @model_validator(mode="after")
     def require_observation_value(self) -> "SensorObservation":
         if self.raw_value is None and self.value is None:
-            raise ValueError(
-                "An observation must contain raw_value, value, or both"
-            )
+            raise ValueError("An observation must contain raw_value, value, or both")
 
         return self

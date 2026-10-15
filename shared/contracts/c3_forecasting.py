@@ -41,22 +41,18 @@ class C3TemporalStep(TimeAwareContractModel):
         unknown_masks = set(self.masks) - feature_names
         if unknown_masks:
             raise ValueError(
-                "C3 masks contain fields not present in features: "
-                f"{sorted(unknown_masks)}"
+                f"C3 masks contain fields not present in features: {sorted(unknown_masks)}"
             )
 
         unknown_ages = set(self.ages_seconds) - feature_names
         if unknown_ages:
             raise ValueError(
-                "C3 ages_seconds contain fields not present in features: "
-                f"{sorted(unknown_ages)}"
+                f"C3 ages_seconds contain fields not present in features: {sorted(unknown_ages)}"
             )
 
         for feature_name, age in self.ages_seconds.items():
             if age is not None and age < 0:
-                raise ValueError(
-                    f"Age for feature {feature_name!r} cannot be negative"
-                )
+                raise ValueError(f"Age for feature {feature_name!r} cannot be negative")
 
         return self
 
@@ -84,15 +80,10 @@ class C3TemporalSequence(TimeAwareContractModel):
 
         for step in self.steps:
             if step.time > self.forecast_origin:
-                raise ValueError(
-                    "C3 temporal sequence cannot contain a step after "
-                    "forecast_origin"
-                )
+                raise ValueError("C3 temporal sequence cannot contain a step after forecast_origin")
 
             if previous_time is not None and step.time < previous_time:
-                raise ValueError(
-                    "C3 temporal steps must be ordered chronologically"
-                )
+                raise ValueError("C3 temporal steps must be ordered chronologically")
 
             previous_time = step.time
 
@@ -172,14 +163,10 @@ class C3Forecast(TimeAwareContractModel):
     @model_validator(mode="after")
     def validate_forecast(self) -> "C3Forecast":
         if self.history_start > self.history_end:
-            raise ValueError(
-                "history_start cannot be after history_end"
-            )
+            raise ValueError("history_start cannot be after history_end")
 
         if self.history_end > self.forecast_origin:
-            raise ValueError(
-                "history_end cannot be after forecast_origin"
-            )
+            raise ValueError("history_end cannot be after forecast_origin")
 
         successful_statuses = {
             ProcessingStatus.OK,
@@ -188,26 +175,18 @@ class C3Forecast(TimeAwareContractModel):
 
         if self.processing_status in successful_statuses:
             if self.risk_probability is None:
-                raise ValueError(
-                    "Successful C3 forecast requires risk_probability"
-                )
+                raise ValueError("Successful C3 forecast requires risk_probability")
 
             if self.model_version is None:
-                raise ValueError(
-                    "Successful C3 forecast requires model_version"
-                )
+                raise ValueError("Successful C3 forecast requires model_version")
 
         else:
             if self.risk_probability is not None:
                 raise ValueError(
-                    "Failed/unavailable C3 forecast must not fabricate "
-                    "risk_probability"
+                    "Failed/unavailable C3 forecast must not fabricate risk_probability"
                 )
 
             if self.risk_class is not None:
-                raise ValueError(
-                    "Failed/unavailable C3 forecast must not fabricate "
-                    "risk_class"
-                )
+                raise ValueError("Failed/unavailable C3 forecast must not fabricate risk_class")
 
         return self

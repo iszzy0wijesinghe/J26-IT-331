@@ -33,15 +33,10 @@ class ExpectedObservation(TimeAwareContractModel):
     @model_validator(mode="after")
     def validate_timing_order(self) -> "ExpectedObservation":
         if self.expected_next_report_at < self.last_accepted_report_at:
-            raise ValueError(
-                "expected_next_report_at cannot be before "
-                "last_accepted_report_at"
-            )
+            raise ValueError("expected_next_report_at cannot be before last_accepted_report_at")
 
         if self.deadline_at < self.expected_next_report_at:
-            raise ValueError(
-                "deadline_at cannot be before expected_next_report_at"
-            )
+            raise ValueError("deadline_at cannot be before expected_next_report_at")
 
         return self
 
@@ -130,13 +125,8 @@ class RecoveryEvent(TimeAwareContractModel):
 
     @model_validator(mode="after")
     def validate_recovery_timing(self) -> "RecoveryEvent":
-        if (
-            self.completed_at is not None
-            and self.completed_at < self.started_at
-        ):
-            raise ValueError(
-                "completed_at cannot be before started_at"
-            )
+        if self.completed_at is not None and self.completed_at < self.started_at:
+            raise ValueError("completed_at cannot be before started_at")
 
         return self
 
@@ -184,13 +174,9 @@ class RecoveredObservation(TimeAwareContractModel):
     @model_validator(mode="after")
     def validate_recovered_observation(self) -> "RecoveredObservation":
         if self.raw_value is None and self.value is None:
-            raise ValueError(
-                "Recovered observation must contain raw_value, value, or both"
-            )
+            raise ValueError("Recovered observation must contain raw_value, value, or both")
 
         if self.recovery_provenance is RecoveryProvenance.DIRECT:
-            raise ValueError(
-                "RecoveredObservation cannot use DIRECT provenance"
-            )
+            raise ValueError("RecoveredObservation cannot use DIRECT provenance")
 
         return self

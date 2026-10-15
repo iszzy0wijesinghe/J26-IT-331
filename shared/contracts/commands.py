@@ -33,25 +33,13 @@ class DeviceCommand(TimeAwareContractModel):
     @model_validator(mode="after")
     def validate_command(self) -> "DeviceCommand":
         if self.expires_at <= self.issued_at:
-            raise ValueError(
-                "expires_at must be after issued_at"
-            )
+            raise ValueError("expires_at must be after issued_at")
 
-        if (
-            self.command_type is CommandType.APPLY_MODE
-            and self.requested_mode is None
-        ):
-            raise ValueError(
-                "APPLY_MODE command requires requested_mode"
-            )
+        if self.command_type is CommandType.APPLY_MODE and self.requested_mode is None:
+            raise ValueError("APPLY_MODE command requires requested_mode")
 
-        if (
-            self.command_type is not CommandType.APPLY_MODE
-            and self.requested_mode is not None
-        ):
-            raise ValueError(
-                "requested_mode is only valid for APPLY_MODE commands"
-            )
+        if self.command_type is not CommandType.APPLY_MODE and self.requested_mode is not None:
+            raise ValueError("requested_mode is only valid for APPLY_MODE commands")
 
         return self
 
@@ -79,20 +67,10 @@ class CommandAcknowledgement(TimeAwareContractModel):
 
     @model_validator(mode="after")
     def validate_acknowledgement(self) -> "CommandAcknowledgement":
-        if (
-            self.applied_at is not None
-            and self.applied_at < self.received_at
-        ):
-            raise ValueError(
-                "applied_at cannot be before received_at"
-            )
+        if self.applied_at is not None and self.applied_at < self.received_at:
+            raise ValueError("applied_at cannot be before received_at")
 
-        if (
-            self.status is CommandStatus.APPLIED
-            and self.applied_at is None
-        ):
-            raise ValueError(
-                "APPLIED acknowledgement requires applied_at"
-            )
+        if self.status is CommandStatus.APPLIED and self.applied_at is None:
+            raise ValueError("APPLIED acknowledgement requires applied_at")
 
         return self

@@ -59,30 +59,22 @@ class GoldenObservation(TimeAwareContractModel):
             RecoveryProvenance.DERIVED,
         }
 
-        if (
-            self.recovery_provenance in estimated_provenance
-            and not self.is_estimated
-        ):
+        if self.recovery_provenance in estimated_provenance and not self.is_estimated:
             raise ValueError(
-                "FUSED or DERIVED Golden observations must be marked "
-                "is_estimated=True"
+                "FUSED or DERIVED Golden observations must be marked is_estimated=True"
             )
 
         if (
             self.recovery_provenance is RecoveryProvenance.DIRECT
             and self.c2_recovery_event_id is not None
         ):
-            raise ValueError(
-                "DIRECT Golden observation cannot reference a C2 recovery event"
-            )
+            raise ValueError("DIRECT Golden observation cannot reference a C2 recovery event")
 
         if (
             self.recovery_provenance is not RecoveryProvenance.DIRECT
             and self.c2_recovery_event_id is None
         ):
-            raise ValueError(
-                "Recovered Golden observation must reference a C2 recovery event"
-            )
+            raise ValueError("Recovered Golden observation must reference a C2 recovery event")
 
         return self
 

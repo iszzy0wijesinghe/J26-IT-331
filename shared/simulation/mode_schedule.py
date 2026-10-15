@@ -56,9 +56,7 @@ def generate_mode_schedule(
 
         for _ in range(segment.sample_count):
             delta_t = (
-                None
-                if previous_time is None
-                else (current_time - previous_time).total_seconds()
+                None if previous_time is None else (current_time - previous_time).total_seconds()
             )
 
             samples.append(

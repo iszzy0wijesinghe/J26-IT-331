@@ -94,17 +94,14 @@ def persist_telemetry_packet(
     """
 
     if not isinstance(packet, TelemetryPacket):
-        raise TypeError(
-            "packet must be a validated TelemetryPacket instance"
-        )
+        raise TypeError("packet must be a validated TelemetryPacket instance")
 
     existing = session.get(TelemetryPacketRecord, packet.packet_id)
 
     if existing is not None:
         if not _record_matches_packet(existing, packet):
             raise PacketConflictError(
-                f"Packet ID {packet.packet_id!r} already exists "
-                "with different telemetry content"
+                f"Packet ID {packet.packet_id!r} already exists with different telemetry content"
             )
 
         return PersistenceResult(
@@ -123,10 +120,7 @@ def persist_telemetry_packet(
         observed_at=packet.observed_at,
         received_at=packet.received_at,
         message_type=packet.message_type,
-        measurements=[
-            measurement.model_dump(mode="json")
-            for measurement in packet.measurements
-        ],
+        measurements=[measurement.model_dump(mode="json") for measurement in packet.measurements],
         device_health=packet.device_health.model_dump(mode="json"),
         transport=packet.transport.model_dump(mode="json"),
         security=packet.security.model_dump(mode="json"),

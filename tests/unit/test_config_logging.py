@@ -70,9 +70,7 @@ def test_database_url_supports_special_characters_in_password():
     assert url.password == password
 
     # Verify that SQLAlchemy can render a valid connection URL.
-    assert url.render_as_string(hide_password=False).startswith(
-        "postgresql+psycopg://"
-    )
+    assert url.render_as_string(hide_password=False).startswith("postgresql+psycopg://")
 
     # Credentials must remain hidden in normal string output.
     assert password not in str(url)

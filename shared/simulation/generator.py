@@ -54,9 +54,7 @@ def generate_baseline_packets(
     packets: list[TelemetryPacket] = []
 
     for index in range(config.packet_count):
-        observed_at = config.start_time + timedelta(
-            seconds=index * interval_seconds
-        )
+        observed_at = config.start_time + timedelta(seconds=index * interval_seconds)
 
         received_at = observed_at + timedelta(seconds=2)
 
@@ -66,10 +64,7 @@ def generate_baseline_packets(
 
         packet = TelemetryPacket(
             schema_version="1.0",
-            packet_id=(
-                f"SIM_{config.seed}_{config.zone_id}_"
-                f"{config.device_id}_{index:06d}"
-            ),
+            packet_id=(f"SIM_{config.seed}_{config.zone_id}_{config.device_id}_{index:06d}"),
             device_id=config.device_id,
             zone_id=config.zone_id,
             boot_id=f"SIM_BOOT_{config.seed}",

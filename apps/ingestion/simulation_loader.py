@@ -57,9 +57,7 @@ def load_simulated_telemetry(
             existing_packets += 1
 
         else:
-            raise ValueError(
-                f"Unexpected persistence status: {result.status}"
-            )
+            raise ValueError(f"Unexpected persistence status: {result.status}")
 
     return SimulationLoadResult(
         status=SimulationLoadStatus.COMPLETED,

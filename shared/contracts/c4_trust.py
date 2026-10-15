@@ -52,12 +52,7 @@ class C4TrustAssessment(TimeAwareContractModel):
 
     @model_validator(mode="after")
     def enforce_mandatory_security_override(self) -> "C4TrustAssessment":
-        if (
-            not self.mandatory_security_pass
-            and self.trust_label is C4TrustLabel.TRUSTED
-        ):
-            raise ValueError(
-                "A packet cannot be TRUSTED when mandatory security fails"
-            )
+        if not self.mandatory_security_pass and self.trust_label is C4TrustLabel.TRUSTED:
+            raise ValueError("A packet cannot be TRUSTED when mandatory security fails")
 
         return self

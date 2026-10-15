@@ -35,26 +35,18 @@ class FaultScenario:
             raise ValueError("start_sequence must not be negative")
 
         if self.end_sequence < self.start_sequence:
-            raise ValueError(
-                "end_sequence must be greater than or equal to start_sequence"
-            )
+            raise ValueError("end_sequence must be greater than or equal to start_sequence")
 
         if self.fault_type in {
             FaultType.SENSOR_SPIKE,
             FaultType.SENSOR_DRIFT,
         }:
             if not self.sensor_instance_id:
-                raise ValueError(
-                    "Sensor faults require sensor_instance_id"
-                )
+                raise ValueError("Sensor faults require sensor_instance_id")
 
             if self.magnitude is None:
-                raise ValueError(
-                    "Sensor faults require magnitude"
-                )
+                raise ValueError("Sensor faults require magnitude")
 
         if self.fault_type == FaultType.DELIVERY_DELAY:
             if self.delay_seconds is None or self.delay_seconds < 0:
-                raise ValueError(
-                    "Delivery delays require nonnegative delay_seconds"
-                )
+                raise ValueError("Delivery delays require nonnegative delay_seconds")

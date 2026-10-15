@@ -76,11 +76,7 @@ GEONEX_DEMO_ZONES = (
 def get_all_demo_pipes() -> tuple[SimulatedPipe, ...]:
     """Return every pipe in the two-zone demonstration."""
 
-    return tuple(
-        pipe
-        for zone in GEONEX_DEMO_ZONES
-        for pipe in zone.pipes
-    )
+    return tuple(pipe for zone in GEONEX_DEMO_ZONES for pipe in zone.pipes)
 
 
 def get_demo_zone(zone_id: str) -> SimulatedZone:

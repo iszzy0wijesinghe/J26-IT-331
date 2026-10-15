@@ -55,16 +55,11 @@ class C1CredibilityAssessment(TimeAwareContractModel):
 
         for probability in probabilities.values():
             if probability < 0.0 or probability > 1.0:
-                raise ValueError(
-                    "C1 class probabilities must be between 0 and 1"
-                )
+                raise ValueError("C1 class probabilities must be between 0 and 1")
 
         total = sum(probabilities.values())
 
         if abs(total - 1.0) > 1e-6:
-            raise ValueError(
-                "C1 class probabilities must sum to 1.0"
-            )
+            raise ValueError("C1 class probabilities must sum to 1.0")
 
         return self
-    

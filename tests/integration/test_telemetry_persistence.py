@@ -105,9 +105,7 @@ def test_persist_packet_and_observations(db_session):
     assert stored_packet.device_id == "PIPE_A1"
 
     observations = db_session.scalars(
-        select(SensorObservationRecord).where(
-            SensorObservationRecord.packet_id == packet.packet_id
-        )
+        select(SensorObservationRecord).where(SensorObservationRecord.packet_id == packet.packet_id)
     ).all()
 
     assert len(observations) == 2
