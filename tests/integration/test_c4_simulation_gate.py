@@ -1,4 +1,7 @@
 
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+
 from components.c4_trust import (
     C4TrustService,
     DeviceCredential,
@@ -6,7 +9,7 @@ from components.c4_trust import (
     DeviceRegistry,
 )
 from components.c4_trust.pipeline import C4TelemetryGate
-from components.c4_trust.quarantine import QuarantineManager
+from components.c4_trust.quarantine import QuarantineManager, QuarantineReason
 from shared.contracts.telemetry import SecurityMetadata, TransportMetadata
 from shared.enums import C4RoutingOutcome, C4TrustLabel
 from shared.simulation.scheduled_telemetry import (
@@ -195,3 +198,150 @@ def test_c4_gate_detects_replayed_packet(tmp_path):
         for reason in ("REPLAY_DETECTED", "SEQUENCE_REPLAY_DETECTED")
     )
     assert replay_result.quarantine_record is not None
+
+
+def test_c4_gate_accepts_valid_ecdsa_stream(tmp_path):
+    private_key = ec.generate_private_key(ec.SECP256R1())
+    public_pem = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+    registry = DeviceRegistry()
+    registry.register(
+        device_id="PIPE_A1",
+        device_kind=DeviceKind.TYPE_A,
+        zone_id="ZONE_01",
+        hub_id="H001",
+        credential=DeviceCredential(
+            credential_id="ECDSA-CRED-01",
+            secret=b"unused",
+            signature_algorithm="ecdsa-sha256",
+            public_key_pem=public_pem,
+        ),
+    )
+    registry.activate("PIPE_A1")
+
+    service = C4TrustService(
+        registry,
+        allow_deterministic_only=True,
+        attestation_verifier=lambda p, d: True,
+        provenance_verifier=lambda p, d: True,
+    )
+    gate = C4TelemetryGate(
+        trust_service=service,
+        quarantine_manager=QuarantineManager(quarantine_dir=tmp_path / "quarantine"),
+    )
+
+    items = generate_test_items()
+    pipe_01_items = [it for it in items if it.packet.device_id == "PIPE_A1"]
+    assert len(pipe_01_items) > 0
+
+    for item in pipe_01_items:
+        packet = item.packet.model_copy(
+            update={
+                "transport": TransportMetadata(gateway_id="H001"),
+                "security": SecurityMetadata(
+                    credential_id="ECDSA-CRED-01",
+                    integrity_present=True,
+                    attestation_evidence={"test": "ok"},
+                    provenance_evidence={"test": "ok"},
+                ),
+            }
+        )
+        sig = service.sign_packet_ecdsa(packet, private_key)
+        res = gate.process(packet, sig, now=packet.observed_at)
+        assert res.eligible_for_c1
+        assert res.assessment.trust_label is C4TrustLabel.TRUSTED
+        assert res.quarantine_record is None
+
+
+def test_c4_gate_quarantines_tampered_and_unverifiable_ecdsa_packets(tmp_path):
+    private_key = ec.generate_private_key(ec.SECP256R1())
+    public_pem = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+    registry = DeviceRegistry()
+    registry.register(
+        device_id="PIPE_A1",
+        device_kind=DeviceKind.TYPE_A,
+        zone_id="ZONE_01",
+        hub_id="H001",
+        credential=DeviceCredential(
+            credential_id="ECDSA-CRED-01",
+            secret=b"unused",
+            signature_algorithm="ecdsa-sha256",
+            public_key_pem=public_pem,
+        ),
+    )
+    registry.register(
+        device_id="PIPE_B1",
+        device_kind=DeviceKind.TYPE_B,
+        zone_id="ZONE_01",
+        hub_id="H001",
+        credential=DeviceCredential(
+            credential_id="ECDSA-CRED-02",
+            secret=b"unused",
+            signature_algorithm="ecdsa-sha256",
+            public_key_pem=None,
+        ),
+    )
+    registry.activate("PIPE_A1")
+    registry.activate("PIPE_B1")
+
+    service = C4TrustService(
+        registry,
+        allow_deterministic_only=True,
+        attestation_verifier=lambda p, d: True,
+        provenance_verifier=lambda p, d: True,
+    )
+    gate = C4TelemetryGate(
+        trust_service=service,
+        quarantine_manager=QuarantineManager(quarantine_dir=tmp_path / "quarantine"),
+    )
+
+    items = generate_test_items()
+    item_a = [it for it in items if it.packet.device_id == "PIPE_A1"][0]
+    packet_a = item_a.packet.model_copy(
+        update={
+            "transport": TransportMetadata(gateway_id="H001"),
+            "security": SecurityMetadata(
+                credential_id="ECDSA-CRED-01",
+                integrity_present=True,
+            ),
+        }
+    )
+    sig_a = service.sign_packet_ecdsa(packet_a, private_key)
+
+    # 1. Tampered packet -> Quarantined with SECURITY_FAILURE
+    tampered_a = packet_a.model_copy(update={"zone_id": "ZONE_02"})
+    res_tampered = gate.process(tampered_a, sig_a, now=tampered_a.observed_at)
+    assert not res_tampered.eligible_for_c1
+    assert res_tampered.assessment.trust_label is C4TrustLabel.UNTRUSTED
+    assert res_tampered.quarantine_record is not None
+    assert res_tampered.quarantine_record.quarantine_reason is QuarantineReason.SECURITY_FAILURE
+    assert "INTEGRITY_INVALID" in res_tampered.assessment.reason_codes
+    assert "private_key" not in res_tampered.quarantine_record.packet_data
+    assert "private_key" not in res_tampered.quarantine_record.metadata
+
+    # 2. Unverifiable packet (missing public key) -> Quarantined with EVIDENCE_UNAVAILABLE
+    item_b = [it for it in items if it.packet.device_id == "PIPE_B1"][0]
+    packet_b = item_b.packet.model_copy(
+        update={
+            "transport": TransportMetadata(gateway_id="H001"),
+            "security": SecurityMetadata(
+                credential_id="ECDSA-CRED-02",
+                integrity_present=True,
+            ),
+        }
+    )
+    sig_b = service.sign_packet_ecdsa(packet_b, private_key)
+    res_unverifiable = gate.process(packet_b, sig_b, now=packet_b.observed_at)
+    assert not res_unverifiable.eligible_for_c1
+    assert res_unverifiable.assessment.trust_label is C4TrustLabel.UNKNOWN
+    assert res_unverifiable.assessment.routing_outcome is C4RoutingOutcome.SECURITY_REVIEW
+    assert (
+        res_unverifiable.quarantine_record.quarantine_reason
+        is QuarantineReason.EVIDENCE_UNAVAILABLE
+    )
+    assert "SIGNATURE_UNVERIFIABLE" in res_unverifiable.assessment.reason_codes
