@@ -1,4 +1,4 @@
-﻿
+
 from __future__ import annotations
 
 import hashlib
@@ -11,6 +11,10 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+
 from components.c4_trust.registry import DeviceCredential, DeviceRecord, DeviceRegistry
 from shared.contracts import C4TrustAssessment, TelemetryPacket
 from shared.enums import C4RoutingOutcome, C4TrustLabel
@@ -21,11 +25,7 @@ BehaviouralScorer = Callable[[TelemetryPacket], float | None]
 
 @dataclass
 class RecoveryContext:
-    """Context for authorized C2 recovery replay.
-
-    This distinguishes legitimate C2-requested historical data replay
-    from malicious replay attacks.
-    """
+    """Context for authorized C2 recovery replay."""
 
     recovery_request_id: str
     authorized_device_id: str
@@ -58,7 +58,6 @@ class C4TrustService:
         if not 0.0 <= suspicious_score_threshold <= 1.0:
             raise ValueError("suspicious_score_threshold must be between 0 and 1")
 
-        # Support both legacy credentials mapping and new DeviceRegistry
         if isinstance(credentials_or_registry, DeviceRegistry):
             self._registry = credentials_or_registry
             self._credentials = {}
@@ -103,6 +102,17 @@ class C4TrustService:
             hashlib.sha256,
         ).hexdigest()
 
+    @classmethod
+    def sign_packet_ecdsa(
+        cls,
+        packet: TelemetryPacket,
+        private_key: ec.EllipticCurvePrivateKey,
+    ) -> str:
+        return private_key.sign(
+            cls._canonical_packet(packet),
+            ec.ECDSA(hashes.SHA256()),
+        ).hex()
+
     def create_recovery_context(
         self,
         recovery_request_id: str,
@@ -110,17 +120,6 @@ class C4TrustService:
         authorized_start_time: datetime,
         authorized_end_time: datetime,
     ) -> RecoveryContext:
-        """Create an authorized recovery context for C2 replay.
-
-        Args:
-            recovery_request_id: Unique identifier for the recovery request
-            authorized_device_id: Device authorized to replay data
-            authorized_start_time: Start of authorized time window
-            authorized_end_time: End of authorized time window
-
-        Returns:
-            RecoveryContext
-        """
         for name, value in (
             ("authorized_start_time", authorized_start_time),
             ("authorized_end_time", authorized_end_time),
@@ -143,35 +142,18 @@ class C4TrustService:
         return context
 
     def revoke_recovery_context(self, recovery_request_id: str) -> bool:
-        """Revoke an authorized recovery context.
-
-        Args:
-            recovery_request_id: Recovery request ID to revoke
-
-        Returns:
-            True if context was found and revoked, False otherwise
-        """
         with self._lock:
-            if recovery_request_id in self._recovery_contexts:
-                context = self._recovery_contexts[recovery_request_id]
-                context.is_active = False
-                return True
-            return False
+            context = self._recovery_contexts.get(recovery_request_id)
+            if context is None:
+                return False
+            context.is_active = False
+            return True
 
     def _check_authorized_replay(
         self,
         packet: TelemetryPacket,
         recovery_request_id: str | None,
     ) -> bool:
-        """Check if replay is authorized under a recovery context.
-
-        Args:
-            packet: Telemetry packet to check
-            recovery_request_id: Recovery request ID from packet metadata
-
-        Returns:
-            True if replay is authorized, False otherwise
-        """
         if not recovery_request_id:
             return False
 
@@ -181,17 +163,14 @@ class C4TrustService:
         if context is None or not context.is_active:
             return False
 
-        # Check device authorization
         if packet.device_id != context.authorized_device_id:
             return False
 
-        # Check time window
-        if not (
-            context.authorized_start_time <= packet.observed_at <= context.authorized_end_time
-        ):
-            return False
-
-        return True
+        return (
+            context.authorized_start_time
+            <= packet.observed_at
+            <= context.authorized_end_time
+        )
 
     @staticmethod
     def _verify_evidence(
@@ -199,13 +178,55 @@ class C4TrustService:
         packet: TelemetryPacket,
         device_record: DeviceRecord | None,
     ) -> bool | None:
-        """Return None when evidence is absent or cannot be verified."""
         if verifier is None:
             return None
         try:
             return verifier(packet, device_record)
         except Exception:
             return None
+
+    @staticmethod
+    def _verify_signature(
+        packet: TelemetryPacket,
+        signature: str,
+        credential: DeviceCredential,
+    ) -> bool | None:
+        """Return True for valid signatures, False for invalid ones, or None if unverifiable."""
+        algorithm = credential.signature_algorithm
+
+        if algorithm == "hmac-sha256":
+            expected = C4TrustService.sign_packet(packet, credential.secret)
+            return hmac.compare_digest(expected, signature.lower())
+
+        if algorithm == "ecdsa-sha256":
+            if not credential.public_key_pem:
+                return None
+
+            try:
+                pem = credential.public_key_pem
+                if isinstance(pem, str):
+                    pem = pem.encode("utf-8")
+
+                public_key = serialization.load_pem_public_key(pem)
+                if not isinstance(public_key, ec.EllipticCurvePublicKey):
+                    return None
+            except Exception:
+                return None
+
+            try:
+                signature_bytes = bytes.fromhex(signature)
+                public_key.verify(
+                    signature_bytes,
+                    C4TrustService._canonical_packet(packet),
+                    ec.ECDSA(hashes.SHA256()),
+                )
+                return True
+            except InvalidSignature:
+                return False
+            except (TypeError, ValueError):
+                return False
+
+        return None
 
     def assess(
         self,
@@ -226,7 +247,10 @@ class C4TrustService:
                 behavioural_score = float(behavioural_score)
             except (TypeError, ValueError) as exc:
                 raise ValueError("behavioural_score must be numeric") from exc
-            if not math.isfinite(behavioural_score) or not 0.0 <= behavioural_score <= 1.0:
+            if (
+                not math.isfinite(behavioural_score)
+                or not 0.0 <= behavioural_score <= 1.0
+            ):
                 raise ValueError("behavioural_score must be finite and between 0 and 1")
 
         failures: list[str] = []
@@ -234,20 +258,23 @@ class C4TrustService:
         behavioural_unknowns: list[str] = []
         verified: list[str] = []
         device_record: DeviceRecord | None = None
+        credential: DeviceCredential | None
 
-        # Resolve identity and credential from the registry or legacy mapping.
         if self._registry is not None:
             device_record = self._registry.get(packet.device_id)
             if device_record is None:
                 failures.append("DEVICE_UNKNOWN")
             elif not self._registry.is_active(packet.device_id):
                 failures.append("DEVICE_NOT_ACTIVE")
+
             credential = device_record.credential if device_record else None
+
             if device_record is not None:
                 if packet.zone_id != device_record.zone_id:
                     failures.append("ZONE_MISMATCH")
                 else:
                     verified.append("ZONE_VALID")
+
                 if packet.transport.gateway_id is None:
                     security_unknowns.append("HUB_ID_MISSING")
                 elif packet.transport.gateway_id != device_record.hub_id:
@@ -255,10 +282,16 @@ class C4TrustService:
                 else:
                     verified.append("HUB_VALID")
 
-                if self._require_firmware_approval and not device_record.approved_firmware:
+                if (
+                    self._require_firmware_approval
+                    and not device_record.approved_firmware
+                ):
                     security_unknowns.append("FIRMWARE_APPROVAL_MISSING")
                 elif device_record.approved_firmware:
-                    if not device_record.firmware_hash or not packet.security.firmware_hash:
+                    if (
+                        not device_record.firmware_hash
+                        or not packet.security.firmware_hash
+                    ):
                         security_unknowns.append("FIRMWARE_EVIDENCE_MISSING")
                     elif device_record.firmware_hash != packet.security.firmware_hash:
                         failures.append("FIRMWARE_UNAPPROVED")
@@ -268,7 +301,10 @@ class C4TrustService:
                 if self._require_config_approval and not device_record.approved_config:
                     security_unknowns.append("CONFIG_APPROVAL_MISSING")
                 elif device_record.approved_config:
-                    if not device_record.config_hash or not packet.security.config_hash:
+                    if (
+                        not device_record.config_hash
+                        or not packet.security.config_hash
+                    ):
                         security_unknowns.append("CONFIG_EVIDENCE_MISSING")
                     elif device_record.config_hash != packet.security.config_hash:
                         failures.append("CONFIG_MISMATCH")
@@ -302,22 +338,27 @@ class C4TrustService:
                 ("CREDENTIAL_ISSUED_AT_INVALID", credential.issued_at),
                 ("CREDENTIAL_EXPIRES_AT_INVALID", credential.expires_at),
             ):
-                if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+                if value is not None and (
+                    value.tzinfo is None or value.utcoffset() is None
+                ):
                     security_unknowns.append(name)
+
             if (
                 credential.issued_at is not None
                 and credential.issued_at.tzinfo is not None
                 and credential.issued_at.utcoffset() is not None
+                and credential.issued_at > assessed_at
             ):
-                if credential.issued_at > assessed_at:
-                    failures.append("CREDENTIAL_NOT_YET_VALID")
+                failures.append("CREDENTIAL_NOT_YET_VALID")
+
             if (
                 credential.expires_at is not None
                 and credential.expires_at.tzinfo is not None
                 and credential.expires_at.utcoffset() is not None
+                and credential.expires_at <= assessed_at
             ):
-                if credential.expires_at <= assessed_at:
-                    failures.append("CREDENTIAL_EXPIRED")
+                failures.append("CREDENTIAL_EXPIRED")
+
             if not any(
                 reason.startswith("CREDENTIAL_")
                 for reason in security_unknowns + failures
@@ -331,11 +372,13 @@ class C4TrustService:
         elif credential is None:
             security_unknowns.append("SIGNATURE_UNVERIFIABLE")
         else:
-            expected = self.sign_packet(packet, credential.secret)
-            if not hmac.compare_digest(expected, signature.lower()):
+            signature_result = self._verify_signature(packet, signature, credential)
+            if signature_result is True:
+                verified.append("INTEGRITY_VALID")
+            elif signature_result is False:
                 failures.append("INTEGRITY_INVALID")
             else:
-                verified.append("INTEGRITY_VALID")
+                security_unknowns.append("SIGNATURE_UNVERIFIABLE")
 
         attestation = self._verify_evidence(
             self._attestation_verifier, packet, device_record
@@ -365,23 +408,35 @@ class C4TrustService:
             authorized_replay = self._check_authorized_replay(
                 packet, recovery_request_id
             )
-            if assessed_at - packet.observed_at > self._max_age and not authorized_replay:
+            if (
+                assessed_at - packet.observed_at > self._max_age
+                and not authorized_replay
+            ):
                 failures.append("FRESHNESS_EXPIRED")
-            elif authorized_replay and assessed_at - packet.observed_at > self._max_age:
+            elif (
+                authorized_replay
+                and assessed_at - packet.observed_at > self._max_age
+            ):
                 verified.append("AUTHORIZED_REPLAY_FRESHNESS_EXCEPTION")
             else:
                 verified.append("FRESHNESS_VALID")
 
         packet_key = (packet.device_id, packet.packet_id)
         sequence_key = (packet.device_id, packet.boot_id)
-        is_authorized_replay = self._check_authorized_replay(packet, recovery_request_id)
-        if self._require_sequence and (packet.boot_id is None or packet.sequence_no is None):
+        is_authorized_replay = self._check_authorized_replay(
+            packet, recovery_request_id
+        )
+
+        if self._require_sequence and (
+            packet.boot_id is None or packet.sequence_no is None
+        ):
             security_unknowns.append("SEQUENCE_EVIDENCE_MISSING")
 
         if not failures and not security_unknowns:
             with self._lock:
                 if packet_key in self._seen_packets and not is_authorized_replay:
                     failures.append("REPLAY_DETECTED")
+
                 if packet.sequence_no is not None:
                     previous = self._last_sequence.get(sequence_key)
                     if (
@@ -390,15 +445,18 @@ class C4TrustService:
                         and not is_authorized_replay
                     ):
                         failures.append("SEQUENCE_REPLAY_DETECTED")
+
                 if not failures and not is_authorized_replay:
                     self._seen_packets.add(packet_key)
                     if packet.sequence_no is not None:
                         self._last_sequence[sequence_key] = packet.sequence_no
+
                 if not failures:
                     verified.append("REPLAY_CHECK_VALID")
 
         score = behavioural_score
         mandatory_security_pass = not failures and not security_unknowns
+
         if failures:
             trust_label = C4TrustLabel.UNTRUSTED
             routing_outcome = C4RoutingOutcome.REJECT
@@ -414,8 +472,10 @@ class C4TrustService:
                     score = None if score_value is None else float(score_value)
                 except Exception:
                     behavioural_unknowns.append("BEHAVIOURAL_INFERENCE_FAILED")
+
             if score is None and not self._allow_deterministic_only:
                 behavioural_unknowns.append("BEHAVIOURAL_SCORE_UNAVAILABLE")
+
             if score is not None and (
                 not math.isfinite(score) or not 0.0 <= score <= 1.0
             ):
