@@ -1,0 +1,135 @@
+{
+  "dataset_id": "c3ds_4e5237801b9a40d0",
+  "status": "VALIDATED",
+  "created_at": "2026-10-18T11:55:48.606648+00:00",
+  "fingerprint": "db9b7f8dfa08e4a93175d873313561ccfc4a7e60d200a29d1dda057545420157",
+  "dataset_version": "c3-synthetic-v2",
+  "export_version": "c3-fixed-horizon-v2",
+  "source_origin": "SIMULATED",
+  "target_feature": "soil_moisture_pct",
+  "forecast_horizons_minutes": [
+    15,
+    30,
+    60
+  ],
+  "available_splits": [
+    "train",
+    "validation"
+  ],
+  "held_out_test_included": false,
+  "validation": {
+    "status": "VALIDATED",
+    "dataset_version": "c3-synthetic-v2",
+    "export_version": "c3-fixed-horizon-v2",
+    "source_origin": "SIMULATED",
+    "target_feature": "soil_moisture_pct",
+    "forecast_horizons_minutes": [
+      15,
+      30,
+      60
+    ],
+    "splits": {
+      "train": {
+        "examples": 28626,
+        "episodes": 156,
+        "devices": 3,
+        "horizon_counts": {
+          "15": 11149,
+          "30": 9734,
+          "60": 7743
+        },
+        "mode_step_counts": {
+          "DEEP_SLEEP": 353263,
+          "IDLE": 114209,
+          "WARNING": 3423,
+          "RISK": 36903
+        },
+        "sequence_length_distribution": {
+          "3": 1043,
+          "4": 949,
+          "5": 959,
+          "6": 935,
+          "7": 903,
+          "8": 956,
+          "9": 967,
+          "10": 964,
+          "11": 933,
+          "12": 911,
+          "13": 940,
+          "14": 911,
+          "15": 918,
+          "16": 951,
+          "17": 937,
+          "18": 940,
+          "19": 934,
+          "20": 951,
+          "21": 950,
+          "22": 930,
+          "23": 916,
+          "24": 908,
+          "25": 911,
+          "26": 914,
+          "27": 891,
+          "28": 838,
+          "29": 611,
+          "30": 608,
+          "31": 607,
+          "32": 2540
+        },
+        "missing_readings": 1177299
+      },
+      "validation": {
+        "examples": 5391,
+        "episodes": 33,
+        "devices": 3,
+        "horizon_counts": {
+          "15": 2173,
+          "30": 1811,
+          "60": 1407
+        },
+        "mode_step_counts": {
+          "DEEP_SLEEP": 64433,
+          "WARNING": 928,
+          "IDLE": 21241,
+          "RISK": 6985
+        },
+        "sequence_length_distribution": {
+          "3": 208,
+          "4": 188,
+          "5": 193,
+          "6": 190,
+          "7": 184,
+          "8": 187,
+          "9": 189,
+          "10": 196,
+          "11": 186,
+          "12": 181,
+          "13": 179,
+          "14": 170,
+          "15": 170,
+          "16": 172,
+          "17": 174,
+          "18": 174,
+          "19": 174,
+          "20": 176,
+          "21": 172,
+          "22": 172,
+          "23": 170,
+          "24": 167,
+          "25": 166,
+          "26": 167,
+          "27": 161,
+          "28": 149,
+          "29": 105,
+          "30": 107,
+          "31": 110,
+          "32": 454
+        },
+        "missing_readings": 215859
+      }
+    },
+    "episode_disjoint": true,
+    "held_out_test_accessed": false,
+    "warning": "Synthetic telemetry only. Forecast targets are future sensor values, not landslide probabilities or validated safety warnings."
+  }
+}

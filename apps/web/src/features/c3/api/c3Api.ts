@@ -37,6 +37,98 @@ export type ForecastResponse = {
   forecast_soil_moisture_percent: number;
   warning: string;
 };
+// ============================================================
+// C3 Dataset Manager types
+// ============================================================
+
+export type C3DatasetSplitStatistics = {
+  examples: number;
+  episodes: number;
+  devices: number;
+  horizon_counts: Record<string, number>;
+  mode_step_counts: Record<string, number>;
+  sequence_length_distribution: Record<string, number>;
+  missing_readings: number;
+};
+
+export type C3DatasetValidation = {
+  status: string;
+  dataset_version: string;
+  export_version: string;
+  source_origin: string;
+  target_feature: string;
+  forecast_horizons_minutes: number[];
+  splits: {
+    train: C3DatasetSplitStatistics;
+    validation: C3DatasetSplitStatistics;
+  };
+  episode_disjoint: boolean;
+  held_out_test_accessed: boolean;
+  warning: string;
+};
+
+export type C3RegisteredDataset = {
+  dataset_id: string;
+  status: string;
+  held_out_test_included: boolean;
+  [key: string]: unknown;
+};
+
+export type C3DatasetListResponse = {
+  datasets: C3RegisteredDataset[];
+  total: number;
+};
+
+export type C3DatasetUploadResponse = {
+  message: string;
+  dataset: C3RegisteredDataset;
+};
+
+// ============================================================
+// C3 CSV Dataset Validation
+// ============================================================
+
+export type C3CSVValidationIssue = {
+  severity: "ERROR" | "WARNING";
+  code: string;
+  message: string;
+  row: number | null;
+  column: string | null;
+};
+
+export type C3CSVValidationResult = {
+  status: "VALIDATED" | "FAILED";
+  schema_version: string;
+  filename: string;
+
+  total_rows: number;
+  valid_rows: number;
+  invalid_rows: number;
+
+  missing_values: Record<string, number>;
+  operating_modes: Record<string, number>;
+
+  devices: number;
+  episodes: number;
+
+  timestamp_start: string | null;
+  timestamp_end: string | null;
+
+  issues: C3CSVValidationIssue[];
+
+  error_count: number;
+  warning_count: number;
+};
+
+export type C3CSVValidationResponse = {
+  message: string;
+  validation: C3CSVValidationResult;
+  registered: boolean;
+  training_started: boolean;
+};
+
+
+
 const BASE = '/api/c3';
 async function requestJson<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${BASE}${path}`, options);
@@ -62,4 +154,69 @@ export const c3Api = {
       body: JSON.stringify({ ablation, horizon_minutes: horizon, temporal_sequence }),
       signal,
     }),
+};
+
+// ============================================================
+// C3 Dataset Manager API
+// ============================================================
+
+export const c3DatasetApi = {
+  /**
+   * Retrieve all registered datasets.
+   */
+  list: (signal?: AbortSignal) =>
+    requestJson<C3DatasetListResponse>("/datasets", {
+      signal,
+    }),
+
+  /**
+   * Retrieve one registered dataset.
+   */
+  get: (datasetId: string, signal?: AbortSignal) =>
+    requestJson<C3RegisteredDataset>(
+      `/datasets/${encodeURIComponent(datasetId)}`,
+      {
+        signal,
+      },
+    ),
+
+  /**
+   * Upload a dataset ZIP for validation and registration.
+   *
+   * Uploading does not initiate model training.
+   */
+  upload: (file: File, signal?: AbortSignal) => {
+    const formData = new FormData();
+
+    formData.append("file", file);
+
+    return requestJson<C3DatasetUploadResponse>(
+      "/datasets/upload",
+      {
+        method: "POST",
+        body: formData,
+        signal,
+      },
+    );
+  },
+};
+
+export const c3CSVApi = {
+  validate: (
+    file: File,
+    signal?: AbortSignal,
+  ): Promise<C3CSVValidationResponse> => {
+    const formData = new FormData();
+
+    formData.append("file", file);
+
+    return requestJson<C3CSVValidationResponse>(
+      "/datasets/csv/validate",
+      {
+        method: "POST",
+        body: formData,
+        signal,
+      },
+    );
+  },
 };

@@ -1,0 +1,94 @@
+{
+  "counts_by_horizon": {
+    "15": 15743,
+    "30": 13735,
+    "60": 10903
+  },
+  "counts_by_split_horizon": {
+    "test": {
+      "15": 2421,
+      "30": 2190,
+      "60": 1753
+    },
+    "train": {
+      "15": 11149,
+      "30": 9734,
+      "60": 7743
+    },
+    "validation": {
+      "15": 2173,
+      "30": 1811,
+      "60": 1407
+    }
+  },
+  "export_version": "c3-fixed-horizon-v2",
+  "files": {
+    "test": {
+      "examples": 6364,
+      "filename": "test.jsonl.gz",
+      "sha256": "300d732343669ade9c025e31854d6b192b7261c7170d7767709b5e39d2636b28"
+    },
+    "train": {
+      "examples": 28626,
+      "filename": "train.jsonl.gz",
+      "sha256": "9fa6d5c810c4cd5f9010c9d8a9fca36e9d29444a3e67956ccc9fcae324178543"
+    },
+    "validation": {
+      "examples": 5391,
+      "filename": "validation.jsonl.gz",
+      "sha256": "d52f0014122af5adba92e37db49b2f5c8c46f8612635e06a3394a72d9d4805d3"
+    }
+  },
+  "forecast_horizons_minutes": [
+    15,
+    30,
+    60
+  ],
+  "forecast_origin_mode_counts": {
+    "test": {
+      "DEEP_SLEEP": 3003,
+      "EMERGENCY": 0,
+      "IDLE": 3136,
+      "RISK": 225,
+      "WARNING": 0
+    },
+    "train": {
+      "DEEP_SLEEP": 13222,
+      "EMERGENCY": 0,
+      "IDLE": 13361,
+      "RISK": 1822,
+      "WARNING": 221
+    },
+    "validation": {
+      "DEEP_SLEEP": 2487,
+      "EMERGENCY": 0,
+      "IDLE": 2445,
+      "RISK": 383,
+      "WARNING": 76
+    }
+  },
+  "limitations": [
+    "Synthetic telemetry, not field measurements",
+    "No verified landslide-event ground truth",
+    "Targets are observed future sensor values",
+    "Requested horizons use a plus/minus two-minute tolerance",
+    "Overlapping histories create dependent examples",
+    "EMERGENCY mode has no valid forecast-origin examples",
+    "WARNING mode is absent from original test telemetry",
+    "Episode-disjoint splitting does not prove field generalization",
+    "Feature-age causality requires additional verification"
+  ],
+  "maximum_history_steps": 32,
+  "minimum_history_steps": 3,
+  "not_field_data": true,
+  "not_landslide_ground_truth": true,
+  "source_dataset_version": "c3-synthetic-v2",
+  "source_manifest_sha256": "5e6433c0836a88ef2413232f75a38cfc1cdfb31bab1a796aa7a2562b50ad18e1",
+  "source_origin": "SIMULATED",
+  "source_telemetry_sha256": "222a915f7c41c2d02610af8d5c048f4103a7918bfe90c12719e19349dbe41b19",
+  "split_policy": "EPISODE_DISJOINT",
+  "target_feature": "soil_moisture_pct",
+  "target_tolerance_minutes": 2.0,
+  "total_examples": 40381,
+  "training_objective": "FUTURE_SENSOR_VALUE_REGRESSION"
+}

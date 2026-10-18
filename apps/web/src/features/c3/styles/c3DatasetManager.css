@@ -1,0 +1,805 @@
+/** @format */
+
+/* ============================================================
+   GeoNex C3 Research Workbench
+   Dataset Manager Styles
+   ============================================================ */
+
+.c3-dataset-manager {
+  --c3-dm-accent: #24b8a8;
+  --c3-dm-accent-soft: rgba(36, 184, 168, 0.09);
+  --c3-dm-orange: #ff8b43;
+  --c3-dm-border: rgba(130, 148, 168, 0.2);
+  --c3-dm-surface: rgba(120, 145, 180, 0.055);
+
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+
+  width: 100%;
+  min-width: 0;
+
+  animation: c3DatasetEnter 420ms ease both;
+}
+
+@keyframes c3DatasetEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================
+   Dataset Manager Navigation
+   ============================================================ */
+
+.c3-dataset-navigation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  width: 100%;
+  min-width: 0;
+  padding: 7px;
+
+  border: 1px solid var(--c3-dm-border);
+  border-radius: 15px;
+
+  background: var(--c3-dm-surface);
+}
+
+.c3-dataset-navigation-button {
+  position: relative;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 47px;
+
+  padding: 12px 16px;
+
+  border: 1px solid transparent;
+  border-radius: 11px;
+
+  background: transparent;
+  color: inherit;
+
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+
+  cursor: pointer;
+
+  opacity: 0.7;
+
+  transition:
+    opacity 200ms ease,
+    background 200ms ease,
+    border-color 200ms ease,
+    box-shadow 200ms ease,
+    transform 200ms ease;
+}
+
+.c3-dataset-navigation-button:hover {
+  opacity: 1;
+  background: rgba(36, 184, 168, 0.06);
+}
+
+.c3-dataset-navigation-button.active,
+.c3-dataset-navigation-button[aria-selected="true"] {
+  opacity: 1;
+
+  border-color: rgba(36, 184, 168, 0.3);
+  background: var(--c3-dm-accent-soft);
+
+  box-shadow: 0 3px 12px rgba(36, 184, 168, 0.07);
+}
+
+.c3-dataset-navigation-button.active::after,
+.c3-dataset-navigation-button[aria-selected="true"]::after {
+  content: "";
+
+  position: absolute;
+  right: 17px;
+  bottom: 5px;
+  left: 17px;
+
+  height: 2px;
+
+  border-radius: 999px;
+  background: var(--c3-dm-accent);
+
+  animation: c3DatasetUnderline 240ms ease both;
+}
+
+@keyframes c3DatasetUnderline {
+  from {
+    opacity: 0;
+    transform: scaleX(0.5);
+  }
+
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+.c3-dataset-navigation-button:focus-visible {
+  outline: 2px solid var(--c3-dm-accent);
+  outline-offset: 3px;
+}
+
+.c3-dataset-navigation-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+
+  font-size: 16px;
+}
+
+.c3-dataset-navigation-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   Active Workspace
+   ============================================================ */
+
+.c3-dataset-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+
+  min-width: 0;
+
+  animation: c3DatasetWorkspaceEnter 300ms ease both;
+}
+
+@keyframes c3DatasetWorkspaceEnter {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================
+   Dataset Summary Cards
+   ============================================================ */
+
+.c3-dataset-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+
+  margin-top: 22px;
+}
+
+.c3-dataset-summary > div {
+  position: relative;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+
+  min-width: 0;
+  padding: 19px;
+
+  overflow: hidden;
+
+  background: rgba(120, 145, 180, 0.08);
+  border: 1px solid rgba(130, 148, 168, 0.16);
+  border-radius: 13px;
+
+  transition:
+    transform 200ms ease,
+    border-color 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.c3-dataset-summary > div::before {
+  content: "";
+
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+
+  height: 2px;
+
+  background: linear-gradient(
+    90deg,
+    var(--c3-dm-accent),
+    var(--c3-dm-orange)
+  );
+
+  opacity: 0.65;
+}
+
+.c3-dataset-summary > div:hover {
+  transform: translateY(-2px);
+
+  border-color: rgba(36, 184, 168, 0.3);
+  box-shadow: 0 8px 24px rgba(20, 60, 90, 0.045);
+}
+
+.c3-dataset-summary span {
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.055em;
+  opacity: 0.7;
+}
+
+.c3-dataset-summary strong {
+  font-size: clamp(15px, 1.8vw, 22px);
+  font-weight: 750;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+/* ============================================================
+   Dataset Library
+   ============================================================ */
+
+.c3-dataset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  margin-top: 20px;
+}
+
+.c3-dataset-item {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+
+  width: 100%;
+  min-width: 0;
+  padding: 17px 18px;
+
+  border: 1px solid rgba(130, 148, 168, 0.22);
+  border-radius: 12px;
+
+  background: rgba(120, 145, 180, 0.055);
+  color: inherit;
+
+  font: inherit;
+  text-align: left;
+
+  cursor: pointer;
+
+  transition:
+    background 200ms ease,
+    border-color 200ms ease,
+    box-shadow 200ms ease,
+    transform 200ms ease;
+}
+
+.c3-dataset-item:hover {
+  transform: translateX(3px);
+
+  background: rgba(36, 184, 168, 0.06);
+  border-color: rgba(36, 184, 168, 0.6);
+}
+
+.c3-dataset-item.selected {
+  background: rgba(36, 184, 168, 0.09);
+  border-color: var(--c3-dm-accent);
+
+  box-shadow: 0 0 0 1px rgba(36, 184, 168, 0.08);
+}
+
+.c3-dataset-item.selected::before {
+  content: "";
+
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 0;
+
+  width: 3px;
+
+  border-radius: 0 4px 4px 0;
+  background: var(--c3-dm-accent);
+}
+
+.c3-dataset-item:focus-visible {
+  outline: 2px solid var(--c3-dm-accent);
+  outline-offset: 3px;
+}
+
+.c3-dataset-item > div {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+
+  min-width: 0;
+}
+
+.c3-dataset-item > div strong {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.c3-dataset-item > div span {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.c3-dataset-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  padding: 7px 11px;
+
+  background: rgba(36, 184, 168, 0.1);
+  border: 1px solid rgba(36, 184, 168, 0.22);
+  border-radius: 999px;
+
+  color: #168f81;
+
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.025em;
+}
+
+/* ============================================================
+   Dataset Details
+   ============================================================ */
+
+.c3-dataset-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+
+  margin-top: 20px;
+}
+
+.c3-dataset-detail-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  min-width: 0;
+  padding: 17px 18px;
+
+  background: rgba(120, 145, 180, 0.08);
+  border: 1px solid rgba(130, 148, 168, 0.16);
+  border-radius: 12px;
+
+  transition:
+    border-color 200ms ease,
+    background 200ms ease;
+}
+
+.c3-dataset-detail-grid > div:hover {
+  border-color: rgba(36, 184, 168, 0.3);
+  background: rgba(36, 184, 168, 0.045);
+}
+
+.c3-dataset-detail-grid span {
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+.c3-dataset-detail-grid strong {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* ============================================================
+   Training and Validation Statistics
+   ============================================================ */
+
+.c3-dataset-section-title {
+  margin: 28px 0 16px;
+
+  font-size: 16px;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.c3-dataset-splits {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.c3-dataset-split-card {
+  min-width: 0;
+  padding: 20px;
+
+  border: 1px solid rgba(130, 148, 168, 0.2);
+  border-radius: 13px;
+
+  background: rgba(120, 145, 180, 0.045);
+
+  transition:
+    border-color 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.c3-dataset-split-card:hover {
+  border-color: rgba(36, 184, 168, 0.32);
+  box-shadow: 0 8px 24px rgba(20, 60, 90, 0.04);
+}
+
+.c3-dataset-split-card h4 {
+  margin: 0 0 18px;
+
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.c3-dataset-split-card h5 {
+  margin: 22px 0 12px;
+
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.025em;
+}
+
+.c3-dataset-split-card > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  padding: 11px 0;
+
+  border-bottom: 1px solid rgba(130, 148, 168, 0.13);
+
+  font-size: 13px;
+}
+
+.c3-dataset-split-card > div:last-child {
+  border-bottom: none;
+}
+
+.c3-dataset-split-card > div span {
+  opacity: 0.75;
+}
+
+.c3-dataset-split-card > div strong {
+  font-size: 13px;
+  font-weight: 700;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* ============================================================
+   Dataset Upload
+   ============================================================ */
+
+.c3-dataset-upload {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 15px;
+
+  margin-top: 22px;
+}
+
+.c3-dataset-upload label {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.c3-dataset-upload input[type="file"] {
+  display: block;
+
+  width: 100%;
+  max-width: 520px;
+  min-width: 0;
+  box-sizing: border-box;
+
+  padding: 13px;
+
+  border: 1px solid rgba(130, 148, 168, 0.35);
+  border-radius: 11px;
+
+  background: rgba(120, 145, 180, 0.055);
+  color: inherit;
+
+  font: inherit;
+  font-size: 13px;
+
+  cursor: pointer;
+
+  transition:
+    border-color 200ms ease,
+    background 200ms ease;
+}
+
+.c3-dataset-upload input[type="file"]:hover {
+  border-color: rgba(36, 184, 168, 0.65);
+}
+
+.c3-dataset-upload input[type="file"]:focus-visible {
+  outline: 2px solid var(--c3-dm-accent);
+  outline-offset: 3px;
+}
+
+.c3-dataset-upload input[type="file"]:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.c3-dataset-upload input[type="file"]::file-selector-button {
+  padding: 9px 13px;
+  margin-right: 14px;
+
+  border: 1px solid rgba(130, 148, 168, 0.3);
+  border-radius: 8px;
+
+  background: rgba(120, 145, 180, 0.12);
+  color: inherit;
+
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+
+  cursor: pointer;
+}
+
+.c3-dataset-upload input[type="file"]::file-selector-button:hover {
+  background: rgba(120, 145, 180, 0.2);
+}
+
+.c3-dataset-upload .c3-primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 43px;
+  padding: 12px 18px;
+
+  border: 1px solid var(--c3-dm-orange);
+  border-radius: 10px;
+
+  background: var(--c3-dm-orange);
+  color: #152236;
+
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
+
+  cursor: pointer;
+
+  transition:
+    background 200ms ease,
+    opacity 200ms ease,
+    transform 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.c3-dataset-upload .c3-primary-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+
+  background: #ffa36d;
+  box-shadow: 0 7px 20px rgba(255, 139, 67, 0.2);
+}
+
+.c3-dataset-upload .c3-primary-button:focus-visible {
+  outline: 2px solid var(--c3-dm-accent);
+  outline-offset: 3px;
+}
+
+.c3-dataset-upload .c3-primary-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   Feedback Messages
+   ============================================================ */
+
+.c3-dataset-success {
+  margin: 18px 0 0;
+  padding: 14px 16px;
+
+  border: 1px solid rgba(36, 184, 168, 0.3);
+  border-radius: 10px;
+
+  background: rgba(36, 184, 168, 0.09);
+  color: #168f81;
+
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.6;
+
+  animation: c3DatasetEnter 300ms ease both;
+}
+
+.c3-dataset-error {
+  margin: 18px 0 0;
+  padding: 14px 16px;
+
+  border: 1px solid rgba(220, 80, 80, 0.25);
+  border-radius: 10px;
+
+  background: rgba(220, 80, 80, 0.07);
+  color: #c44848;
+
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* ============================================================
+   Loading and Empty States
+   ============================================================ */
+
+.c3-dataset-manager .c3-inline-note {
+  margin: 18px 0 0;
+
+  font-size: 13px;
+  line-height: 1.6;
+  opacity: 0.75;
+}
+
+.c3-dataset-loading {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+
+  padding: 18px 0;
+}
+
+.c3-dataset-loading-spinner {
+  width: 17px;
+  height: 17px;
+
+  border: 2px solid rgba(36, 184, 168, 0.18);
+  border-top-color: var(--c3-dm-accent);
+  border-radius: 50%;
+
+  animation: c3DatasetSpin 750ms linear infinite;
+}
+
+@keyframes c3DatasetSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================================
+   Research Disclaimer
+   ============================================================ */
+
+.c3-dataset-manager .c3-research-warning {
+  margin-top: 24px;
+  padding: 15px 17px;
+
+  border-left: 3px solid #fb923c;
+  border-radius: 0 9px 9px 0;
+
+  background: rgba(251, 146, 60, 0.08);
+
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+/* ============================================================
+   Responsive Layout
+   ============================================================ */
+
+@media (max-width: 1000px) {
+  .c3-dataset-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 850px) {
+  .c3-dataset-splits {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .c3-dataset-navigation {
+    flex-wrap: wrap;
+  }
+
+  .c3-dataset-navigation-button {
+    flex: 1 1 calc(50% - 8px);
+  }
+}
+
+@media (max-width: 600px) {
+  .c3-dataset-summary,
+  .c3-dataset-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .c3-dataset-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .c3-dataset-status {
+    align-self: flex-start;
+  }
+
+  .c3-dataset-split-card {
+    padding: 16px;
+  }
+
+  .c3-dataset-upload input[type="file"] {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .c3-dataset-navigation {
+    flex-direction: column;
+  }
+
+  .c3-dataset-navigation-button {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+}
+
+/* ============================================================
+   Reduced Motion Accessibility
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .c3-dataset-manager,
+  .c3-dataset-workspace,
+  .c3-dataset-navigation-button.active::after,
+  .c3-dataset-navigation-button[aria-selected="true"]::after,
+  .c3-dataset-success,
+  .c3-dataset-loading-spinner {
+    animation: none !important;
+  }
+
+  .c3-dataset-navigation-button,
+  .c3-dataset-summary > div,
+  .c3-dataset-item,
+  .c3-dataset-detail-grid > div,
+  .c3-dataset-split-card,
+  .c3-dataset-upload input[type="file"],
+  .c3-dataset-upload .c3-primary-button {
+    transition: none !important;
+  }
+
+  .c3-dataset-item:hover,
+  .c3-dataset-summary > div:hover,
+  .c3-dataset-upload .c3-primary-button:hover:not(:disabled) {
+    transform: none !important;
+  }
+}
