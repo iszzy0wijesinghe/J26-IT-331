@@ -6,6 +6,8 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
+from cryptography.hazmat.primitives import serialization
+
 from shared.enums import DeviceLifecycleState
 
 
@@ -25,8 +27,23 @@ class DeviceCredential:
     secret: bytes
     signature_algorithm: str = "hmac-sha256"
     public_key_pem: bytes | str | None = None
+    certificate_pem: bytes | str | None = None
     issued_at: datetime | None = None
     expires_at: datetime | None = None
+
+    def __post_init__(self) -> None:
+        if self.certificate_pem is not None and self.public_key_pem is None:
+            try:
+                from components.c4_trust.certificates import load_certificate
+
+                cert = load_certificate(self.certificate_pem)
+                pub_bytes = cert.public_key().public_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PublicFormat.SubjectPublicKeyInfo,
+                )
+                object.__setattr__(self, "public_key_pem", pub_bytes)
+            except Exception:
+                pass
 
 
 @dataclass
@@ -61,6 +78,16 @@ class DeviceRegistry:
 
     def __init__(self) -> None:
         self._devices: dict[str, DeviceRecord] = {}
+        self._revoked_certificates: set[int] = set()
+
+    def revoke_certificate(self, serial_number: int) -> None:
+        self._revoked_certificates.add(serial_number)
+
+    def is_certificate_revoked(self, serial_number: int) -> bool:
+        return serial_number in self._revoked_certificates
+
+    def get_revoked_certificates(self) -> set[int]:
+        return set(self._revoked_certificates)
 
     def register(
         self,
