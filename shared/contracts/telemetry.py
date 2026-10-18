@@ -72,6 +72,7 @@ class SecurityMetadata(TimeAwareContractModel):
     session_id: str | None = None
     firmware_hash: str | None = None
     config_hash: str | None = None
+    certificate_pem: str | None = None
 
     attestation_evidence: dict[str, Any] | None = None
     provenance_evidence: dict[str, Any] | None = None
