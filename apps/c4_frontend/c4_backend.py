@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import tempfile
+from datetime import timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -12,13 +14,16 @@ from components.c4_trust import (
     DeviceCredential,
     DeviceKind,
     DeviceRegistry,
+    create_ca,
+    create_device_certificate,
 )
 from components.c4_trust.integration import (
     create_c4_service_with_behavioral_ml,
 )
 from components.c4_trust.pipeline import C4TelemetryGate
 from components.c4_trust.quarantine import QuarantineManager
-from shared.contracts.telemetry import SecurityMetadata
+from shared.contracts.telemetry import SecurityMetadata, TelemetryPacket
+from shared.enums import DeviceLifecycleState
 from shared.simulation.scheduled_telemetry import (
     ScheduledTelemetryConfig,
     generate_scheduled_demo_telemetry,
@@ -38,6 +43,9 @@ HUB_BY_ZONE = {
     "ZONE_02": "H002",
 }
 
+DEMO_SIMULATION_CONFIG = ScheduledTelemetryConfig(seed=20261010)
+DEMO_PKI_ISSUED_AT = DEMO_SIMULATION_CONFIG.start_time - timedelta(hours=1)
+
 KIND_BY_ROLE = {
     "TYPE_A": DeviceKind.TYPE_A,
     "TYPE_B": DeviceKind.TYPE_B,
@@ -53,16 +61,22 @@ SUPPORTED_SCENARIOS = {
     "replay_hmac",
     "valid_ecdsa",
     "tampered_ecdsa",
+    "expired_x509",
+    "untrusted_ca_x509",
+    "mismatched_identity_x509",
+    "revoked_x509",
     "unverifiable_ecdsa",
     "fallback_rejection",
 }
 
 
 class C4DemoBackend:
-    """Isolated dashboard demo using the actual C4 trust and ML pipeline.
+    """Dashboard simulation backend using the real C4 trust and ML pipeline.
 
-    Supports HMAC-SHA256 and ECDSA-SHA256 signature verification demonstrations.
-    Temporary EC keys are generated safely in memory and are never exposed.
+    Uses a local test CA and test X.509 certificates for demonstration.
+    Private keys are generated safely in memory and are used only for signing
+    in the simulation sender. Public keys and certificates are validated by
+    the C4 gate against the trusted test CA.
     """
 
     def __init__(self) -> None:
@@ -72,12 +86,15 @@ class C4DemoBackend:
         self._quarantine_directory = (
             Path(self._temporary_directory.name) / "quarantine"
         )
-        # Generate temporary EC key pair in memory (private key kept in memory only)
-        self._ec_private_key = ec.generate_private_key(ec.SECP256R1())
-        self._ec_public_pem = self._ec_private_key.public_key().public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+
+        self._ca_key, self._ca_cert, self._ca_pem = create_ca(
+            "GeoNex Simulation Root CA",
+            issued_at=DEMO_PKI_ISSUED_AT,
         )
+        self._device_keys: dict[str, ec.EllipticCurvePrivateKey] = {}
+        self._device_certs: dict[str, Any] = {}
+        self._device_cert_pems: dict[str, bytes] = {}
+
         self._registry = DeviceRegistry()
         self._credentials: dict[str, DeviceCredential] = {}
         self._ecdsa_credentials: dict[str, DeviceCredential] = {}
@@ -85,6 +102,19 @@ class C4DemoBackend:
 
     def _build_gate(self) -> C4TelemetryGate:
         for pipe in get_all_demo_pipes():
+            pipe_key = ec.generate_private_key(ec.SECP256R1())
+            self._device_keys[pipe.device_id] = pipe_key
+
+            _, pipe_cert, pipe_cert_pem = create_device_certificate(
+                pipe.device_id,
+                self._ca_cert,
+                self._ca_key,
+                private_key=pipe_key,
+                issued_at=DEMO_PKI_ISSUED_AT,
+            )
+            self._device_certs[pipe.device_id] = pipe_cert
+            self._device_cert_pems[pipe.device_id] = pipe_cert_pem
+
             hmac_credential = DeviceCredential(
                 credential_id=f"DEMO-CRED-{pipe.device_id}",
                 secret=f"dashboard-demo-only-{pipe.device_id}".encode(),
@@ -94,7 +124,11 @@ class C4DemoBackend:
                 credential_id=f"DEMO-ECDSA-{pipe.device_id}",
                 secret=f"dashboard-demo-only-{pipe.device_id}".encode(),
                 signature_algorithm="ecdsa-sha256",
-                public_key_pem=self._ec_public_pem,
+                certificate_pem=pipe_cert_pem,
+                public_key_pem=pipe_key.public_key().public_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PublicFormat.SubjectPublicKeyInfo,
+                ),
             )
             self._credentials[pipe.device_id] = hmac_credential
             self._ecdsa_credentials[pipe.device_id] = ecdsa_credential
@@ -108,7 +142,6 @@ class C4DemoBackend:
             )
             self._registry.activate(pipe.device_id)
 
-        # Demonstration-only evidence verifiers (clearly labeled as simulation)
         def verify_attestation(packet: Any, device: Any) -> bool:
             return packet.security.attestation_evidence == {
                 "test_attestation": packet.device_id
@@ -126,6 +159,7 @@ class C4DemoBackend:
             future_tolerance_seconds=5,
             attestation_verifier=verify_attestation,
             provenance_verifier=verify_provenance,
+            trusted_ca_certificates=[self._ca_cert],
         )
 
         return C4TelemetryGate(
@@ -140,6 +174,7 @@ class C4DemoBackend:
         item: Any,
         credential: DeviceCredential,
         scenario_tag: str | None = None,
+        custom_cert_pem: str | None = None,
     ) -> Any:
         packet = item.packet
         hub_id = HUB_BY_ZONE[packet.zone_id]
@@ -155,6 +190,11 @@ class C4DemoBackend:
             else packet.boot_id
         )
 
+        cert_str = custom_cert_pem
+        if cert_str is None and credential.certificate_pem is not None:
+            cert_pem = credential.certificate_pem
+            cert_str = cert_pem.decode("utf-8") if isinstance(cert_pem, bytes) else cert_pem
+
         transport = packet.transport.model_copy(
             update={"gateway_id": hub_id}
         )
@@ -163,6 +203,7 @@ class C4DemoBackend:
             integrity_present=True,
             freshness_counter=packet.sequence_no,
             session_id=f"DEMO-SESSION-{packet.device_id}",
+            certificate_pem=cert_str,
             attestation_evidence={
                 "test_attestation": packet.device_id
             },
@@ -181,13 +222,30 @@ class C4DemoBackend:
         )
 
     @staticmethod
+    def _measurement_rows(packet: TelemetryPacket) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        for measurement in packet.measurements:
+            rows.append(
+                {
+                    "sensor_instance_id": measurement.sensor_instance_id,
+                    "sensor_type": measurement.sensor_type,
+                    "value": measurement.value,
+                    "raw_value": measurement.raw_value,
+                    "unit": measurement.unit,
+                }
+            )
+        return rows
+
+    @staticmethod
     def _result_row(
         result: Any,
         scenario: str,
         signature_algorithm: str,
+        packet: TelemetryPacket,
     ) -> dict[str, Any]:
         assessment = result.assessment
         reason_codes = assessment.reason_codes
+        quarantine = result.quarantine_record
 
         if "INTEGRITY_VALID" in reason_codes:
             sig_verification = "VALID"
@@ -201,13 +259,44 @@ class C4DemoBackend:
         else:
             sig_verification = "NOT_EVALUATED"
 
+        ml_ran = any(
+            code.startswith("BEHAVIOURAL_") for code in reason_codes
+        ) or assessment.behavioural_score is not None
+
         return {
             "scenario": scenario,
             "signature_algorithm": signature_algorithm,
             "packet_id": assessment.packet_id,
             "device_id": assessment.device_id,
+            "assessment_id": assessment.assessment_id,
+            "data_origin": "FRONTEND_SIMULATION",
+            "source_origin": packet.source_origin.value,
+            "origin_explanation": (
+                "Synthetic demonstration packet from "
+                "generate_scheduled_demo_telemetry(). Not live ESP32, "
+                "LoRa, CSV, or database telemetry."
+            ),
+            "zone_id": packet.zone_id,
+            "hub_id": packet.transport.gateway_id,
+            "sequence_no": packet.sequence_no,
+            "boot_id": packet.boot_id,
+            "message_type": packet.message_type,
+            "observed_at": packet.observed_at.isoformat(),
+            "received_at": packet.received_at.isoformat(),
+            "tx_interval_s": packet.tx_interval_s,
+            "freshness_status": packet.freshness_status,
+            "rssi_dbm": packet.transport.rssi_dbm,
+            "snr_db": packet.transport.snr_db,
+            "retry_count": packet.transport.retry_count,
+            "battery_pct": packet.device_health.battery_pct,
+            "battery_voltage": packet.device_health.battery_voltage,
+            "sensor_fault_flag": packet.device_health.sensor_fault_flag,
+            "measurements": C4DemoBackend._measurement_rows(packet),
+            "credential_id": packet.security.credential_id,
+            "certificate_present": packet.security.certificate_pem is not None,
             "signature_verification": sig_verification,
             "mandatory_security_pass": assessment.mandatory_security_pass,
+            "ml_ran": ml_ran,
             "trust_label": assessment.trust_label.value,
             "routing_outcome": (
                 assessment.routing_outcome.value
@@ -215,18 +304,112 @@ class C4DemoBackend:
                 else "UNKNOWN"
             ),
             "behavioural_score": assessment.behavioural_score,
+            "trust_score": assessment.trust_score,
             "eligible_for_c1": result.eligible_for_c1,
             "reason_codes": assessment.reason_codes,
-            "quarantined": result.quarantine_record is not None,
+            "quarantined": quarantine is not None,
+            "quarantine_id": (
+                quarantine.quarantine_id if quarantine is not None else None
+            ),
+            "storage": "streamlit_session_state",
+            "persisted_to_database": False,
+            "storage_explanation": (
+                "This assessment is kept in Streamlit session_state until "
+                "the browser session is cleared. Dashboard quarantine files "
+                "are written to a temporary directory and deleted when the "
+                "scenario backend closes. They are not written to PostgreSQL."
+            ),
+        }
+
+    def list_safe_devices(self) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        for record in self._registry.list_devices():
+            credential = record.credential
+            rows.append(
+                {
+                    "device_id": record.device_id,
+                    "device_kind": record.device_kind.value,
+                    "zone_id": record.zone_id,
+                    "hub_id": record.hub_id,
+                    "lifecycle_state": record.lifecycle_state.value,
+                    "credential_id": (
+                        credential.credential_id if credential else None
+                    ),
+                    "signature_algorithm": (
+                        credential.signature_algorithm if credential else None
+                    ),
+                    "has_certificate": bool(
+                        credential and credential.certificate_pem
+                    ),
+                    "has_public_key": bool(
+                        credential and credential.public_key_pem
+                    ),
+                    "secret_material_present": bool(
+                        credential and credential.secret
+                    ),
+                }
+            )
+        return rows
+
+    @staticmethod
+    def system_diagnostics() -> dict[str, Any]:
+        model_exists = MODEL_PATH.exists()
+        database: dict[str, Any] = {
+            "configured": True,
+            "reachable": False,
+            "host": None,
+            "port": None,
+            "name": None,
+            "user": None,
+            "telemetry_packets": None,
+            "error": None,
+        }
+        try:
+            from sqlalchemy import func, select, text
+
+            from database.models import TelemetryPacketRecord
+            from database.session import create_database_engine
+            from shared.config.settings import get_settings
+
+            settings = get_settings()
+            database.update(
+                {
+                    "host": settings.db_host,
+                    "port": settings.db_port,
+                    "name": settings.db_name,
+                    "user": settings.db_user,
+                }
+            )
+            engine = create_database_engine(settings)
+            with engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+                packet_count = connection.execute(
+                    select(func.count()).select_from(TelemetryPacketRecord)
+                ).scalar_one()
+            database["reachable"] = True
+            database["telemetry_packets"] = int(packet_count)
+            engine.dispose()
+        except Exception as exc:
+            database["error"] = f"{type(exc).__name__}: {exc}"
+
+        return {
+            "model_path": str(MODEL_PATH),
+            "model_available": model_exists,
+            "holdout_path": str(
+                Path(__file__).resolve().parents[2]
+                / "experiments"
+                / "c4"
+                / "data"
+                / "C4_test_corrected.csv"
+            ),
+            "database": database,
         }
 
     def run_simulation(self, scenario: str = "valid") -> list[dict[str, Any]]:
         if scenario not in SUPPORTED_SCENARIOS:
             raise ValueError(f"Unsupported scenario: {scenario}")
 
-        items = generate_scheduled_demo_telemetry(
-            ScheduledTelemetryConfig(seed=20261010)
-        )
+        items = generate_scheduled_demo_telemetry(DEMO_SIMULATION_CONFIG)
         if not items:
             raise RuntimeError("The telemetry simulator returned no packets.")
 
@@ -244,7 +427,12 @@ class C4DemoBackend:
                     now=packet.observed_at,
                 )
                 rows.append(
-                    self._result_row(result, "Valid Telemetry (HMAC)", "hmac-sha256")
+                    self._result_row(
+                        result,
+                        "Valid Telemetry (HMAC)",
+                        "hmac-sha256",
+                        packet,
+                    )
                 )
 
         elif scenario in {"tampered", "tampered_hmac"}:
@@ -262,7 +450,12 @@ class C4DemoBackend:
                 now=tampered_packet.observed_at,
             )
             rows.append(
-                self._result_row(result, "Tampered Telemetry (HMAC)", "hmac-sha256")
+                self._result_row(
+                    result,
+                    "Tampered Telemetry (HMAC)",
+                    "hmac-sha256",
+                    tampered_packet,
+                )
             )
 
         elif scenario in {"replay", "replay_hmac"}:
@@ -287,24 +480,26 @@ class C4DemoBackend:
                         first,
                         "Replay Attack - Initial (HMAC)",
                         "hmac-sha256",
+                        packet,
                     ),
                     self._result_row(
                         second,
                         "Replay Attack - Duplicate (HMAC)",
                         "hmac-sha256",
+                        packet,
                     ),
                 ]
             )
 
         elif scenario == "valid_ecdsa":
             item = items[0]
-            ecdsa_cred = self._ecdsa_credentials[item.packet.device_id]
-            self._registry.update_credential(item.packet.device_id, ecdsa_cred)
+            dev_id = item.packet.device_id
+            ecdsa_cred = self._ecdsa_credentials[dev_id]
+            dev_key = self._device_keys[dev_id]
+
+            self._registry.update_credential(dev_id, ecdsa_cred)
             packet = self._prepare_packet(item, ecdsa_cred, "ecdsa_valid")
-            signature = C4TrustService.sign_packet_ecdsa(
-                packet,
-                self._ec_private_key,
-            )
+            signature = C4TrustService.sign_packet_ecdsa(packet, dev_key)
             result = self._gate.process(
                 packet,
                 signature,
@@ -313,20 +508,21 @@ class C4DemoBackend:
             rows.append(
                 self._result_row(
                     result,
-                    "Valid Telemetry (ECDSA)",
+                    "Valid Telemetry (X.509 + ECDSA)",
                     "ecdsa-sha256",
+                    packet,
                 )
             )
 
         elif scenario == "tampered_ecdsa":
             item = items[0]
-            ecdsa_cred = self._ecdsa_credentials[item.packet.device_id]
-            self._registry.update_credential(item.packet.device_id, ecdsa_cred)
+            dev_id = item.packet.device_id
+            ecdsa_cred = self._ecdsa_credentials[dev_id]
+            dev_key = self._device_keys[dev_id]
+
+            self._registry.update_credential(dev_id, ecdsa_cred)
             packet = self._prepare_packet(item, ecdsa_cred, "ecdsa_tampered")
-            signature = C4TrustService.sign_packet_ecdsa(
-                packet,
-                self._ec_private_key,
-            )
+            signature = C4TrustService.sign_packet_ecdsa(packet, dev_key)
             tampered_packet = packet.model_copy(
                 update={"zone_id": "ZONE_02"}
             )
@@ -340,23 +536,39 @@ class C4DemoBackend:
                     result,
                     "Tampered Telemetry (ECDSA)",
                     "ecdsa-sha256",
+                    tampered_packet,
                 )
             )
 
-        elif scenario == "unverifiable_ecdsa":
+        elif scenario == "expired_x509":
             item = items[0]
-            unverifiable_cred = DeviceCredential(
-                credential_id=f"DEMO-UNVERIFIABLE-{item.packet.device_id}",
-                secret=b"dashboard-demo-only",
+            dev_id = item.packet.device_id
+            dev_key = self._device_keys[dev_id]
+
+            # Generate expired certificate
+            _, _, expired_pem = create_device_certificate(
+                dev_id,
+                self._ca_cert,
+                self._ca_key,
+                valid_days=5,
+                not_before_offset_days=-20,
+                private_key=dev_key,
+                issued_at=DEMO_PKI_ISSUED_AT,
+            )
+            expired_cred = DeviceCredential(
+                credential_id=f"EXPIRED-CRED-{dev_id}",
+                secret=b"unused",
                 signature_algorithm="ecdsa-sha256",
-                public_key_pem=None,
+                certificate_pem=expired_pem,
             )
-            self._registry.update_credential(item.packet.device_id, unverifiable_cred)
-            packet = self._prepare_packet(item, unverifiable_cred, "ecdsa_unverifiable")
-            signature = C4TrustService.sign_packet_ecdsa(
-                packet,
-                self._ec_private_key,
+            self._registry.update_credential(dev_id, expired_cred)
+            packet = self._prepare_packet(
+                item,
+                expired_cred,
+                "x509_expired",
+                custom_cert_pem=expired_pem.decode("utf-8"),
             )
+            signature = C4TrustService.sign_packet_ecdsa(packet, dev_key)
             result = self._gate.process(
                 packet,
                 signature,
@@ -365,17 +577,159 @@ class C4DemoBackend:
             rows.append(
                 self._result_row(
                     result,
-                    "Unavailable Public Key (ECDSA)",
+                    "Expired Certificate (X.509)",
                     "ecdsa-sha256",
+                    packet,
+                )
+            )
+
+        elif scenario == "untrusted_ca_x509":
+            item = items[0]
+            dev_id = item.packet.device_id
+            dev_key = self._device_keys[dev_id]
+
+            rogue_key, rogue_cert, _ = create_ca(
+                "Rogue Imposter Root CA",
+                issued_at=DEMO_PKI_ISSUED_AT,
+            )
+            _, _, rogue_dev_pem = create_device_certificate(
+                dev_id,
+                rogue_cert,
+                rogue_key,
+                private_key=dev_key,
+                issued_at=DEMO_PKI_ISSUED_AT,
+            )
+            rogue_cred = DeviceCredential(
+                credential_id=f"ROGUE-CRED-{dev_id}",
+                secret=b"unused",
+                signature_algorithm="ecdsa-sha256",
+                certificate_pem=rogue_dev_pem,
+            )
+            self._registry.update_credential(dev_id, rogue_cred)
+            packet = self._prepare_packet(
+                item,
+                rogue_cred,
+                "x509_untrusted_ca",
+                custom_cert_pem=rogue_dev_pem.decode("utf-8"),
+            )
+            signature = C4TrustService.sign_packet_ecdsa(packet, dev_key)
+            result = self._gate.process(
+                packet,
+                signature,
+                now=packet.observed_at,
+            )
+            rows.append(
+                self._result_row(
+                    result,
+                    "Untrusted CA Certificate (X.509)",
+                    "ecdsa-sha256",
+                    packet,
+                )
+            )
+
+        elif scenario == "mismatched_identity_x509":
+            item = items[0]
+            dev_id = item.packet.device_id
+            dev_key = self._device_keys[dev_id]
+
+            # Issue certificate for a completely different device
+            _, _, mismatch_pem = create_device_certificate(
+                "GNX-IMPOSTER-SENSOR-999",
+                self._ca_cert,
+                self._ca_key,
+                private_key=dev_key,
+                issued_at=DEMO_PKI_ISSUED_AT,
+            )
+            mismatch_cred = DeviceCredential(
+                credential_id=f"MISMATCH-CRED-{dev_id}",
+                secret=b"unused",
+                signature_algorithm="ecdsa-sha256",
+                certificate_pem=mismatch_pem,
+            )
+            self._registry.update_credential(dev_id, mismatch_cred)
+            packet = self._prepare_packet(
+                item,
+                mismatch_cred,
+                "x509_mismatch",
+                custom_cert_pem=mismatch_pem.decode("utf-8"),
+            )
+            signature = C4TrustService.sign_packet_ecdsa(packet, dev_key)
+            result = self._gate.process(
+                packet,
+                signature,
+                now=packet.observed_at,
+            )
+            rows.append(
+                self._result_row(
+                    result,
+                    "Identity Mismatch Certificate (X.509)",
+                    "ecdsa-sha256",
+                    packet,
+                )
+            )
+
+        elif scenario == "revoked_x509":
+            item = items[0]
+            dev_id = item.packet.device_id
+            dev_key = self._device_keys[dev_id]
+            ecdsa_cred = self._ecdsa_credentials[dev_id]
+
+            self._registry.update_credential(dev_id, ecdsa_cred)
+            self._registry.revoke(dev_id)
+
+            packet = self._prepare_packet(item, ecdsa_cred, "x509_revoked")
+            signature = C4TrustService.sign_packet_ecdsa(packet, dev_key)
+            result = self._gate.process(
+                packet,
+                signature,
+                now=packet.observed_at,
+            )
+            rows.append(
+                self._result_row(
+                    result,
+                    "Revoked Device (X.509)",
+                    "ecdsa-sha256",
+                    packet,
+                )
+            )
+            # Re-activate for subsequent runs
+            self._registry.update_lifecycle_state(dev_id, DeviceLifecycleState.ACTIVE)
+
+        elif scenario == "unverifiable_ecdsa":
+            item = items[0]
+            dev_id = item.packet.device_id
+            dev_key = self._device_keys[dev_id]
+            unverifiable_cred = DeviceCredential(
+                credential_id=f"DEMO-UNVERIFIABLE-{dev_id}",
+                secret=b"dashboard-demo-only",
+                signature_algorithm="ecdsa-sha256",
+                public_key_pem=None,
+                certificate_pem=None,
+            )
+            self._registry.update_credential(dev_id, unverifiable_cred)
+            packet = self._prepare_packet(item, unverifiable_cred, "ecdsa_unverifiable")
+            signature = C4TrustService.sign_packet_ecdsa(packet, dev_key)
+            result = self._gate.process(
+                packet,
+                signature,
+                now=packet.observed_at,
+            )
+            rows.append(
+                self._result_row(
+                    result,
+                    "Unavailable Key/Certificate (ECDSA)",
+                    "ecdsa-sha256",
+                    packet,
                 )
             )
 
         elif scenario == "fallback_rejection":
             item = items[0]
-            ecdsa_cred = self._ecdsa_credentials[item.packet.device_id]
-            self._registry.update_credential(item.packet.device_id, ecdsa_cred)
+            dev_id = item.packet.device_id
+            ecdsa_cred = self._ecdsa_credentials[dev_id]
+
+            self._registry.update_credential(dev_id, ecdsa_cred)
             packet = self._prepare_packet(item, ecdsa_cred, "ecdsa_fallback")
-            # Present an HMAC signature for an ECDSA-configured device
             hmac_signature = C4TrustService.sign_packet(
                 packet,
                 ecdsa_cred.secret,
@@ -390,6 +744,7 @@ class C4DemoBackend:
                     result,
                     "Fallback Rejection (ECDSA with HMAC signature)",
                     "ecdsa-sha256",
+                    packet,
                 )
             )
 

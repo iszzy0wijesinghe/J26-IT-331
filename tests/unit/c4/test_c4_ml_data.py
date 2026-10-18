@@ -23,7 +23,7 @@ from components.c4_trust.models import (
     ModelType,
     TrainedModel,
 )
-from scripts.ablation_study_c4 import deterministic_only_assessment
+from scripts.c4.ablation_study_c4 import deterministic_only_assessment
 from shared.contracts import C4TrustAssessment, TelemetryPacket
 from shared.contracts.telemetry import SecurityMetadata, TransportMetadata
 from shared.enums import C4RoutingOutcome, C4TrustLabel, SourceOrigin
@@ -577,7 +577,7 @@ def test_scenario_and_device_split_keeps_both_groups_disjoint_without_mutation()
 
 
 def test_deterministic_ablation_uses_gate_fields_not_the_target_label():
-    from scripts.ablation_study_c4 import DETERMINISTIC_SECURITY_FIELDS
+    from scripts.c4.ablation_study_c4 import DETERMINISTIC_SECURITY_FIELDS
 
     source = pd.DataFrame(
         {

@@ -20,7 +20,7 @@ from shared.simulation.scheduled_telemetry import (
     ScheduledTelemetryConfig,
     generate_scheduled_demo_telemetry,
 )
-from tests.integration.test_c4_simulation_gate import (
+from tests.integration.c4.test_c4_simulation_gate import (
     build_test_gate,
     prepare_packet,
 )
