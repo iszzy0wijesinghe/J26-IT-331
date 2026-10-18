@@ -3,8 +3,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 
+from cryptography import x509
+
+from components.c4_trust.certificates import X509CertificateValidator
 from components.c4_trust.models import C4BehavioralModelRunner, ModelSchemaError
 from components.c4_trust.registry import DeviceRegistry
 from components.c4_trust.runtime_features import (
@@ -29,6 +33,10 @@ def create_c4_service_with_behavioral_ml(
     require_config_approval: bool = False,
     attestation_verifier: EvidenceVerifier | None = None,
     provenance_verifier: EvidenceVerifier | None = None,
+    require_certificate: bool = False,
+    certificate_validator: X509CertificateValidator | None = None,
+    trusted_ca_certificates: Sequence[x509.Certificate | bytes | str] | None = None,
+    revoked_certificates: Sequence[int] | set[int] | None = None,
 ) -> C4TrustService:
     """Create a C4TrustService with behavioral ML integration.
 
@@ -76,6 +84,10 @@ def create_c4_service_with_behavioral_ml(
         require_sequence=require_sequence,
         require_firmware_approval=require_firmware_approval,
         require_config_approval=require_config_approval,
+        require_certificate=require_certificate,
+        certificate_validator=certificate_validator,
+        trusted_ca_certificates=trusted_ca_certificates,
+        revoked_certificates=revoked_certificates,
     )
 
 
@@ -87,6 +99,10 @@ def create_c4_service_deterministic_only(
     require_sequence: bool = True,
     require_firmware_approval: bool = False,
     require_config_approval: bool = False,
+    require_certificate: bool = False,
+    certificate_validator: X509CertificateValidator | None = None,
+    trusted_ca_certificates: Sequence[x509.Certificate | bytes | str] | None = None,
+    revoked_certificates: Sequence[int] | set[int] | None = None,
 ) -> C4TrustService:
     """Create a C4TrustService without behavioral ML."""
     return C4TrustService(
@@ -98,4 +114,8 @@ def create_c4_service_deterministic_only(
         require_sequence=require_sequence,
         require_firmware_approval=require_firmware_approval,
         require_config_approval=require_config_approval,
+        require_certificate=require_certificate,
+        certificate_validator=certificate_validator,
+        trusted_ca_certificates=trusted_ca_certificates,
+        revoked_certificates=revoked_certificates,
     )
