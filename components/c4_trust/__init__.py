@@ -1,4 +1,12 @@
-﻿from components.c4_trust.pipeline import C4GateResult, C4TelemetryGate
+from components.c4_trust.certificates import (
+    CertificateValidationResult,
+    X509CertificateValidator,
+    create_ca,
+    create_crl,
+    create_device_certificate,
+    load_certificate,
+)
+from components.c4_trust.pipeline import C4GateResult, C4TelemetryGate
 from components.c4_trust.quarantine import (
     QuarantineManager,
     QuarantineReason,
@@ -26,4 +34,10 @@ __all__ = [
     "QuarantineManager",
     "QuarantineReason",
     "QuarantineRecord",
+    "X509CertificateValidator",
+    "CertificateValidationResult",
+    "load_certificate",
+    "create_ca",
+    "create_device_certificate",
+    "create_crl",
 ]
