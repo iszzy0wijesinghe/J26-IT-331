@@ -12,7 +12,9 @@ from pydantic import BaseModel, Field
 
 from apps.c3_workbench.dataset_routes import router as dataset_router
 from apps.c3_workbench.csv_routes import router as csv_router
+from apps.c3_workbench.golden_routes import router as golden_router
 from components.c3_forecasting.inference.m4_predictor import C3M4Predictor
+
 
 ROOT = Path(__file__).resolve().parents[2]
 CHECKPOINT_DIR = ROOT / "data" / "processed" / "c3_m4_results"
@@ -23,10 +25,11 @@ app = FastAPI(
     version="0.3.0",
 )
 
-# Register CSV routes before the dataset router.
-# This prevents /datasets/{dataset_id} from intercepting
-# /datasets/csv/validate requests.
+# Register specific dataset routes before dynamic dataset routes.
+# Otherwise, /datasets/{dataset_id} may intercept /datasets/golden.
+
 app.include_router(csv_router)
+app.include_router(golden_router)
 app.include_router(dataset_router)
 
 class ForecastRequest(BaseModel):

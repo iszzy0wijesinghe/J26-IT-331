@@ -266,6 +266,7 @@ def validate_csv(path: str | Path) -> CSVValidationResult:
 
                     if not raw_value:
                         result.missing_values[sensor] += 1
+                        row_valid = False
                         continue
 
                     try:
@@ -366,9 +367,12 @@ def validate_csv(path: str | Path) -> CSVValidationResult:
     for sensor, count in result.missing_values.items():
         if count:
             issue(
-                "WARNING",
+                "ERROR",
                 "MISSING_SENSOR_VALUES",
-                f"{sensor} contains {count} missing readings",
+                (
+                    f"{sensor} contains {count} missing readings. "
+                    "Golden datasets require complete sensor observations."
+                ),
                 column=sensor,
             )
 

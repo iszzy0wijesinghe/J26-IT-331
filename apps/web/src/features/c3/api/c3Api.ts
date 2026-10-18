@@ -127,6 +127,39 @@ export type C3CSVValidationResponse = {
   training_started: boolean;
 };
 
+export type C3GoldenDataset = {
+  dataset_id: string;
+  filename: string;
+  file_hash: string;
+  uploaded_at: string;
+  total_rows: number;
+  device_count: number;
+  episode_count: number;
+  quality_status: string;
+  pipeline_status: string;
+  source_type: "CSV";
+};
+
+export type C3GoldenDatasetDetails = C3GoldenDataset & {
+  stored_observations: number;
+  validation: C3CSVValidationResult;
+};
+
+export type C3GoldenDatasetListResponse = {
+  datasets: C3GoldenDataset[];
+  total: number;
+};
+
+export type C3CSVUploadResponse = C3CSVValidationResponse & {
+  dataset?: {
+    dataset_id: string;
+    status: string;
+    already_registered: boolean;
+    observations: number;
+    quality_status?: string;
+    training_started: boolean;
+  };
+};
 
 
 const BASE = '/api/c3';
@@ -207,7 +240,6 @@ export const c3CSVApi = {
     signal?: AbortSignal,
   ): Promise<C3CSVValidationResponse> => {
     const formData = new FormData();
-
     formData.append("file", file);
 
     return requestJson<C3CSVValidationResponse>(
@@ -219,4 +251,35 @@ export const c3CSVApi = {
       },
     );
   },
+
+  upload: (
+    file: File,
+    signal?: AbortSignal,
+  ): Promise<C3CSVUploadResponse> => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    return requestJson<C3CSVUploadResponse>(
+      "/datasets/csv/upload",
+      {
+        method: "POST",
+        body: formData,
+        signal,
+      },
+    );
+  },
+};
+
+export const c3GoldenApi = {
+  list: (signal?: AbortSignal) =>
+    requestJson<C3GoldenDatasetListResponse>(
+      "/datasets/golden",
+      { signal },
+    ),
+
+  get: (datasetId: string, signal?: AbortSignal) =>
+    requestJson<C3GoldenDatasetDetails>(
+      `/datasets/golden/${encodeURIComponent(datasetId)}`,
+      { signal },
+    ),
 };

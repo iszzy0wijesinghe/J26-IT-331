@@ -22,6 +22,11 @@ from apps.c3_workbench.csv_validator import (
     validate_csv,
 )
 
+from apps.c3_workbench.golden_ingestion import (
+    GoldenIngestionError,
+    ingest_golden_csv,
+)
+
 
 router = APIRouter(
     prefix="/datasets/csv",
@@ -95,6 +100,90 @@ async def validate_uploaded_csv(
                 "validation": report,
                 "registered": False,
                 "training_started": False,
+            }
+
+        finally:
+            await file.close()
+            
+@router.post("/upload")
+async def upload_golden_csv(
+    file: UploadFile = File(...),
+) -> dict[str, Any]:
+    """Validate and register Golden CSV observations."""
+
+    filename = Path(file.filename or "").name
+
+    if not filename.lower().endswith(".csv"):
+        raise HTTPException(
+            status_code=422,
+            detail="Only CSV files are supported",
+        )
+
+    with tempfile.TemporaryDirectory(
+        prefix="geonex_c3_golden_"
+    ) as temporary_directory:
+
+        destination = (
+            Path(temporary_directory) / "uploaded.csv"
+        )
+
+        total_bytes = 0
+
+        try:
+            with destination.open("wb") as output:
+                while True:
+                    chunk = await file.read(CHUNK_BYTES)
+
+                    if not chunk:
+                        break
+
+                    total_bytes += len(chunk)
+
+                    if total_bytes > MAX_CSV_BYTES:
+                        raise HTTPException(
+                            status_code=413,
+                            detail="CSV exceeds 100 MiB",
+                        )
+
+                    output.write(chunk)
+
+            if total_bytes == 0:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Uploaded CSV is empty",
+                )
+
+            validation = validate_csv(destination)
+            report = validation.to_dict()
+            report["filename"] = filename
+
+            if validation.status != "VALIDATED":
+                return {
+                    "message": "Golden Data validation failed",
+                    "validation": report,
+                    "registered": False,
+                    "training_started": False,
+                }
+
+            try:
+                registration = ingest_golden_csv(
+                    destination,
+                    filename,
+                )
+            except GoldenIngestionError as exc:
+                raise HTTPException(
+                    status_code=422,
+                    detail=str(exc),
+                ) from exc
+
+            return {
+                "message": (
+                    "Golden CSV validated and registered successfully"
+                ),
+                "validation": report,
+                "registered": True,
+                "training_started": False,
+                "dataset": registration,
             }
 
         finally:
