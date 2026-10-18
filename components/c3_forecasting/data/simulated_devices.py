@@ -142,6 +142,11 @@ def generate_one_zone_demo(
     Backup Pipe, Sensor Hub. Main Black Box is a gateway identifier;
     Centralized Power Hub is never treated as an environmental sensor.
     """
+
+    # Create the default configuration only when one is not provided.
+    if config is None:
+        config = DemoNetworkConfig()
+
     if not config.zone_id:
         raise ValueError("zone_id must not be empty")
     if config.start_time.utcoffset() is None:
