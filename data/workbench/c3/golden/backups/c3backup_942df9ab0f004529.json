@@ -1,0 +1,9 @@
+{
+  "backup_id": "c3backup_942df9ab0f004529",
+  "filename": "c3backup_942df9ab0f004529.sqlite3",
+  "created_at": "2026-10-18T16:46:00.934541+00:00",
+  "size_bytes": 1667072,
+  "sha256": "713f96534c1090874b9b7b00eb3483897686bc027ff6d9fdbe22aff28b81804b",
+  "status": "VERIFIED",
+  "database_filename": "c3_golden.sqlite3"
+}

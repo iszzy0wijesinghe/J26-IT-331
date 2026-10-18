@@ -1,10 +1,6 @@
 /** @format */
 
-import {
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   c3DatasetApi,
@@ -16,14 +12,12 @@ import {
 } from "../api/c3Api";
 
 import { C3CSVValidationWorkspace } from "./C3CSVValidationWorkspace";
+import { C3DatabaseManagement } from "./C3DatabaseManagement";
+import { C3GoldenDatabaseExplorer } from "./C3GoldenDatabaseExplorer";
 
 import "../styles/c3DatasetManager.css";
 
-/* ============================================================
-   Types
-   ============================================================ */
-
-type DatasetTab = "csv" | "registered" | "zip";
+type DatasetTab = "csv" | "registered" | "zip" | "database" | "explorer";
 
 type DatasetDetails = C3RegisteredDataset & {
   validation?: C3DatasetValidation;
@@ -40,9 +34,7 @@ function getValidation(
 
   const candidate =
     dataset.validation ??
-    (dataset[
-      "validation_result"
-    ] as C3DatasetValidation | undefined);
+    (dataset["validation_result"] as C3DatasetValidation | undefined);
 
   return candidate ?? null;
 }
@@ -56,9 +48,7 @@ function getErrorMessage(error: unknown): string {
 function formatDate(value: string): string {
   const date = new Date(value);
 
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleString();
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
 /* ============================================================
@@ -70,31 +60,25 @@ export function C3DatasetManager() {
      Navigation
      ---------------------------------------------------------- */
 
-  const [activeTab, setActiveTab] =
-    useState<DatasetTab>("csv");
+  const [activeTab, setActiveTab] = useState<DatasetTab>("csv");
 
   /* ----------------------------------------------------------
      Prepared ZIP Dataset Registry
      ---------------------------------------------------------- */
 
-  const [datasets, setDatasets] =
-    useState<C3RegisteredDataset[]>([]);
+  const [datasets, setDatasets] = useState<C3RegisteredDataset[]>([]);
 
-  const [selectedId, setSelectedId] =
-    useState("");
+  const [selectedId, setSelectedId] = useState("");
 
-  const [details, setDetails] =
-    useState<DatasetDetails | null>(null);
+  const [details, setDetails] = useState<DatasetDetails | null>(null);
 
   /* ----------------------------------------------------------
      Golden CSV Dataset Registry
      ---------------------------------------------------------- */
 
-  const [goldenDatasets, setGoldenDatasets] =
-    useState<C3GoldenDataset[]>([]);
+  const [goldenDatasets, setGoldenDatasets] = useState<C3GoldenDataset[]>([]);
 
-  const [selectedGoldenId, setSelectedGoldenId] =
-    useState("");
+  const [selectedGoldenId, setSelectedGoldenId] = useState("");
 
   const [goldenDetails, setGoldenDetails] =
     useState<C3GoldenDatasetDetails | null>(null);
@@ -103,99 +87,77 @@ export function C3DatasetManager() {
      Loading States
      ---------------------------------------------------------- */
 
-  const [loading, setLoading] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [loadingDetails, setLoadingDetails] =
-    useState(false);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
-  const [loadingGoldenDetails, setLoadingGoldenDetails] =
-    useState(false);
+  const [loadingGoldenDetails, setLoadingGoldenDetails] = useState(false);
 
-  const [uploading, setUploading] =
-    useState(false);
+  const [uploading, setUploading] = useState(false);
 
   /* ----------------------------------------------------------
      ZIP Upload
      ---------------------------------------------------------- */
 
-  const [selectedFile, setSelectedFile] =
-    useState<File | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   /* ----------------------------------------------------------
      Feedback
      ---------------------------------------------------------- */
 
-  const [error, setError] =
-    useState("");
+  const [error, setError] = useState("");
 
-  const [success, setSuccess] =
-    useState("");
+  const [success, setSuccess] = useState("");
 
   /* ============================================================
      Load Both Dataset Registries
      ============================================================ */
 
-  const loadDatasets = useCallback(
-    async (signal?: AbortSignal) => {
-      const [
-        preparedResponse,
-        goldenResponse,
-      ] = await Promise.all([
-        c3DatasetApi.list(signal),
-        c3GoldenApi.list(signal),
-      ]);
+  const loadDatasets = useCallback(async (signal?: AbortSignal) => {
+    const [preparedResponse, goldenResponse] = await Promise.all([
+      c3DatasetApi.list(signal),
+      c3GoldenApi.list(signal),
+    ]);
 
-      if (signal?.aborted) return;
+    if (signal?.aborted) return;
 
-      /* ------------------------------------------------------
+    /* ------------------------------------------------------
          Prepared ZIP datasets
          ------------------------------------------------------ */
 
-      setDatasets(preparedResponse.datasets);
+    setDatasets(preparedResponse.datasets);
 
-      setSelectedId((current) => {
-        const exists =
-          preparedResponse.datasets.some(
-            (dataset) =>
-              dataset.dataset_id === current,
-          );
+    setSelectedId((current) => {
+      const exists = preparedResponse.datasets.some(
+        (dataset) => dataset.dataset_id === current,
+      );
 
-        return exists
-          ? current
-          : preparedResponse.datasets[0]
-              ?.dataset_id ?? "";
-      });
+      return exists
+        ? current
+        : (preparedResponse.datasets[0]?.dataset_id ?? "");
+    });
 
-      /* ------------------------------------------------------
+    /* ------------------------------------------------------
          Golden CSV datasets
          ------------------------------------------------------ */
 
-      setGoldenDatasets(goldenResponse.datasets);
+    setGoldenDatasets(goldenResponse.datasets);
 
-      setSelectedGoldenId((current) => {
-        const exists =
-          goldenResponse.datasets.some(
-            (dataset) =>
-              dataset.dataset_id === current,
-          );
+    setSelectedGoldenId((current) => {
+      const exists = goldenResponse.datasets.some(
+        (dataset) => dataset.dataset_id === current,
+      );
 
-        return exists
-          ? current
-          : goldenResponse.datasets[0]
-              ?.dataset_id ?? "";
-      });
-    },
-    [],
-  );
+      return exists ? current : (goldenResponse.datasets[0]?.dataset_id ?? "");
+    });
+  }, []);
 
   /* ============================================================
      Initial Dataset Loading
      ============================================================ */
 
   useEffect(() => {
-    const controller =
-      new AbortController();
+    const controller = new AbortController();
 
     setLoading(true);
 
@@ -225,8 +187,7 @@ export function C3DatasetManager() {
       return;
     }
 
-    const controller =
-      new AbortController();
+    const controller = new AbortController();
 
     setLoadingDetails(true);
     setDetails(null);
@@ -263,8 +224,7 @@ export function C3DatasetManager() {
       return;
     }
 
-    const controller =
-      new AbortController();
+    const controller = new AbortController();
 
     setLoadingGoldenDetails(true);
     setGoldenDetails(null);
@@ -294,20 +254,12 @@ export function C3DatasetManager() {
      CSV Registration Callback
      ============================================================ */
 
-  function handleGoldenDatasetRegistered(
-    datasetId: string,
-  ) {
+  function handleGoldenDatasetRegistered(datasetId: string) {
     setSelectedGoldenId(datasetId);
 
-    void loadDatasets().catch(
-      (cause: unknown) => {
-        setError(
-          `Unable to refresh dataset history: ${getErrorMessage(
-            cause,
-          )}`,
-        );
-      },
-    );
+    void loadDatasets().catch((cause: unknown) => {
+      setError(`Unable to refresh dataset history: ${getErrorMessage(cause)}`);
+    });
   }
 
   /* ============================================================
@@ -323,16 +275,13 @@ export function C3DatasetManager() {
     setSuccess("");
 
     try {
-      const response =
-        await c3DatasetApi.upload(selectedFile);
+      const response = await c3DatasetApi.upload(selectedFile);
 
       setSuccess(response.message);
 
       await loadDatasets();
 
-      setSelectedId(
-        response.dataset.dataset_id,
-      );
+      setSelectedId(response.dataset.dataset_id);
 
       setSelectedFile(null);
 
@@ -357,28 +306,23 @@ export function C3DatasetManager() {
      Derived State
      ============================================================ */
 
-  const validation =
-    getValidation(details);
+  const validation = getValidation(details);
 
-  const totalDatasets =
-    datasets.length +
-    goldenDatasets.length;
+  const totalDatasets = datasets.length + goldenDatasets.length;
 
   const selectedDatasetLabel =
-    activeTab === "registered" &&
-    selectedGoldenId
+    activeTab === "registered" && selectedGoldenId
       ? selectedGoldenId
       : selectedId || "None";
 
   const selectedDatasetStatus =
-    activeTab === "registered" &&
-    selectedGoldenId
+    activeTab === "registered" && selectedGoldenId
       ? loadingGoldenDetails
         ? "Loading…"
-        : goldenDetails?.pipeline_status ?? "—"
+        : (goldenDetails?.pipeline_status ?? "—")
       : loadingDetails
         ? "Loading…"
-        : details?.status ?? "—";
+        : (details?.status ?? "—");
 
   /* ============================================================
      Render
@@ -400,43 +344,33 @@ export function C3DatasetManager() {
             <h2>Dataset Manager</h2>
           </div>
 
-          <span className="live-chip">
-            Synthetic forecasting research
-          </span>
+          <span className="live-chip">Synthetic forecasting research</span>
         </div>
 
         <p className="panel-subtitle">
-          Validate and register raw sensor observations,
-          inspect Golden Database history, and import
-          prepared forecasting datasets. Held-out test
-          records remain excluded from the dataset workflow.
+          Validate and register raw sensor observations, inspect Golden Database
+          history, import prepared forecasting datasets, and manage verified
+          database backups. Held-out test records remain excluded from the
+          dataset workflow.
         </p>
 
         <div className="c3-dataset-summary">
           <div>
             <span>REGISTERED DATASETS</span>
 
-            <strong>
-              {loading
-                ? "…"
-                : totalDatasets}
-            </strong>
+            <strong>{loading ? "…" : totalDatasets}</strong>
           </div>
 
           <div>
             <span>SELECTED DATASET</span>
 
-            <strong>
-              {selectedDatasetLabel}
-            </strong>
+            <strong>{selectedDatasetLabel}</strong>
           </div>
 
           <div>
             <span>DATASET STATUS</span>
 
-            <strong>
-              {selectedDatasetStatus}
-            </strong>
+            <strong>{selectedDatasetStatus}</strong>
           </div>
         </div>
       </section>
@@ -447,56 +381,37 @@ export function C3DatasetManager() {
 
       <nav
         className="c3-dataset-navigation"
-        aria-label="Dataset management sections"
-      >
+        aria-label="Dataset management sections">
+        {/* ----------------------------------------------------
+            CSV Ingestion
+            ---------------------------------------------------- */}
+
         <button
           type="button"
           className={`c3-dataset-navigation-button ${
-            activeTab === "csv"
-              ? "active"
-              : ""
+            activeTab === "csv" ? "active" : ""
           }`}
-          aria-current={
-            activeTab === "csv"
-              ? "page"
-              : undefined
-          }
-          onClick={() =>
-            changeTab("csv")
-          }
-        >
-          <span
-            className="c3-dataset-navigation-icon"
-            aria-hidden="true"
-          >
+          aria-current={activeTab === "csv" ? "page" : undefined}
+          onClick={() => changeTab("csv")}>
+          <span className="c3-dataset-navigation-icon" aria-hidden="true">
             ◈
           </span>
 
-          <span className="c3-dataset-navigation-label">
-            CSV Ingestion
-          </span>
+          <span className="c3-dataset-navigation-label">CSV Ingestion</span>
         </button>
+
+        {/* ----------------------------------------------------
+            Registered Datasets
+            ---------------------------------------------------- */}
 
         <button
           type="button"
           className={`c3-dataset-navigation-button ${
-            activeTab === "registered"
-              ? "active"
-              : ""
+            activeTab === "registered" ? "active" : ""
           }`}
-          aria-current={
-            activeTab === "registered"
-              ? "page"
-              : undefined
-          }
-          onClick={() =>
-            changeTab("registered")
-          }
-        >
-          <span
-            className="c3-dataset-navigation-icon"
-            aria-hidden="true"
-          >
+          aria-current={activeTab === "registered" ? "page" : undefined}
+          onClick={() => changeTab("registered")}>
+          <span className="c3-dataset-navigation-icon" aria-hidden="true">
             ▤
           </span>
 
@@ -505,32 +420,56 @@ export function C3DatasetManager() {
           </span>
         </button>
 
+        {/* ----------------------------------------------------
+            ZIP Import
+            ---------------------------------------------------- */}
+
         <button
           type="button"
           className={`c3-dataset-navigation-button ${
-            activeTab === "zip"
-              ? "active"
-              : ""
+            activeTab === "zip" ? "active" : ""
           }`}
-          aria-current={
-            activeTab === "zip"
-              ? "page"
-              : undefined
-          }
-          onClick={() =>
-            changeTab("zip")
-          }
-        >
-          <span
-            className="c3-dataset-navigation-icon"
-            aria-hidden="true"
-          >
+          aria-current={activeTab === "zip" ? "page" : undefined}
+          onClick={() => changeTab("zip")}>
+          <span className="c3-dataset-navigation-icon" aria-hidden="true">
             ⇧
           </span>
 
-          <span className="c3-dataset-navigation-label">
-            ZIP Import
+          <span className="c3-dataset-navigation-label">ZIP Import</span>
+        </button>
+
+        {/* ----------------------------------------------------
+            Database Management
+            ---------------------------------------------------- */}
+
+        <button
+          type="button"
+          className={`c3-dataset-navigation-button ${
+            activeTab === "database" ? "active" : ""
+          }`}
+          aria-current={activeTab === "database" ? "page" : undefined}
+          onClick={() => changeTab("database")}>
+          <span className="c3-dataset-navigation-icon" aria-hidden="true">
+            ▣
           </span>
+
+          <span className="c3-dataset-navigation-label">
+            Database Management
+          </span>
+        </button>
+
+        <button
+          type="button"
+          className={`c3-dataset-navigation-button ${
+            activeTab === "explorer" ? "active" : ""
+          }`}
+          aria-current={activeTab === "explorer" ? "page" : undefined}
+          onClick={() => changeTab("explorer")}>
+          <span className="c3-dataset-navigation-icon" aria-hidden="true">
+            ◫
+          </span>
+
+          <span className="c3-dataset-navigation-label">Golden Explorer</span>
         </button>
       </nav>
 
@@ -541,9 +480,7 @@ export function C3DatasetManager() {
       {activeTab === "csv" && (
         <div className="c3-dataset-workspace">
           <C3CSVValidationWorkspace
-            onDatasetRegistered={
-              handleGoldenDatasetRegistered
-            }
+            onDatasetRegistered={handleGoldenDatasetRegistered}
           />
         </div>
       )}
@@ -565,81 +502,60 @@ export function C3DatasetManager() {
                   GOLDEN DATABASE · CSV HISTORY
                 </span>
 
-                <h2>
-                  Golden Sensor Datasets
-                </h2>
+                <h2>Golden Sensor Datasets</h2>
               </div>
 
-              <span className="live-chip">
-                {goldenDatasets.length} stored
-              </span>
+              <span className="live-chip">{goldenDatasets.length} stored</span>
             </div>
 
             <p className="panel-subtitle">
-              Persistent raw sensor observations
-              registered through the Golden Data
-              ingestion pipeline. These datasets
-              are not automatically prepared
-              training and validation splits.
+              Persistent raw sensor observations registered through the Golden
+              Data ingestion pipeline. These datasets are not automatically
+              prepared training and validation splits.
             </p>
 
             {loading ? (
               <div className="c3-dataset-loading">
                 <span className="c3-dataset-loading-spinner" />
 
-                <p className="c3-inline-note">
-                  Loading Golden datasets…
-                </p>
+                <p className="c3-inline-note">Loading Golden datasets…</p>
               </div>
             ) : goldenDatasets.length === 0 ? (
               <p className="c3-inline-note">
-                No Golden CSV datasets have
-                been registered yet.
+                No Golden CSV datasets have been registered yet.
               </p>
             ) : (
               <div className="c3-dataset-list">
-                {goldenDatasets.map(
-                  (dataset) => (
-                    <button
-                      key={
-                        dataset.dataset_id
-                      }
-                      type="button"
-                      className={`c3-dataset-item ${
-                        selectedGoldenId ===
-                        dataset.dataset_id
-                          ? "selected"
-                          : ""
-                      }`}
-                      onClick={() => {
-                        setSelectedGoldenId(
-                          dataset.dataset_id,
-                        );
+                {goldenDatasets.map((dataset) => (
+                  <button
+                    key={dataset.dataset_id}
+                    type="button"
+                    className={`c3-dataset-item ${
+                      selectedGoldenId === dataset.dataset_id ? "selected" : ""
+                    }`}
+                    onClick={() => {
+                      setSelectedGoldenId(dataset.dataset_id);
 
-                        setError("");
-                      }}
-                    >
-                      <div>
-                        <strong>
-                          {dataset.filename}
-                        </strong>
+                      setError("");
+                    }}>
+                    <div>
+                      <strong>{dataset.filename}</strong>
 
-                        <span>
-                          {dataset.dataset_id}
-                          {" · "}
-                          {dataset.total_rows.toLocaleString()}
-                          {" observations · "}
-                          {dataset.episode_count}
-                          {" episodes"}
-                        </span>
-                      </div>
-
-                      <span className="c3-dataset-status">
-                        {dataset.pipeline_status}
+                      <span>
+                        {dataset.dataset_id}
+                        {" · "}
+                        {dataset.total_rows.toLocaleString()}
+                        {" observations · "}
+                        {dataset.episode_count}
+                        {" episodes"}
                       </span>
-                    </button>
-                  ),
-                )}
+                    </div>
+
+                    <span className="c3-dataset-status">
+                      {dataset.pipeline_status}
+                    </span>
+                  </button>
+                ))}
               </div>
             )}
 
@@ -665,9 +581,7 @@ export function C3DatasetManager() {
                   <div>
                     <span>Dataset ID</span>
 
-                    <strong>
-                      {goldenDetails.dataset_id}
-                    </strong>
+                    <strong>{goldenDetails.dataset_id}</strong>
                   </div>
 
                   <div>
@@ -681,51 +595,37 @@ export function C3DatasetManager() {
                   <div>
                     <span>Devices</span>
 
-                    <strong>
-                      {goldenDetails.device_count}
-                    </strong>
+                    <strong>{goldenDetails.device_count}</strong>
                   </div>
 
                   <div>
                     <span>Episodes</span>
 
-                    <strong>
-                      {goldenDetails.episode_count}
-                    </strong>
+                    <strong>{goldenDetails.episode_count}</strong>
                   </div>
 
                   <div>
                     <span>Quality Status</span>
 
-                    <strong>
-                      {goldenDetails.quality_status}
-                    </strong>
+                    <strong>{goldenDetails.quality_status}</strong>
                   </div>
 
                   <div>
                     <span>Pipeline Status</span>
 
-                    <strong>
-                      {goldenDetails.pipeline_status}
-                    </strong>
+                    <strong>{goldenDetails.pipeline_status}</strong>
                   </div>
 
                   <div>
                     <span>Uploaded At</span>
 
-                    <strong>
-                      {formatDate(
-                        goldenDetails.uploaded_at,
-                      )}
-                    </strong>
+                    <strong>{formatDate(goldenDetails.uploaded_at)}</strong>
                   </div>
 
                   <div>
                     <span>Validation</span>
 
-                    <strong>
-                      {goldenDetails.validation.status}
-                    </strong>
+                    <strong>{goldenDetails.validation.status}</strong>
                   </div>
                 </div>
 
@@ -753,46 +653,34 @@ export function C3DatasetManager() {
                   <div>
                     <span>Validation Errors</span>
 
-                    <strong>
-                      {goldenDetails.validation.error_count}
-                    </strong>
+                    <strong>{goldenDetails.validation.error_count}</strong>
                   </div>
 
                   <div>
                     <span>Validation Warnings</span>
 
-                    <strong>
-                      {goldenDetails.validation.warning_count}
-                    </strong>
+                    <strong>{goldenDetails.validation.warning_count}</strong>
                   </div>
                 </div>
 
-                <h3 className="c3-dataset-section-title">
-                  Operating Modes
-                </h3>
+                <h3 className="c3-dataset-section-title">Operating Modes</h3>
 
                 <div className="c3-dataset-detail-grid">
-                  {Object.entries(
-                    goldenDetails.validation.operating_modes,
-                  ).map(([mode, count]) => (
-                    <div key={mode}>
-                      <span>{mode}</span>
+                  {Object.entries(goldenDetails.validation.operating_modes).map(
+                    ([mode, count]) => (
+                      <div key={mode}>
+                        <span>{mode}</span>
 
-                      <strong>
-                        {count.toLocaleString()}
-                      </strong>
-                    </div>
-                  ))}
+                        <strong>{count.toLocaleString()}</strong>
+                      </div>
+                    ),
+                  )}
                 </div>
 
                 <p className="c3-research-warning">
-                  This dataset passed the
-                  currently implemented CSV
-                  validation checks. Temporal
-                  readiness, calibrated anomaly
-                  assessment, and forecasting
-                  suitability have not yet
-                  been established.
+                  This dataset passed the currently implemented CSV validation
+                  checks. Temporal readiness, calibrated anomaly assessment, and
+                  forecasting suitability have not yet been established.
                 </p>
               </>
             ) : null}
@@ -809,36 +697,27 @@ export function C3DatasetManager() {
                   PREPARED DATASET LIBRARY
                 </span>
 
-                <h2>
-                  Prepared Forecasting Datasets
-                </h2>
+                <h2>Prepared Forecasting Datasets</h2>
               </div>
 
-              <span className="live-chip">
-                {datasets.length} registered
-              </span>
+              <span className="live-chip">{datasets.length} registered</span>
             </div>
 
             <p className="panel-subtitle">
-              Prepared datasets containing
-              training and validation splits.
-              These datasets are registered
-              separately from raw Golden
-              sensor observations.
+              Prepared datasets containing training and validation splits. These
+              datasets are registered separately from raw Golden sensor
+              observations.
             </p>
 
             {loading ? (
               <div className="c3-dataset-loading">
                 <span className="c3-dataset-loading-spinner" />
 
-                <p className="c3-inline-note">
-                  Loading prepared datasets…
-                </p>
+                <p className="c3-inline-note">Loading prepared datasets…</p>
               </div>
             ) : datasets.length === 0 ? (
               <p className="c3-inline-note">
-                No prepared datasets have
-                been registered yet.
+                No prepared datasets have been registered yet.
               </p>
             ) : (
               <div className="c3-dataset-list">
@@ -847,32 +726,20 @@ export function C3DatasetManager() {
                     key={dataset.dataset_id}
                     type="button"
                     className={`c3-dataset-item ${
-                      selectedId === dataset.dataset_id
-                        ? "selected"
-                        : ""
+                      selectedId === dataset.dataset_id ? "selected" : ""
                     }`}
                     onClick={() => {
-                      setSelectedId(
-                        dataset.dataset_id,
-                      );
+                      setSelectedId(dataset.dataset_id);
 
                       setError("");
-                    }}
-                  >
+                    }}>
                     <div>
-                      <strong>
-                        {dataset.dataset_id}
-                      </strong>
+                      <strong>{dataset.dataset_id}</strong>
 
-                      <span>
-                        Synthetic C3 forecasting
-                        dataset
-                      </span>
+                      <span>Synthetic C3 forecasting dataset</span>
                     </div>
 
-                    <span className="c3-dataset-status">
-                      {dataset.status}
-                    </span>
+                    <span className="c3-dataset-status">{dataset.status}</span>
                   </button>
                 ))}
               </div>
@@ -890,9 +757,7 @@ export function C3DatasetManager() {
                   PREPARED DATASET INSPECTION
                 </span>
 
-                <h2>
-                  Prepared Dataset Details
-                </h2>
+                <h2>Prepared Dataset Details</h2>
               </div>
             </div>
 
@@ -900,14 +765,11 @@ export function C3DatasetManager() {
               <div className="c3-dataset-loading">
                 <span className="c3-dataset-loading-spinner" />
 
-                <p className="c3-inline-note">
-                  Loading dataset details…
-                </p>
+                <p className="c3-inline-note">Loading dataset details…</p>
               </div>
             ) : !details ? (
               <p className="c3-inline-note">
-                Select a prepared dataset to
-                inspect its validation results.
+                Select a prepared dataset to inspect its validation results.
               </p>
             ) : (
               <>
@@ -915,38 +777,27 @@ export function C3DatasetManager() {
                   <div>
                     <span>Dataset ID</span>
 
-                    <strong>
-                      {details.dataset_id}
-                    </strong>
+                    <strong>{details.dataset_id}</strong>
                   </div>
 
                   <div>
                     <span>Validation Status</span>
 
-                    <strong>
-                      {details.status}
-                    </strong>
+                    <strong>{details.status}</strong>
                   </div>
 
                   <div>
-                    <span>
-                      Held-out Test Included
-                    </span>
+                    <span>Held-out Test Included</span>
 
                     <strong>
-                      {details.held_out_test_included
-                        ? "YES"
-                        : "NO"}
+                      {details.held_out_test_included ? "YES" : "NO"}
                     </strong>
                   </div>
 
                   <div>
                     <span>Source</span>
 
-                    <strong>
-                      {validation?.source_origin ??
-                        "Synthetic"}
-                    </strong>
+                    <strong>{validation?.source_origin ?? "Synthetic"}</strong>
                   </div>
                 </div>
 
@@ -957,20 +808,11 @@ export function C3DatasetManager() {
                     </h3>
 
                     <div className="c3-dataset-splits">
-                      {(
-                        [
-                          "train",
-                          "validation",
-                        ] as const
-                      ).map((split) => {
-                        const statistics =
-                          validation.splits[split];
+                      {(["train", "validation"] as const).map((split) => {
+                        const statistics = validation.splits[split];
 
                         return (
-                          <div
-                            key={split}
-                            className="c3-dataset-split-card"
-                          >
+                          <div key={split} className="c3-dataset-split-card">
                             <h4>
                               {split === "train"
                                 ? "Training Split"
@@ -988,50 +830,38 @@ export function C3DatasetManager() {
                             <div>
                               <span>Episodes</span>
 
-                              <strong>
-                                {statistics.episodes}
-                              </strong>
+                              <strong>{statistics.episodes}</strong>
                             </div>
 
                             <div>
                               <span>Devices</span>
 
-                              <strong>
-                                {statistics.devices}
-                              </strong>
+                              <strong>{statistics.devices}</strong>
                             </div>
 
                             <div>
-                              <span>
-                                Missing readings
-                              </span>
+                              <span>Missing readings</span>
 
                               <strong>
                                 {statistics.missing_readings.toLocaleString()}
                               </strong>
                             </div>
 
-                            <h5>
-                              Forecast horizons
-                            </h5>
+                            <h5>Forecast horizons</h5>
 
-                            {[15, 30, 60].map(
-                              (horizon) => (
-                                <div key={horizon}>
-                                  <span>
-                                    {horizon} minutes
-                                  </span>
+                            {[15, 30, 60].map((horizon) => (
+                              <div key={horizon}>
+                                <span>{horizon} minutes</span>
 
-                                  <strong>
-                                    {(
-                                      statistics.horizon_counts[
-                                        String(horizon)
-                                      ] ?? 0
-                                    ).toLocaleString()}
-                                  </strong>
-                                </div>
-                              ),
-                            )}
+                                <strong>
+                                  {(
+                                    statistics.horizon_counts[
+                                      String(horizon)
+                                    ] ?? 0
+                                  ).toLocaleString()}
+                                </strong>
+                              </div>
+                            ))}
                           </div>
                         );
                       })}
@@ -1042,11 +872,9 @@ export function C3DatasetManager() {
             )}
 
             <p className="c3-research-warning">
-              Prepared datasets are used
-              for synthetic forecasting
-              research. Dataset validation
-              does not establish
-              landslide-warning reliability.
+              Prepared datasets are used for synthetic forecasting research.
+              Dataset validation does not establish landslide-warning
+              reliability.
             </p>
           </section>
         </div>
@@ -1061,34 +889,23 @@ export function C3DatasetManager() {
           <section className="panel">
             <div className="panel-heading">
               <div>
-                <span className="section-overline">
-                  DATASET IMPORT
-                </span>
+                <span className="section-overline">DATASET IMPORT</span>
 
-                <h2>
-                  Import Prepared Dataset
-                </h2>
+                <h2>Import Prepared Dataset</h2>
               </div>
 
-              <span className="live-chip">
-                ZIP dataset registration
-              </span>
+              <span className="live-chip">ZIP dataset registration</span>
             </div>
 
             <p className="panel-subtitle">
-              Upload a prepared dataset ZIP
-              containing exactly the required
-              training and validation files.
-              The backend verifies dataset
-              integrity, compatibility,
-              and episode-disjoint splitting
-              before registration.
+              Upload a prepared dataset ZIP containing exactly the required
+              training and validation files. The backend verifies dataset
+              integrity, compatibility, and episode-disjoint splitting before
+              registration.
             </p>
 
             <div className="c3-dataset-upload">
-              <label htmlFor="c3-dataset-file">
-                Dataset ZIP archive
-              </label>
+              <label htmlFor="c3-dataset-file">Dataset ZIP archive</label>
 
               <input
                 id="c3-dataset-file"
@@ -1096,9 +913,7 @@ export function C3DatasetManager() {
                 accept=".zip,application/zip"
                 disabled={uploading}
                 onChange={(event) => {
-                  setSelectedFile(
-                    event.target.files?.[0] ?? null,
-                  );
+                  setSelectedFile(event.target.files?.[0] ?? null);
 
                   setError("");
                   setSuccess("");
@@ -1108,13 +923,8 @@ export function C3DatasetManager() {
               <button
                 type="button"
                 className="c3-primary-button"
-                disabled={
-                  !selectedFile || uploading
-                }
-                onClick={() =>
-                  void handleUpload()
-                }
-              >
+                disabled={!selectedFile || uploading}
+                onClick={() => void handleUpload()}>
                 {uploading
                   ? "Validating and registering…"
                   : "Upload and Register Dataset"}
@@ -1122,35 +932,43 @@ export function C3DatasetManager() {
             </div>
 
             {error && (
-              <div
-                className="c3-dataset-error"
-                role="alert"
-              >
+              <div className="c3-dataset-error" role="alert">
                 {error}
               </div>
             )}
 
             {success && (
-              <p
-                className="c3-dataset-success"
-                role="status"
-              >
+              <p className="c3-dataset-success" role="status">
                 {success}
               </p>
             )}
 
             <p className="c3-research-warning">
-              Only manifest.json,
-              train.jsonl.gz, and
-              validation.jsonl.gz are
-              permitted in the ZIP.
-              Held-out test records must
-              not be uploaded.
-              Dataset registration does
-              not automatically start
-              model training.
+              Only manifest.json, train.jsonl.gz, and validation.jsonl.gz are
+              permitted in the ZIP. Held-out test records must not be uploaded.
+              Dataset registration does not automatically start model training.
             </p>
           </section>
+        </div>
+      )}
+
+      {/* ======================================================
+          Golden Database Management
+          ====================================================== */}
+
+      {activeTab === "database" && (
+        <div className="c3-dataset-workspace">
+          <C3DatabaseManagement />
+        </div>
+      )}
+
+      {/* ======================================================
+    Golden Database Explorer
+    ====================================================== */}
+
+      {activeTab === "explorer" && (
+        <div className="c3-dataset-workspace">
+          <C3GoldenDatabaseExplorer />
         </div>
       )}
 
@@ -1159,10 +977,7 @@ export function C3DatasetManager() {
           ====================================================== */}
 
       {error && activeTab !== "zip" && (
-        <div
-          className="c3-dataset-error"
-          role="alert"
-        >
+        <div className="c3-dataset-error" role="alert">
           {error}
         </div>
       )}

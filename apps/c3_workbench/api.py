@@ -14,6 +14,12 @@ from apps.c3_workbench.dataset_routes import router as dataset_router
 from apps.c3_workbench.csv_routes import router as csv_router
 from apps.c3_workbench.golden_routes import router as golden_router
 from components.c3_forecasting.inference.m4_predictor import C3M4Predictor
+from apps.c3_workbench.golden_backup_routes import (
+    router as golden_backup_router,
+)
+from apps.c3_workbench.golden_explorer_routes import (
+    router as golden_explorer_router,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -31,6 +37,8 @@ app = FastAPI(
 app.include_router(csv_router)
 app.include_router(golden_router)
 app.include_router(dataset_router)
+app.include_router(golden_backup_router)
+app.include_router(golden_explorer_router)
 
 class ForecastRequest(BaseModel):
     ablation: Literal["A", "B", "C"] = "A"
