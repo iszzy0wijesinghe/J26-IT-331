@@ -6,15 +6,21 @@ import hmac
 import json
 import math
 import threading
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+from cryptography import x509
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
+from components.c4_trust.certificates import (
+    CertificateValidationResult,
+    X509CertificateValidator,
+    load_certificate,
+)
 from components.c4_trust.registry import DeviceCredential, DeviceRecord, DeviceRegistry
 from shared.contracts import C4TrustAssessment, TelemetryPacket
 from shared.enums import C4RoutingOutcome, C4TrustLabel
@@ -50,6 +56,10 @@ class C4TrustService:
         require_sequence: bool = True,
         require_firmware_approval: bool = False,
         require_config_approval: bool = False,
+        require_certificate: bool = False,
+        certificate_validator: X509CertificateValidator | None = None,
+        trusted_ca_certificates: Sequence[x509.Certificate | bytes | str] | None = None,
+        revoked_certificates: Sequence[int] | set[int] | None = None,
     ) -> None:
         if max_age_seconds <= 0:
             raise ValueError("max_age_seconds must be positive")
@@ -75,6 +85,19 @@ class C4TrustService:
         self._require_sequence = require_sequence
         self._require_firmware_approval = require_firmware_approval
         self._require_config_approval = require_config_approval
+        self._require_certificate = require_certificate
+        self._revoked_certificates: set[int] = set(revoked_certificates or ())
+
+        if certificate_validator is not None:
+            self._certificate_validator = certificate_validator
+        elif trusted_ca_certificates is not None or require_certificate:
+            self._certificate_validator = X509CertificateValidator(
+                trusted_ca_certificates=trusted_ca_certificates,
+                revoked_serial_numbers=self._revoked_certificates,
+            )
+        else:
+            self._certificate_validator = None
+
         self._seen_packets: set[tuple[str, str]] = set()
         self._last_sequence: dict[tuple[str, str | None], int] = {}
         self._recovery_contexts: dict[str, RecoveryContext] = {}
@@ -185,11 +208,34 @@ class C4TrustService:
         except Exception:
             return None
 
+    @classmethod
+    def attach_certificate(
+        cls,
+        packet: TelemetryPacket,
+        certificate: x509.Certificate | bytes | str,
+    ) -> TelemetryPacket:
+        """Attach an X.509 certificate to a telemetry packet."""
+        if isinstance(certificate, x509.Certificate):
+            cert_str = certificate.public_bytes(serialization.Encoding.PEM).decode("utf-8")
+        elif isinstance(certificate, bytes):
+            cert_str = certificate.decode("utf-8")
+        else:
+            cert_str = certificate
+
+        return packet.model_copy(
+            update={
+                "security": packet.security.model_copy(
+                    update={"certificate_pem": cert_str}
+                )
+            }
+        )
+
     @staticmethod
     def _verify_signature(
         packet: TelemetryPacket,
         signature: str,
         credential: DeviceCredential,
+        public_key: ec.EllipticCurvePublicKey | None = None,
     ) -> bool | None:
         """Return True for valid signatures, False for invalid ones, or None if unverifiable."""
         algorithm = credential.signature_algorithm
@@ -199,19 +245,21 @@ class C4TrustService:
             return hmac.compare_digest(expected, signature.lower())
 
         if algorithm == "ecdsa-sha256":
-            if not credential.public_key_pem:
-                return None
-
-            try:
-                pem = credential.public_key_pem
-                if isinstance(pem, str):
-                    pem = pem.encode("utf-8")
-
-                public_key = serialization.load_pem_public_key(pem)
-                if not isinstance(public_key, ec.EllipticCurvePublicKey):
+            if public_key is None:
+                if not credential.public_key_pem:
                     return None
-            except Exception:
-                return None
+
+                try:
+                    pem = credential.public_key_pem
+                    if isinstance(pem, str):
+                        pem = pem.encode("utf-8")
+
+                    loaded_key = serialization.load_pem_public_key(pem)
+                    if not isinstance(loaded_key, ec.EllipticCurvePublicKey):
+                        return None
+                    public_key = loaded_key
+                except Exception:
+                    return None
 
             try:
                 signature_bytes = bytes.fromhex(signature)
@@ -367,12 +415,88 @@ class C4TrustService:
         elif self._registry is not None and device_record is None:
             security_unknowns.append("CREDENTIAL_UNAVAILABLE")
 
+        cert_data = packet.security.certificate_pem or (
+            credential.certificate_pem if credential else None
+        )
+        cert_public_key: ec.EllipticCurvePublicKey | None = None
+
+        if (
+            packet.security.certificate_pem is not None
+            and credential is not None
+            and credential.certificate_pem is not None
+        ):
+            try:
+                pkt_cert = load_certificate(packet.security.certificate_pem)
+                reg_cert = load_certificate(credential.certificate_pem)
+                if pkt_cert.public_bytes(
+                    serialization.Encoding.PEM
+                ) != reg_cert.public_bytes(serialization.Encoding.PEM):
+                    failures.append("CERTIFICATE_CREDENTIAL_MISMATCH")
+            except Exception:
+                failures.append("CERTIFICATE_CREDENTIAL_MISMATCH")
+
+        if cert_data is not None:
+            validator = self._certificate_validator or X509CertificateValidator(
+                allow_self_signed=False
+            )
+            cert_res = validator.validate(
+                cert_data,
+                expected_device_id=packet.device_id,
+                now=assessed_at,
+            )
+            if (
+                cert_res.certificate is not None
+                and self._registry is not None
+                and self._registry.is_certificate_revoked(
+                    cert_res.certificate.serial_number
+                )
+            ):
+                cert_res = CertificateValidationResult(
+                    is_valid=False,
+                    reason_code="CERTIFICATE_REVOKED",
+                    certificate=cert_res.certificate,
+                    error_detail="Certificate revoked in registry",
+                )
+
+            if cert_res.is_valid:
+                verified.append("CERTIFICATE_VALID")
+                cert_public_key = cert_res.public_key
+
+                if credential is not None and credential.public_key_pem is not None:
+                    try:
+                        cred_pem = credential.public_key_pem
+                        if isinstance(cred_pem, str):
+                            cred_pem = cred_pem.encode("utf-8")
+                        cred_key = serialization.load_pem_public_key(cred_pem)
+                        if isinstance(cred_key, ec.EllipticCurvePublicKey):
+                            if cert_public_key.public_bytes(
+                                serialization.Encoding.PEM,
+                                serialization.PublicFormat.SubjectPublicKeyInfo,
+                            ) != cred_key.public_bytes(
+                                serialization.Encoding.PEM,
+                                serialization.PublicFormat.SubjectPublicKeyInfo,
+                            ):
+                                failures.append("CREDENTIAL_KEY_MISMATCH")
+                        else:
+                            failures.append("CREDENTIAL_KEY_MISMATCH")
+                    except Exception:
+                        failures.append("CREDENTIAL_KEY_MISMATCH")
+            else:
+                failures.append(cert_res.reason_code)
+        elif self._require_certificate:
+            failures.append("CERTIFICATE_MISSING")
+
         if not signature:
             security_unknowns.append("SIGNATURE_MISSING")
         elif credential is None:
             security_unknowns.append("SIGNATURE_UNVERIFIABLE")
         else:
-            signature_result = self._verify_signature(packet, signature, credential)
+            signature_result = self._verify_signature(
+                packet,
+                signature,
+                credential,
+                public_key=cert_public_key,
+            )
             if signature_result is True:
                 verified.append("INTEGRITY_VALID")
             elif signature_result is False:
