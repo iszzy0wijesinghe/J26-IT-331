@@ -71,7 +71,6 @@ packages = [
 
     "apps",
     "apps.api",
-    "apps.c4_frontend",
     "apps.decision_engine",
     "apps.ingestion",
     "apps.runtime_orchestrator",
