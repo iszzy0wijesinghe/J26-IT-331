@@ -18,11 +18,24 @@ from apps.c4_frontend.ml_explorer import (
     available_catalog_entries,
     catalog_by_key,
 )
+
 from apps.c4_frontend.upload_training import (
     FEATURES,
+    LABELS,
     prepare_uploaded_dataset,
     save_candidate_model,
     train_uploaded_random_forest,
+    verify_candidate_runtime_compatibility,
+)
+
+from apps.c4_frontend.upload_training import (
+    FEATURES,
+    LABELS,
+    predict_uploaded_dataset,
+    prepare_uploaded_dataset,
+    save_candidate_model,
+    train_uploaded_random_forest,
+    verify_candidate_runtime_compatibility,
 )
 
 app = FastAPI(
@@ -508,7 +521,41 @@ async def preview_training_dataset(
             "Dataset preparation passed. The dataset is ready for training."
         ),
     }
+@app.post("/api/c4/predict")
+async def predict_uploaded_csv(
+    file: UploadFile = File(...),
+) -> dict[str, Any]:
+    uploaded_df = await _read_training_csv(file)
 
+    try:
+        predictions = predict_uploaded_dataset(uploaded_df)
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"The existing C4 model could not be found: {exc}",
+        ) from exc
+    except (ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Prediction failed: {exc}",
+        ) from exc
+
+    return {
+        "filename": file.filename,
+        "rows": int(len(predictions)),
+        "predictions": json_safe(
+            predictions.to_dict(orient="records")
+        ),
+        "message": (
+            "Predictions generated using the existing C4 model. "
+            "No model training was performed."
+        ),
+    }
 
 def _training_progress(
     training_id: str,
@@ -670,6 +717,7 @@ def get_training_status(training_id: str) -> dict[str, Any]:
         return json_safe(response)
 
 
+
 @app.post("/api/c4/training/{training_id}/save")
 def save_trained_candidate(training_id: str) -> dict[str, Any]:
     with _TRAINING_LOCK:
@@ -684,34 +732,50 @@ def save_trained_candidate(training_id: str) -> dict[str, Any]:
                 ),
             )
 
-        if result.get("saved_candidate_path"):
-            return {
-                "saved": True,
-                "candidate_path": result["saved_candidate_path"],
-                "runtime_compatibility_verified": False,
-                "message": "This candidate has already been saved.",
-            }
-
-    try:
-        candidate_path = save_candidate_model(result)
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Could not save the candidate model: {exc}",
-        ) from exc
+        existing_path = result.get("saved_candidate_path")
 
     repo_root = Path(__file__).resolve().parents[2]
-    relative_path = candidate_path.relative_to(repo_root).as_posix()
+
+    if existing_path:
+        candidate_path = (repo_root / existing_path).resolve()
+    else:
+        try:
+            candidate_path = save_candidate_model(result)
+            existing_path = candidate_path.resolve().relative_to(
+                repo_root
+            ).as_posix()
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Could not save the candidate model: {exc}",
+            ) from exc
+
+    try:
+        verification = verify_candidate_runtime_compatibility(
+            candidate_path
+        )
+    except Exception as exc:
+        verification = {
+            "runtime_compatibility_verified": False,
+            "checks": {
+                "candidate_artifact_loads": False,
+                "runtime_artifact_loads": False,
+                "feature_schema_matches": False,
+                "model_type_matches": False,
+                "class_labels_match": False,
+                "prediction_output_valid": False,
+                "probability_output_valid": False,
+            },
+            "errors": [f"{type(exc).__name__}: {exc}"],
+            "message": "Candidate was saved, but verification failed.",
+        }
 
     with _TRAINING_LOCK:
-        result["saved_candidate_path"] = relative_path
+        result["saved_candidate_path"] = existing_path
+        result["runtime_compatibility"] = verification
 
     return {
         "saved": True,
-        "candidate_path": relative_path,
-        "runtime_compatibility_verified": False,
-        "message": (
-            "Candidate model saved separately. It has not been activated "
-            "for runtime use."
-        ),
+        "candidate_path": existing_path,
+        **verification,
     }

@@ -75,7 +75,6 @@ interface TrainingResult {
   message: string;
 }
 
-
 interface TrainingJobStatus {
   training_id: string;
   status: "running" | "completed" | "failed";
@@ -84,17 +83,31 @@ interface TrainingJobStatus {
   result?: TrainingResult;
 }
 
-
 interface SavedCandidate {
   saved: boolean;
   candidate_path: string;
   runtime_compatibility_verified: boolean;
   message: string;
+  checks?: Record<string, boolean>;
+  errors?: string[];
+}
+
+interface PredictionRow {
+  device_id: string;
+  device_timestamp: string;
+  predicted_label: string;
+  [key: string]: string | number | undefined;
+}
+
+interface PredictionResult {
+  filename: string;
+  rows: number;
+  predictions: PredictionRow[];
+  message: string;
 }
 
 const API_BASE = "http://127.0.0.1:8000";
 const MAX_CSV_SIZE = 10 * 1024 * 1024;
-
 
 const TRAINING_STAGES = [
   { key: "preparing_data", label: "Prepare telemetry data" },
@@ -103,7 +116,6 @@ const TRAINING_STAGES = [
   { key: "evaluating_model", label: "Evaluate test performance" },
   { key: "completed", label: "Training completed" },
 ];
-
 
 async function readApiError(response: Response): Promise<string> {
   try {
@@ -128,7 +140,9 @@ function formatBytes(bytes: number): string {
 }
 
 function humanizeKey(value: string): string {
-  return value.replaceAll("_", " ");
+  return value
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function formatPercentage(value: number | undefined): string {
@@ -137,6 +151,18 @@ function formatPercentage(value: number | undefined): string {
   }
 
   return `${(value * 100).toFixed(2)}%`;
+}
+
+function formatMetric(value: unknown): string {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Number.isInteger(value) ? String(value) : value.toFixed(4);
+  }
+
+  if (typeof value === "string" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  return "Unavailable";
 }
 
 export default function MLExplorer() {
@@ -156,11 +182,64 @@ export default function MLExplorer() {
     useState<TrainingResult | null>(null);
   const [trainingError, setTrainingError] = useState("");
   const [trainingProgress, setTrainingProgress] =
-  useState<TrainingJobStatus | null>(null);
+    useState<TrainingJobStatus | null>(null);
   const [trainingLoading, setTrainingLoading] = useState(false);
   const [savingCandidate, setSavingCandidate] = useState(false);
   const [savedCandidate, setSavedCandidate] =
     useState<SavedCandidate | null>(null);
+
+  const [predictionFile, setPredictionFile] = useState<File | null>(null);
+const [predictionResult, setPredictionResult] =
+  useState<PredictionResult | null>(null);
+const [predictionError, setPredictionError] = useState("");
+const [predictionLoading, setPredictionLoading] = useState(false);
+
+
+async function predictUploadedFile(file: File) {
+  setPredictionFile(file);
+  setPredictionResult(null);
+  setPredictionError("");
+
+  if (!file.name.toLowerCase().endsWith(".csv")) {
+    setPredictionError("Please select a CSV file.");
+    return;
+  }
+
+  if (file.size === 0) {
+    setPredictionError("The CSV file is empty.");
+    return;
+  }
+
+  if (file.size > MAX_CSV_SIZE) {
+    setPredictionError("The CSV file must be 10 MB or smaller.");
+    return;
+  }
+
+  setPredictionLoading(true);
+
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch(`${API_BASE}/api/c4/predict`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(await readApiError(response));
+    }
+
+    const result: PredictionResult = await response.json();
+    setPredictionResult(result);
+  } catch (err) {
+    setPredictionError(
+      err instanceof Error ? err.message : "Prediction failed.",
+    );
+  } finally {
+    setPredictionLoading(false);
+  }
+}
 
   useEffect(() => {
     const controller = new AbortController();
@@ -173,7 +252,7 @@ export default function MLExplorer() {
 
         if (!response.ok) {
           throw new Error(
-            `Could not load model list (${response.status})`,
+            await readApiError(response),
           );
         }
 
@@ -252,6 +331,7 @@ export default function MLExplorer() {
     setTrainingError("");
     setTrainingPreview(null);
     setTrainingResult(null);
+    setTrainingProgress(null);
     setSavedCandidate(null);
     setTrainingFile(null);
 
@@ -286,7 +366,8 @@ export default function MLExplorer() {
         throw new Error(await readApiError(response));
       }
 
-      setTrainingPreview((await response.json()) as TrainingPreview);
+      const result = (await response.json()) as TrainingPreview;
+      setTrainingPreview(result);
     } catch (err) {
       setTrainingError(
         err instanceof Error ? err.message : "Dataset preview failed.",
@@ -296,71 +377,71 @@ export default function MLExplorer() {
     }
   }
 
-  
-async function trainUploadedFile() {
-  if (!trainingFile) {
-    setTrainingError("Choose a training CSV first.");
-    return;
-  }
-
-  setTrainingError("");
-  setTrainingResult(null);
-  setTrainingProgress(null);
-  setSavedCandidate(null);
-  setTrainingLoading(true);
-
-  try {
-    const formData = new FormData();
-    formData.append("file", trainingFile);
-
-    const response = await fetch(`${API_BASE}/api/c4/training/train`, {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error(await readApiError(response));
+  async function trainUploadedFile() {
+    if (!trainingFile) {
+      setTrainingError("Choose a training CSV first.");
+      return;
     }
 
-    const started = (await response.json()) as TrainingJobStatus;
-    setTrainingProgress(started);
+    setTrainingError("");
+    setTrainingResult(null);
+    setTrainingProgress(null);
+    setSavedCandidate(null);
+    setTrainingLoading(true);
 
-    while (true) {
-      const statusResponse = await fetch(
-        `${API_BASE}/api/c4/training/${encodeURIComponent(started.training_id)}/status`,
-      );
+    try {
+      const formData = new FormData();
+      formData.append("file", trainingFile);
 
-      if (!statusResponse.ok) {
-        throw new Error(await readApiError(statusResponse));
+      const response = await fetch(`${API_BASE}/api/c4/training/train`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response));
       }
 
-      const status = (await statusResponse.json()) as TrainingJobStatus;
-      setTrainingProgress(status);
+      const started = (await response.json()) as TrainingJobStatus;
+      setTrainingProgress(started);
 
-      if (status.status === "failed") {
-        throw new Error(status.message || "Model training failed.");
-      }
+      while (true) {
+        const statusResponse = await fetch(
+          `${API_BASE}/api/c4/training/${encodeURIComponent(started.training_id)}/status`,
+        );
 
-      if (status.status === "completed") {
-        if (!status.result) {
-          throw new Error("Training completed without returning its results.");
+        if (!statusResponse.ok) {
+          throw new Error(await readApiError(statusResponse));
         }
 
-        setTrainingResult(status.result);
-        break;
+        const status = (await statusResponse.json()) as TrainingJobStatus;
+        setTrainingProgress(status);
+
+        if (status.status === "failed") {
+          throw new Error(status.message || "Model training failed.");
+        }
+
+        if (status.status === "completed") {
+          if (!status.result) {
+            throw new Error(
+              "Training completed without returning its results.",
+            );
+          }
+
+          setTrainingResult(status.result);
+          break;
+        }
+
+        await new Promise((resolve) => window.setTimeout(resolve, 650));
       }
-
-      await new Promise((resolve) => window.setTimeout(resolve, 650));
+    } catch (err) {
+      setTrainingError(
+        err instanceof Error ? err.message : "Model training failed.",
+      );
+    } finally {
+      setTrainingLoading(false);
     }
-  } catch (err) {
-    setTrainingError(
-      err instanceof Error ? err.message : "Model training failed.",
-    );
-  } finally {
-    setTrainingLoading(false);
   }
-}
-
 
   async function saveCandidate() {
     if (!trainingResult || savingCandidate || savedCandidate) return;
@@ -395,6 +476,10 @@ async function trainUploadedFile() {
     (model) => model.key === selectedModel,
   );
 
+  const verificationChecks = Object.entries(
+    savedCandidate?.checks ?? {},
+  );
+
   return (
     <main className="c4-ml-explorer">
       <header className="c4-ml-header">
@@ -402,8 +487,8 @@ async function trainUploadedFile() {
           <span className="c4-ml-eyebrow">C4 / MODEL EXPLORER</span>
           <h2 className="c4-ml-page-title">Behavioral ML Models</h2>
           <p className="c4-ml-page-description">
-            Inspect saved model artifacts, review their metadata and
-            evaluation metrics, and train separate candidate models.
+            Inspect saved model artifacts, review evaluation metrics, and train
+            separate candidate models without replacing the active runtime model.
           </p>
         </div>
       </header>
@@ -518,9 +603,9 @@ async function trainUploadedFile() {
               </div>
               <div>
                 <dt>Training metadata</dt>
-                <dd>
+                <dd className="c4-ml-metadata-value">
                   {Object.keys(profile.training_metadata ?? {}).length
-                    ? JSON.stringify(profile.training_metadata)
+                    ? JSON.stringify(profile.training_metadata, null, 2)
                     : "Not stored in this artifact"}
                 </dd>
               </div>
@@ -548,35 +633,25 @@ async function trainUploadedFile() {
             </div>
 
             {profile.stored_metrics ? (
-              <div className="c4-ml-submetrics c4-ml-submetrics-four">
-                {(
-                  [
-                    ["Accuracy", profile.stored_metrics.accuracy],
-                    ["Macro precision", profile.stored_metrics.precision_macro],
-                    ["Macro recall", profile.stored_metrics.recall_macro],
-                    ["Macro F1", profile.stored_metrics.f1_macro],
-                  ] as [string, number][]
-                ).map(([label, value]) => (
-                  <article className="c4-ml-metric-card" key={label}>
-                    <span className="c4-ml-metric-label">{label}</span>
-                    <strong className="c4-ml-metric-value">
-                      {formatPercentage(value)}
-                    </strong>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="c4-ml-placeholder">
-                <h4>No stored evaluation metrics</h4>
-                <p>
-                  This artifact does not provide stored evaluation metrics.
-                  That does not mean the model has zero accuracy.
-                </p>
-              </div>
-            )}
-
-            {profile.stored_metrics && (
               <>
+                <div className="c4-ml-submetrics c4-ml-submetrics-four">
+                  {(
+                    [
+                      ["Accuracy", profile.stored_metrics.accuracy],
+                      ["Macro precision", profile.stored_metrics.precision_macro],
+                      ["Macro recall", profile.stored_metrics.recall_macro],
+                      ["Macro F1", profile.stored_metrics.f1_macro],
+                    ] as [string, number][]
+                  ).map(([label, value]) => (
+                    <article className="c4-ml-metric-card" key={label}>
+                      <span className="c4-ml-metric-label">{label}</span>
+                      <strong className="c4-ml-metric-value">
+                        {formatPercentage(value)}
+                      </strong>
+                    </article>
+                  ))}
+                </div>
+
                 {profile.stored_metrics.recall_per_class && (
                   <>
                     <h4>Recall by class</h4>
@@ -602,7 +677,41 @@ async function trainUploadedFile() {
                     </div>
                   </>
                 )}
+
+                {profile.stored_metrics.precision_per_class && (
+                  <>
+                    <h4>Precision by class</h4>
+                    <div className="c4-ml-table-wrapper">
+                      <table className="c4-ml-table">
+                        <thead>
+                          <tr>
+                            <th>Class</th>
+                            <th>Precision</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Object.entries(
+                            profile.stored_metrics.precision_per_class,
+                          ).map(([label, value]) => (
+                            <tr key={label}>
+                              <td>{label}</td>
+                              <td>{formatPercentage(value)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
               </>
+            ) : (
+              <div className="c4-ml-placeholder">
+                <h4>No stored evaluation metrics</h4>
+                <p>
+                  This artifact does not provide stored evaluation metrics.
+                  That does not mean the model has zero accuracy.
+                </p>
+              </div>
             )}
           </section>
 
@@ -610,9 +719,7 @@ async function trainUploadedFile() {
             <div className="c4-ml-section-heading">
               <div>
                 <h3>Actual feature schema</h3>
-                <p>
-                  Inspect the feature names expected by the selected model.
-                </p>
+                <p>Inspect the feature names expected by the selected model.</p>
               </div>
               <span className="c4-ml-count-badge">
                 {features.length} features
@@ -672,15 +779,159 @@ async function trainUploadedFile() {
               </div>
             </div>
           )}
+<section className="c4-ml-section c4-ml-csv-panel">
+  <div className="c4-ml-csv-heading">
+    <div>
+      <span className="c4-ml-eyebrow">EXISTING RUNTIME MODEL</span>
+      <h3>Predict Trust Class</h3>
+      <p>
+        Upload unlabeled telemetry and predict its trust class using the
+        existing C4 Random Forest model. No training is performed.
+      </p>
+    </div>
+    <div className="c4-ml-csv-icon" aria-hidden="true">
+      ML
+    </div>
+  </div>
 
+  <label className="c4-ml-upload-area">
+    <span className="c4-ml-upload-symbol" aria-hidden="true">
+      ↑
+    </span>
+    <strong>
+      {predictionFile?.name ?? "Choose an unlabeled telemetry CSV"}
+    </strong>
+    <span>
+      {predictionFile
+        ? formatBytes(predictionFile.size)
+        : "CSV without a trust_label column, up to 10 MB"}
+    </span>
+    <input
+      type="file"
+      accept=".csv,text/csv"
+      aria-label="Choose an unlabeled CSV for prediction"
+      disabled={predictionLoading}
+      onChange={(event) => {
+        const file = event.target.files?.[0] ?? null;
+        if (file) void predictUploadedFile(file);
+        event.currentTarget.value = "";
+      }}
+    />
+  </label>
+
+  <p className="c4-ml-csv-model">
+    The file must contain the raw telemetry columns required by C4,
+    excluding trust_label. ML predictions do not replace cryptographic
+    verification or device identity checks.
+  </p>
+
+  {predictionLoading && (
+    <div className="c4-ml-state" role="status">
+      <span className="c4-ml-spinner" />
+      Predicting trust classes using the existing model...
+    </div>
+  )}
+
+  {predictionError && (
+    <div className="c4-ml-csv-findings is-error" role="alert">
+      <h5>Prediction error</h5>
+      <p>{predictionError}</p>
+    </div>
+  )}
+
+  {predictionResult && (
+    <div className="c4-ml-csv-results">
+      <h4>Prediction results</h4>
+      <p>{predictionResult.message}</p>
+
+      <div className="c4-ml-csv-stats">
+        <div>
+          <span>Rows predicted</span>
+          <strong>{predictionResult.rows}</strong>
+        </div>
+        <div>
+          <span>Input file</span>
+          <strong>{predictionResult.filename}</strong>
+        </div>
+      </div>
+
+      {predictionResult.predictions.length > 0 && (
+        <>
+          <div className="c4-ml-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  {Object.keys(predictionResult.predictions[0]).map(
+                    (column) => (
+                      <th key={column}>{humanizeKey(column)}</th>
+                    ),
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {predictionResult.predictions.map((row, index) => (
+                  <tr key={`${row.device_id}-${index}`}>
+                    {Object.keys(predictionResult.predictions[0]).map(
+                      (column) => (
+                        <td key={column}>
+                          {row[column] === undefined
+                            ? "—"
+                            : String(row[column])}
+                        </td>
+                      ),
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <button
+            type="button"
+            className="c4-ml-button"
+            onClick={() => {
+              const columns = Object.keys(
+                predictionResult.predictions[0],
+              );
+
+              const escapeCsv = (value: unknown) =>
+                `"${String(value ?? "").replaceAll('"', '""')}"`;
+
+              const csv = [
+                columns.map(escapeCsv).join(","),
+                ...predictionResult.predictions.map((row) =>
+                  columns
+                    .map((column) => escapeCsv(row[column]))
+                    .join(","),
+                ),
+              ].join("\r\n");
+
+              const url = URL.createObjectURL(
+                new Blob([csv], { type: "text/csv;charset=utf-8;" }),
+              );
+
+              const anchor = document.createElement("a");
+              anchor.href = url;
+              anchor.download = "c4_trust_predictions.csv";
+              anchor.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
+            Download predictions CSV
+          </button>
+        </>
+      )}
+    </div>
+  )}
+</section>
           <section className="c4-ml-section c4-ml-csv-panel">
             <div className="c4-ml-csv-heading">
               <div>
                 <span className="c4-ml-eyebrow">MODEL DEVELOPMENT</span>
                 <h3>Upload &amp; Train Candidate</h3>
                 <p>
-                  Upload labelled telemetry data, preview the prepared
-                  dataset, train a Random Forest candidate, and review its
+                  Upload labelled telemetry, preview the prepared dataset,
+                  train a separate Random Forest candidate, and review its
                   held-out test results.
                 </p>
               </div>
@@ -716,56 +967,59 @@ async function trainUploadedFile() {
 
             <p className="c4-ml-csv-model">
               Training creates a separate candidate model. It does not replace
-              the active C4 runtime model.
+              or activate the current C4 runtime model.
             </p>
 
-           
-{trainingLoading && (
-  <div className="c4-ml-state c4-ml-training-progress" role="status">
-    <div className="c4-ml-progress-heading">
-      <span className="c4-ml-spinner" />
-      <div>
-        <h4>Training candidate model</h4>
-        <p>
-          {trainingProgress?.message ?? "Starting training job..."}
-        </p>
-      </div>
-    </div>
+            {trainingLoading && (
+              <div
+                className="c4-ml-state c4-ml-training-progress"
+                role="status"
+              >
+                <div className="c4-ml-progress-heading">
+                  <span className="c4-ml-spinner" />
+                  <div>
+                    <h4>Training candidate model</h4>
+                    <p>
+                      {trainingProgress?.message ?? "Starting training job..."}
+                    </p>
+                  </div>
+                </div>
 
-    <ol className="c4-ml-progress-steps">
-      {TRAINING_STAGES.map((stage, index) => {
-        const currentIndex = TRAINING_STAGES.findIndex(
-          (item) => item.key === trainingProgress?.stage,
-        );
-        const activeIndex = currentIndex < 0 ? 0 : currentIndex;
-        const isComplete = index < activeIndex;
-        const isActive = index === activeIndex;
+                <ol className="c4-ml-progress-steps">
+                  {TRAINING_STAGES.map((stage, index) => {
+                    const currentIndex = TRAINING_STAGES.findIndex(
+                      (item) => item.key === trainingProgress?.stage,
+                    );
+                    const activeIndex = currentIndex < 0 ? 0 : currentIndex;
+                    const isComplete = index < activeIndex;
+                    const isActive = index === activeIndex;
 
-        return (
-          <li
-            key={stage.key}
-            className={
-              isComplete
-                ? "is-complete"
-                : isActive
-                  ? "is-active"
-                  : "is-pending"
-            }
-          >
-            <span className="c4-ml-progress-marker">
-              {isComplete ? "✓" : index + 1}
-            </span>
-            <span>{stage.label}</span>
-            {isActive && (
-              <span className="c4-ml-progress-current">Current</span>
+                    return (
+                      <li
+                        key={stage.key}
+                        className={
+                          isComplete
+                            ? "is-complete"
+                            : isActive
+                              ? "is-active"
+                              : "is-pending"
+                        }
+                      >
+                        <span className="c4-ml-progress-marker">
+                          {isComplete ? "✓" : index + 1}
+                        </span>
+                        <span>{stage.label}</span>
+                        {isActive && (
+                          <span className="c4-ml-progress-current">
+                            Current
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
             )}
-          </li>
-        );
-      })}
-    </ol>
-  </div>
-)}
-
 
             {trainingError && (
               <div className="c4-ml-csv-findings is-error" role="alert">
@@ -810,12 +1064,10 @@ async function trainUploadedFile() {
                 </ul>
 
                 <details>
-                  <summary>Required training columns</summary>
+                  <summary>Required training columns and sample data</summary>
                   <p>
-                    The training CSV must contain the raw telemetry columns
-                    required by the backend training pipeline, including
-                    device identifiers, timestamps, sensor and network
-                    measurements, and the target trust label.
+                    The CSV needs device identifiers, timestamps, sensor and
+                    network measurements, freshness status, and a trust label.
                   </p>
                   <p>
                     Prepared feature names:{" "}
@@ -954,32 +1206,17 @@ async function trainUploadedFile() {
                   </pre>
                 </details>
 
-                <div
-                  className={
-                    trainingResult.runtime_compatibility_verified
-                      ? "c4-ml-csv-findings"
-                      : "c4-ml-csv-findings is-warning"
-                  }
-                >
-                  <h4>
-                    {trainingResult.runtime_compatibility_verified
-                      ? "Runtime compatibility verified"
-                      : "Evaluation-only candidate"}
-                  </h4>
+                <div className="c4-ml-csv-findings is-warning">
+                  <h4>Candidate verification status</h4>
                   <p>
                     Runtime compatibility verified:{" "}
-                    <strong>
-                      {trainingResult.runtime_compatibility_verified
-                        ? "Yes"
-                        : "No"}
-                    </strong>
+                    <strong>No — not verified yet</strong>
                   </p>
-                  {!trainingResult.runtime_compatibility_verified && (
-                    <p>
-                      This candidate has not been verified for runtime use.
-                      Saving it does not authorize deployment or activation.
-                    </p>
-                  )}
+                  <p>
+                    Training and test evaluation alone do not verify the saved
+                    artifact against the configured runtime model. Save the
+                    candidate to run the backend compatibility checks.
+                  </p>
                 </div>
 
                 <button
@@ -989,23 +1226,33 @@ async function trainUploadedFile() {
                   onClick={() => void saveCandidate()}
                 >
                   {savingCandidate
-                    ? "Saving candidate…"
+                    ? "Saving and verifying…"
                     : savedCandidate
                       ? "Candidate Saved"
-                      : "Save Evaluation Candidate"}
+                      : "Save and Verify Candidate"}
                 </button>
 
                 {savedCandidate && (
-                  <div className="c4-ml-csv-findings" role="status">
+                  <div
+                    className={
+                      savedCandidate.runtime_compatibility_verified
+                        ? "c4-ml-csv-findings"
+                        : "c4-ml-csv-findings is-warning"
+                    }
+                    role="status"
+                  >
                     <h4>
                       {savedCandidate.saved
                         ? "Candidate saved separately"
                         : "Candidate save status"}
                     </h4>
+
                     <p>{savedCandidate.message}</p>
+
                     <p>
                       File: <code>{savedCandidate.candidate_path}</code>
                     </p>
+
                     <p>
                       Runtime compatibility verified:{" "}
                       <strong>
@@ -1014,9 +1261,53 @@ async function trainUploadedFile() {
                           : "No — evaluation only"}
                       </strong>
                     </p>
+
+                    <h5>Compatibility checks</h5>
+
+                    {verificationChecks.length > 0 ? (
+                      <div className="c4-ml-table-wrapper">
+                        <table className="c4-ml-table">
+                          <thead>
+                            <tr>
+                              <th>Check</th>
+                              <th>Result</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {verificationChecks.map(([check, passed]) => (
+                              <tr key={check}>
+                                <td>{humanizeKey(check)}</td>
+                                <td>
+                                  <strong>{passed ? "PASS" : "FAIL"}</strong>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p>
+                        The API did not return individual compatibility
+                        checks. Update the save endpoint to return the
+                        verification result and checks.
+                      </p>
+                    )}
+
+                    {(savedCandidate.errors?.length ?? 0) > 0 && (
+                      <div role="alert">
+                        <h5>Verification details</h5>
+                        <ul>
+                          {savedCandidate.errors?.map((item, index) => (
+                            <li key={`${index}-${item}`}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
                     <p>
-                      The candidate has not been activated and does not
-                      replace the current runtime model.
+                      Compatibility is a technical check, not approval to
+                      deploy. The candidate has not been activated and does
+                      not replace the current runtime model.
                     </p>
                   </div>
                 )}
