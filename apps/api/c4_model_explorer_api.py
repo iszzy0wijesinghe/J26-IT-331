@@ -1,0 +1,717 @@
+
+from __future__ import annotations
+
+import asyncio
+import uuid
+from io import BytesIO
+from threading import Lock
+from typing import Any
+from pathlib import Path
+import numpy as np
+import pandas as pd
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+
+from apps.c4_frontend.ml_explorer import (
+    C4ModelExplorer,
+    MODEL_CATALOG,
+    available_catalog_entries,
+    catalog_by_key,
+)
+from apps.c4_frontend.upload_training import (
+    FEATURES,
+    prepare_uploaded_dataset,
+    save_candidate_model,
+    train_uploaded_random_forest,
+)
+
+app = FastAPI(
+    title="GeoNex C4 Model Explorer API",
+    version="1.3.0",
+)
+
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+
+_TRAINING_SESSIONS: dict[str, dict[str, Any]] = {}
+_TRAINING_JOBS: dict[str, dict[str, Any]] = {}
+_TRAINING_LOCK = Lock()
+
+
+def json_safe(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            str(key): json_safe(item)
+            for key, item in value.items()
+        }
+
+    if isinstance(value, (list, tuple)):
+        return [json_safe(item) for item in value]
+
+    if isinstance(value, np.ndarray):
+        return json_safe(value.tolist())
+
+    if isinstance(value, np.generic):
+        return json_safe(value.item())
+
+    if isinstance(value, float) and not np.isfinite(value):
+        return None
+
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+
+    if hasattr(value, "tolist") and callable(value.tolist):
+        return json_safe(value.tolist())
+
+    if hasattr(value, "item") and callable(value.item):
+        return json_safe(value.item())
+
+    return str(value)
+
+
+def get_model_entry(model_key: str) -> Any:
+    entry = catalog_by_key().get(model_key)
+
+    if entry is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Unknown C4 model: {model_key}",
+        )
+
+    return entry
+
+
+def get_model_schema(model_key: str) -> tuple[Any, list[str]]:
+    try:
+        explorer = C4ModelExplorer.from_catalog(model_key)
+        schema = explorer.schema_table()
+
+        if "feature" not in schema.columns:
+            raise ValueError(
+                "The model schema does not contain a feature column."
+            )
+
+        required_columns = (
+            schema["feature"]
+            .dropna()
+            .astype(str)
+            .tolist()
+        )
+
+        if not required_columns:
+            raise ValueError(
+                "The selected model has no feature columns in its schema."
+            )
+
+        return explorer, required_columns
+
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Model artifact not found: {exc}",
+        ) from exc
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not read model feature schema: {exc}",
+        ) from exc
+
+
+@app.get("/api/c4/models")
+def list_models() -> dict[str, Any]:
+    available = available_catalog_entries()
+
+    return {
+        "default_model": next(
+            (
+                entry.key
+                for entry in MODEL_CATALOG
+                if entry.runtime_default
+            ),
+            None,
+        ),
+        "models": [
+            {
+                "key": entry.key,
+                "label": entry.label,
+                "artifact": entry.filename,
+                "runtime_default": entry.runtime_default,
+                "notes": entry.notes,
+            }
+            for entry in available
+        ],
+    }
+
+
+@app.get("/api/c4/models/{model_key}")
+def get_model_profile(model_key: str) -> dict[str, Any]:
+    get_model_entry(model_key)
+
+    try:
+        explorer = C4ModelExplorer.from_catalog(model_key)
+        profile = explorer.profile()
+        schema = explorer.schema_table()
+
+        return {
+            "key": model_key,
+            "profile": json_safe(profile),
+            "features": json_safe(
+                schema.to_dict(orient="records")
+            ),
+        }
+
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Model artifact not found: {exc}",
+        ) from exc
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unable to inspect model artifact: {exc}",
+        ) from exc
+
+
+@app.post("/api/c4/models/{model_key}/validate-csv")
+async def validate_csv(
+    model_key: str,
+    file: UploadFile = File(...),
+) -> dict[str, Any]:
+    entry = get_model_entry(model_key)
+    filename = file.filename or ""
+
+    if not filename.lower().endswith(".csv"):
+        await file.close()
+        raise HTTPException(
+            status_code=400,
+            detail="Please upload a file with a .csv extension.",
+        )
+
+    try:
+        content = await file.read(MAX_UPLOAD_SIZE + 1)
+
+        if not content:
+            raise HTTPException(
+                status_code=400,
+                detail="The uploaded CSV file is empty.",
+            )
+
+        if len(content) > MAX_UPLOAD_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail="CSV file exceeds the 10 MB upload limit.",
+            )
+
+        try:
+            df = pd.read_csv(BytesIO(content))
+        except (
+            ValueError,
+            UnicodeDecodeError,
+            pd.errors.ParserError,
+        ) as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unable to read CSV: {exc}",
+            ) from exc
+
+    finally:
+        await file.close()
+
+    if len(df.columns) == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="The CSV does not contain any columns.",
+        )
+
+    if df.empty:
+        raise HTTPException(
+            status_code=400,
+            detail="The CSV does not contain any data rows.",
+        )
+
+    _, required_columns = get_model_schema(model_key)
+    preprocessing_errors: list[str] = []
+
+    if (
+        "freshness_status_encoded" in required_columns
+        and "freshness_status_encoded" not in df.columns
+        and "freshness_status" in df.columns
+    ):
+        freshness_mapping = {
+            "fresh": 0,
+            "delayed": 1,
+            "stale": 2,
+        }
+
+        raw_status = (
+            df["freshness_status"]
+            .astype("string")
+            .str.strip()
+            .str.lower()
+        )
+
+        encoded_status = raw_status.map(freshness_mapping)
+        unknown_mask = raw_status.notna() & encoded_status.isna()
+
+        if unknown_mask.any():
+            unknown_values = (
+                raw_status[unknown_mask]
+                .drop_duplicates()
+                .tolist()
+            )
+
+            preprocessing_errors.append(
+                "Unknown freshness_status value(s): "
+                + ", ".join(str(value) for value in unknown_values)
+            )
+
+        df["freshness_status_encoded"] = encoded_status
+
+    uploaded_columns = [str(column) for column in df.columns]
+
+    duplicate_column_names = (
+        df.columns[df.columns.duplicated()]
+        .astype(str)
+        .tolist()
+    )
+
+    missing_columns = [
+        column
+        for column in required_columns
+        if column not in uploaded_columns
+    ]
+
+    extra_columns = [
+        column
+        for column in uploaded_columns
+        if column not in required_columns
+    ]
+
+    missing_values: dict[str, int] = {}
+    non_numeric_values: dict[str, int] = {}
+    non_finite_values: dict[str, int] = {}
+
+    for column in required_columns:
+        if column not in df.columns:
+            continue
+
+        series = df[column]
+        missing_count = int(series.isna().sum())
+
+        if missing_count:
+            missing_values[column] = missing_count
+
+        numeric = pd.to_numeric(series, errors="coerce")
+        invalid_mask = series.notna() & numeric.isna()
+        invalid_count = int(invalid_mask.sum())
+
+        if invalid_count:
+            non_numeric_values[column] = invalid_count
+
+        numeric_values = numeric.dropna()
+
+        if not numeric_values.empty:
+            finite_mask = pd.Series(
+                np.isfinite(numeric_values.to_numpy(dtype=float)),
+                index=numeric_values.index,
+            )
+
+            non_finite_count = int((~finite_mask).sum())
+
+            if non_finite_count:
+                non_finite_values[column] = non_finite_count
+
+    duplicate_rows = int(df.duplicated().sum())
+    errors = list(preprocessing_errors)
+    warnings: list[str] = []
+
+    if duplicate_column_names:
+        errors.append(
+            "Duplicate column names were found in the CSV."
+        )
+
+    if missing_columns:
+        errors.append(
+            f"{len(missing_columns)} required feature column(s) are missing."
+        )
+
+    if missing_values:
+        errors.append(
+            "Missing values were found in required feature columns."
+        )
+
+    if non_numeric_values:
+        errors.append(
+            "Non-numeric values were found in required feature columns."
+        )
+
+    if non_finite_values:
+        errors.append(
+            "Infinite or non-finite numeric values were found."
+        )
+
+    if extra_columns:
+        warnings.append(
+            f"{len(extra_columns)} extra column(s) are not required by this model."
+        )
+
+    if duplicate_rows:
+        warnings.append(
+            f"{duplicate_rows} duplicate row(s) were detected."
+        )
+
+    present_feature_count = sum(
+        column in uploaded_columns
+        for column in required_columns
+    )
+
+    is_valid = not errors
+
+    if is_valid and warnings:
+        status = "valid_with_warnings"
+    elif is_valid:
+        status = "valid"
+    else:
+        status = "invalid"
+
+    return {
+        "filename": filename,
+        "model_key": model_key,
+        "model_label": entry.label,
+        "status": status,
+        "valid": is_valid,
+        "rows": int(len(df)),
+        "columns": int(len(df.columns)),
+        "required_feature_count": len(required_columns),
+        "present_feature_count": present_feature_count,
+        "missing_columns": missing_columns,
+        "extra_columns": extra_columns,
+        "duplicate_column_names": duplicate_column_names,
+        "missing_values": missing_values,
+        "non_numeric_values": non_numeric_values,
+        "non_finite_values": non_finite_values,
+        "duplicate_rows": duplicate_rows,
+        "errors": errors,
+        "warnings": warnings,
+        "message": (
+            "CSV passed structural and basic data-quality validation."
+            if is_valid
+            else "CSV validation failed. Fix the reported errors and upload again."
+        ),
+    }
+
+
+async def _read_training_csv(file: UploadFile) -> pd.DataFrame:
+    if not file.filename or not file.filename.lower().endswith(".csv"):
+        raise HTTPException(
+            status_code=400,
+            detail="Please upload a CSV file.",
+        )
+
+    try:
+        content = await file.read(MAX_UPLOAD_SIZE + 1)
+
+        if not content:
+            raise HTTPException(
+                status_code=400,
+                detail="The uploaded CSV is empty.",
+            )
+
+        if len(content) > MAX_UPLOAD_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail="The CSV exceeds the 10 MB upload limit.",
+            )
+
+        try:
+            return pd.read_csv(BytesIO(content))
+        except (
+            ValueError,
+            pd.errors.ParserError,
+            UnicodeDecodeError,
+        ) as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Could not read the CSV: {exc}",
+            ) from exc
+
+    finally:
+        await file.close()
+
+
+@app.post("/api/c4/training/preview")
+async def preview_training_dataset(
+    file: UploadFile = File(...),
+) -> dict[str, Any]:
+    uploaded_df = await _read_training_csv(file)
+
+    try:
+        prepared = prepare_uploaded_dataset(uploaded_df)
+    except (ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        ) from exc
+
+    label_counts = {
+        str(label): int(count)
+        for label, count in prepared["trust_label"].value_counts().items()
+    }
+
+    preview_columns = [
+        column
+        for column in [
+            "device_id",
+            "device_timestamp",
+            "trust_label",
+            *FEATURES,
+        ]
+        if column in prepared.columns
+    ]
+
+    preview = prepared[preview_columns].head(8).copy()
+
+    if "device_timestamp" in preview.columns:
+        preview["device_timestamp"] = (
+            preview["device_timestamp"].astype(str)
+        )
+
+    return {
+        "filename": file.filename,
+        "rows": int(len(prepared)),
+        "columns": int(len(uploaded_df.columns)),
+        "unique_devices": int(prepared["device_id"].nunique()),
+        "class_distribution": label_counts,
+        "features": FEATURES,
+        "preview": json_safe(
+            preview.to_dict(orient="records")
+        ),
+        "message": (
+            "Dataset preparation passed. The dataset is ready for training."
+        ),
+    }
+
+
+def _training_progress(
+    training_id: str,
+    stage: str,
+    message: str,
+) -> None:
+    with _TRAINING_LOCK:
+        job = _TRAINING_JOBS.get(training_id)
+
+        if job is not None:
+            job["stage"] = stage
+            job["message"] = message
+
+
+def _training_response(
+    training_id: str,
+    filename: str,
+    result: dict[str, Any],
+) -> dict[str, Any]:
+    predictions = result["predictions"].head(20).copy()
+
+    if "device_timestamp" in predictions.columns:
+        predictions["device_timestamp"] = (
+            predictions["device_timestamp"].astype(str)
+        )
+
+    return json_safe({
+        "training_id": training_id,
+        "filename": filename,
+        "accuracy": result["accuracy"],
+        "classes": result["classes"],
+        "classification_report": result["report"],
+        "confusion_matrix": result["confusion_matrix"],
+        "train_rows": len(result["splits"]["train"]),
+        "validation_rows": len(result["splits"]["validation"]),
+        "test_rows": len(result["splits"]["test"]),
+        "unique_devices": int(
+            result["prepared"]["device_id"].nunique()
+        ),
+        "feature_importance": result[
+            "feature_importance"
+        ].to_dict(orient="records"),
+        "sample_predictions": predictions.to_dict(orient="records"),
+        "runtime_compatibility_verified": False,
+        "message": (
+            "Training completed. Review the test metrics before saving "
+            "the candidate model."
+        ),
+    })
+
+
+def _run_training_job(
+    training_id: str,
+    filename: str,
+    uploaded_df: pd.DataFrame,
+) -> None:
+    try:
+        result = train_uploaded_random_forest(
+            uploaded_df,
+            progress_callback=lambda stage, message: _training_progress(
+                training_id,
+                stage,
+                message,
+            ),
+        )
+
+        response = _training_response(
+            training_id,
+            filename,
+            result,
+        )
+
+        with _TRAINING_LOCK:
+            _TRAINING_SESSIONS[training_id] = result
+
+            while len(_TRAINING_SESSIONS) > 5:
+                oldest_id = next(iter(_TRAINING_SESSIONS))
+                del _TRAINING_SESSIONS[oldest_id]
+
+            job = _TRAINING_JOBS.get(training_id)
+
+            if job is not None:
+                job["result"] = response
+                job["status"] = "completed"
+                job["stage"] = "completed"
+                job["message"] = "Training and evaluation completed."
+
+    except Exception as exc:
+        with _TRAINING_LOCK:
+            job = _TRAINING_JOBS.get(training_id)
+
+            if job is not None:
+                job["status"] = "failed"
+                job["stage"] = "failed"
+                job["message"] = str(exc)
+
+
+@app.post("/api/c4/training/train")
+async def train_candidate_dataset(
+    file: UploadFile = File(...),
+) -> dict[str, Any]:
+    uploaded_df = await _read_training_csv(file)
+    training_id = str(uuid.uuid4())
+    filename = file.filename or "uploaded_dataset.csv"
+
+    with _TRAINING_LOCK:
+        _TRAINING_JOBS[training_id] = {
+            "status": "running",
+            "stage": "queued",
+            "message": "Training job queued.",
+            "result": None,
+        }
+
+    asyncio.create_task(
+        asyncio.to_thread(
+            _run_training_job,
+            training_id,
+            filename,
+            uploaded_df,
+        )
+    )
+
+    return {
+        "training_id": training_id,
+        "status": "running",
+        "stage": "queued",
+        "message": "Training started. Poll the status endpoint for progress.",
+    }
+
+@app.get("/api/c4/training/debug/jobs")
+def debug_training_jobs() -> dict[str, Any]:
+    with _TRAINING_LOCK:
+        return {
+            "job_ids": list(_TRAINING_JOBS.keys()),
+            "session_ids": list(_TRAINING_SESSIONS.keys()),
+        }
+    
+@app.get("/api/c4/training/{training_id}/status")
+def get_training_status(training_id: str) -> dict[str, Any]:
+    with _TRAINING_LOCK:
+        job = _TRAINING_JOBS.get(training_id)
+
+        if job is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Training job not found. Start training again.",
+            )
+
+        response = {
+            "training_id": training_id,
+            "status": job["status"],
+            "stage": job["stage"],
+            "message": job["message"],
+        }
+
+        if job["status"] == "completed":
+            response["result"] = job["result"]
+
+        return json_safe(response)
+
+
+@app.post("/api/c4/training/{training_id}/save")
+def save_trained_candidate(training_id: str) -> dict[str, Any]:
+    with _TRAINING_LOCK:
+        result = _TRAINING_SESSIONS.get(training_id)
+
+        if result is None:
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    "Training result not found. Train the model again "
+                    "before saving."
+                ),
+            )
+
+        if result.get("saved_candidate_path"):
+            return {
+                "saved": True,
+                "candidate_path": result["saved_candidate_path"],
+                "runtime_compatibility_verified": False,
+                "message": "This candidate has already been saved.",
+            }
+
+    try:
+        candidate_path = save_candidate_model(result)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not save the candidate model: {exc}",
+        ) from exc
+
+    repo_root = Path(__file__).resolve().parents[2]
+    relative_path = candidate_path.relative_to(repo_root).as_posix()
+
+    with _TRAINING_LOCK:
+        result["saved_candidate_path"] = relative_path
+
+    return {
+        "saved": True,
+        "candidate_path": relative_path,
+        "runtime_compatibility_verified": False,
+        "message": (
+            "Candidate model saved separately. It has not been activated "
+            "for runtime use."
+        ),
+    }
