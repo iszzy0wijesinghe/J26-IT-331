@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from apps.c3_workbench.dataset_routes import router as dataset_router
+from apps.c3_workbench.adaptive_routes import router as adaptive_router
 from apps.c3_workbench.csv_routes import router as csv_router
 from apps.c3_workbench.golden_routes import router as golden_router
 from components.c3_forecasting.inference.m4_predictor import C3M4Predictor
@@ -48,6 +49,7 @@ app.include_router(golden_backup_router)
 app.include_router(golden_explorer_router)
 app.include_router(training_router)
 app.include_router(training_readiness_router)
+app.include_router(adaptive_router)
 
 class ForecastRequest(BaseModel):
     ablation: Literal["A", "B", "C"] = "A"

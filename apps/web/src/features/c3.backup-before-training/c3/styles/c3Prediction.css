@@ -1,0 +1,494 @@
+/** @format */
+
+.c3-workbench {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.c3-prediction-panel,
+.c3-model-panel {
+  width: 100%;
+  box-sizing: border-box;
+}
+.c3-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 24px 0 16px;
+}
+.c3-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+.c3-controls select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(130, 148, 168, 0.35);
+  border-radius: 11px;
+  padding: 12px;
+  background: var(--panel-bg, #13223a);
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+}
+.c3-controls select option {
+  background: #14233a;
+  color: #fff;
+}
+.c3-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 22px;
+}
+.c3-actions button {
+  padding: 11px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.c3-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.c3-primary-button {
+  background: #ff8b43;
+  border: 1px solid #ff8b43;
+  color: #152236;
+}
+.c3-secondary-button {
+  background: transparent;
+  border: 1px solid rgba(130, 148, 168, 0.4);
+  color: inherit;
+}
+.c3-result-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.c3-result-grid > div {
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(120, 145, 180, 0.09);
+  border: 1px solid rgba(130, 148, 168, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.c3-result-grid span {
+  font-size: 12px;
+  opacity: 0.75;
+}
+.c3-result-grid strong {
+  font-size: clamp(16px, 2vw, 23px);
+  overflow-wrap: anywhere;
+}
+.c3-chart-wrap {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid rgba(130, 148, 168, 0.16);
+  border-radius: 14px;
+}
+.c3-chart {
+  display: block;
+  width: 100%;
+  max-height: 330px;
+  color: inherit;
+  overflow: visible;
+}
+.c3-legend {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  opacity: 0.85;
+}
+.c3-legend span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.c3-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.c3-dot.observed {
+  background: #38bdf8;
+}
+.c3-dot.actual {
+  background: #22c55e;
+}
+.c3-dot.forecast {
+  background: #fb923c;
+}
+.c3-meta {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  font-size: 12px;
+  opacity: 0.85;
+}
+.c3-steps {
+  margin-top: 22px;
+}
+.c3-steps h3 {
+  font-size: 15px;
+  margin: 0 0 12px;
+}
+.c3-step-list {
+  display: grid;
+  gap: 8px;
+  max-height: 250px;
+  overflow: auto;
+}
+.c3-step {
+  display: grid;
+  grid-template-columns: 80px 1fr 1fr 1.3fr;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(120, 145, 180, 0.08);
+  font-size: 12px;
+}
+.c3-research-warning {
+  margin: 22px 0 0;
+  padding: 14px;
+  border-left: 3px solid #fb923c;
+  background: rgba(251, 146, 60, 0.08);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.c3-inline-note {
+  font-size: 13px;
+  opacity: 0.75;
+}
+@media (max-width: 850px) {
+  .c3-controls {
+    grid-template-columns: 1fr;
+  }
+  .c3-result-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .c3-step {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 450px) {
+  .c3-result-grid {
+    grid-template-columns: 1fr;
+  }
+  .c3-step {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================
+   C3 Prediction Explorer — Dropdown Fix
+   ============================================ */
+
+/* Ensure dropdown text is readable */
+.c3-prediction-explorer select,
+.c3-prediction-explorer select:focus,
+.c3-prediction-explorer select:hover {
+  background-color: #ffffff !important;
+  color: #172b42 !important;
+
+  border: 1px solid #dce3ea;
+  border-radius: 10px;
+
+  padding: 12px 38px 12px 14px;
+
+  font-size: 14px;
+  font-weight: 500;
+
+  cursor: pointer;
+
+  appearance: auto;
+  -webkit-appearance: auto;
+}
+
+/* Native dropdown menu options */
+.c3-prediction-explorer select option {
+  background-color: #ffffff;
+  color: #172b42;
+}
+
+/* Accessible keyboard focus */
+.c3-prediction-explorer select:focus-visible {
+  outline: 2px solid #24b8a8;
+  outline-offset: 2px;
+}
+
+/* Disabled dropdown */
+.c3-prediction-explorer select:disabled {
+  background-color: #f1f4f7 !important;
+  color: #8995a3 !important;
+  cursor: not-allowed;
+}
+
+/** @format */
+
+.c3-dataset-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.c3-dataset-summary,
+.c3-dataset-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.c3-dataset-summary > div,
+.c3-dataset-detail-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(120, 145, 180, 0.09);
+  border: 1px solid rgba(130, 148, 168, 0.16);
+  min-width: 0;
+}
+
+.c3-dataset-summary span,
+.c3-dataset-detail-grid span {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.c3-dataset-summary strong,
+.c3-dataset-detail-grid strong {
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.c3-dataset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.c3-dataset-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 16px;
+  border: 1px solid rgba(130, 148, 168, 0.22);
+  border-radius: 12px;
+  background: rgba(120, 145, 180, 0.06);
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.c3-dataset-item:hover {
+  border-color: #24b8a8;
+}
+
+.c3-dataset-item.selected {
+  border-color: #24b8a8;
+  background: rgba(36, 184, 168, 0.1);
+}
+
+.c3-dataset-item > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.c3-dataset-item strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.c3-dataset-item > div span {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.c3-dataset-status {
+  flex-shrink: 0;
+  color: #24b8a8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.c3-dataset-section-title {
+  margin: 26px 0 14px;
+  font-size: 16px;
+}
+
+.c3-dataset-splits {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.c3-dataset-split-card {
+  padding: 18px;
+  border: 1px solid rgba(130, 148, 168, 0.2);
+  border-radius: 12px;
+}
+
+.c3-dataset-split-card h4 {
+  margin: 0 0 18px;
+  font-size: 15px;
+}
+
+.c3-dataset-split-card h5 {
+  margin: 20px 0 10px;
+  font-size: 13px;
+}
+
+.c3-dataset-split-card > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(130, 148, 168, 0.12);
+  font-size: 13px;
+}
+
+.c3-dataset-split-card > div span {
+  opacity: 0.75;
+}
+
+.c3-dataset-upload {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.c3-dataset-upload label {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.c3-dataset-upload input {
+  width: 100%;
+  max-width: 500px;
+  padding: 12px;
+  border: 1px solid rgba(130, 148, 168, 0.35);
+  border-radius: 10px;
+  box-sizing: border-box;
+}
+
+.c3-dataset-upload button {
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.c3-dataset-upload button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.c3-dataset-success {
+  padding: 14px;
+  border-radius: 10px;
+  background: rgba(36, 184, 168, 0.1);
+  border: 1px solid rgba(36, 184, 168, 0.3);
+  color: #168f81;
+  font-size: 13px;
+}
+
+@media (max-width: 850px) {
+  .c3-dataset-summary,
+  .c3-dataset-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .c3-dataset-splits {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 500px) {
+  .c3-dataset-summary,
+  .c3-dataset-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .c3-dataset-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/* ============================================================
+   C3 Workbench Navigation
+   ============================================================ */
+
+.c3-workbench-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid rgba(130, 148, 168, 0.2);
+  border-radius: 14px;
+  background: rgba(120, 145, 180, 0.06);
+}
+
+.c3-workbench-tab {
+  flex: 1;
+  padding: 13px 18px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.c3-workbench-tab:hover {
+  background: rgba(120, 145, 180, 0.1);
+}
+
+.c3-workbench-tab.active {
+  background: #ff8b43;
+  color: #152236;
+  border-color: #ff8b43;
+}
+
+.c3-workbench-tab:focus-visible {
+  outline: 2px solid #24b8a8;
+  outline-offset: 3px;
+}
+
+@media (max-width: 500px) {
+  .c3-workbench-tabs {
+    flex-direction: column;
+  }
+
+  .c3-workbench-tab {
+    width: 100%;
+  }
+}

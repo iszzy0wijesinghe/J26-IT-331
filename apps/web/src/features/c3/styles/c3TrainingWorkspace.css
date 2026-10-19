@@ -1,0 +1,362 @@
+/**
+ * GeoNex C3 training only. Inherits shared application palette.
+ *
+ * @format
+ */
+
+.c3-training {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+  color: inherit;
+}
+.c3-training * {
+  box-sizing: border-box;
+}
+.c3-training-topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 8px 0 4px;
+}
+.c3-training-eyebrow {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  opacity: 0.57;
+  margin-bottom: 8px;
+}
+.c3-training h3 {
+  font-size: 22px;
+  letter-spacing: -0.03em;
+  margin: 0 0 5px;
+}
+.c3-training h4 {
+  margin: 0;
+  font-size: 15px;
+  letter-spacing: -0.02em;
+}
+.c3-training p {
+  font-size: 12px;
+  line-height: 1.6;
+  opacity: 0.7;
+  margin: 4px 0 0;
+}
+.c3-training-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 16px;
+  align-items: start;
+}
+.c3-training-card {
+  min-width: 0;
+  background: #fff;
+  border: 1px solid rgba(130, 148, 168, 0.25);
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 6px 20px rgba(15, 30, 50, 0.025);
+}
+.c3-training-section-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 21px;
+}
+.c3-training-step {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border: 1px solid rgba(130, 148, 168, 0.3);
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 800;
+}
+.c3-training-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.c3-training select {
+  width: 100%;
+  border: 1px solid #d5dce5;
+  border-radius: 10px;
+  background: white;
+  color: #243448;
+  padding: 12px;
+  font: inherit;
+  font-size: 12px;
+  min-width: 0;
+}
+.c3-training-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+  margin-top: 14px;
+}
+.c3-training-metrics > div {
+  border: 1px solid #e5eaf0;
+  border-radius: 10px;
+  padding: 13px 10px;
+  min-width: 0;
+}
+.c3-training-metrics strong {
+  display: block;
+  font-size: 20px;
+  font-weight: 750;
+}
+.c3-training-metrics span {
+  font-size: 10px;
+  opacity: 0.6;
+}
+.c3-training-divider {
+  border-top: 1px solid #e5eaf0;
+  margin: 24px 0;
+}
+.c3-training-readiness {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: #f5f7f9;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 12px;
+}
+.c3-training-indicator {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #8b95a2;
+}
+.c3-training-readiness.success .c3-training-indicator {
+  background: #198754;
+}
+.c3-training-readiness.error .c3-training-indicator {
+  background: #bd4040;
+}
+.c3-training-keyvalues {
+  display: grid;
+  gap: 0;
+  margin: 14px 0;
+}
+.c3-training-keyvalues.grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 22px;
+}
+.c3-training-keyvalues > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #e9edf2;
+  min-width: 0;
+}
+.c3-training-keyvalues dt {
+  font-size: 11px;
+  text-transform: capitalize;
+  opacity: 0.65;
+}
+.c3-training-keyvalues dd {
+  font-size: 11px;
+  text-align: right;
+  overflow-wrap: anywhere;
+  margin: 0;
+  max-width: 60%;
+}
+.c3-training-primary,
+.c3-training-secondary {
+  border-radius: 10px;
+  padding: 12px 16px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+  transition:
+    filter 0.15s,
+    transform 0.15s;
+}
+.c3-training-primary {
+  margin-top: 16px;
+  width: 100%;
+  background: #053668;
+  color: #fff;
+  border: 1px solid #053668;
+}
+.c3-training-secondary {
+  background: #fff;
+  color: #053668;
+  border: 1px solid #c9d5df;
+  white-space: nowrap;
+}
+.c3-training-primary:hover:not(:disabled),
+.c3-training-secondary:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+.c3-training button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+.c3-training .c3-training-footnote {
+  font-size: 11px;
+  line-height: 1.6;
+  opacity: 0.58;
+  margin-top: 13px;
+}
+.c3-training-joblist {
+  display: grid;
+  gap: 9px;
+  max-height: 440px;
+  overflow: auto;
+  padding-right: 3px;
+}
+.c3-training-joblist button {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid #e2e8ef;
+  border-radius: 11px;
+  background: white;
+  padding: 13px;
+  cursor: pointer;
+  color: inherit;
+}
+.c3-training-joblist button:hover,
+.c3-training-joblist button.selected {
+  border-color: #809db7;
+  background: #f4f7fa;
+}
+.c3-training-jobhead {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+.c3-training-jobhead strong {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.c3-training-joblist small {
+  font-size: 10px;
+  opacity: 0.6;
+  overflow-wrap: anywhere;
+}
+.c3-training-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 99px;
+  padding: 5px 9px;
+  background: #edf0f4;
+  font-size: 10px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.c3-training-badge.success {
+  background: #e6f4eb;
+  color: #197247;
+}
+.c3-training-badge.error {
+  background: #fcecec;
+  color: #9d3030;
+}
+.c3-training-badge.active {
+  background: #e7eff9;
+  color: #164b81;
+}
+.c3-training-inspector-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.c3-training-inspector-head h4 {
+  overflow-wrap: anywhere;
+}
+.c3-training-details {
+  border: 1px solid #e3e9f0;
+  border-radius: 10px;
+  margin: 9px 0;
+  overflow: hidden;
+}
+.c3-training-details summary {
+  padding: 12px 14px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+.c3-training-details pre {
+  margin: 0;
+  border-top: 1px solid #e3e9f0;
+  background: #f7f9fb;
+  padding: 14px;
+  overflow: auto;
+  max-height: 300px;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.c3-training-empty {
+  padding: 32px 12px;
+  text-align: center;
+  color: inherit;
+}
+.c3-training-alert {
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.c3-training-alert.error {
+  background: #fff1f1;
+  color: #982e2e;
+}
+.c3-training-alert.success {
+  background: #eaf6ee;
+  color: #1e7042;
+}
+.c3-training-alert button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 18px;
+}
+.c3-training :is(button, select, summary):focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+@media (max-width: 1150px) {
+  .c3-training-columns {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 580px) {
+  .c3-training-topline {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .c3-training-card {
+    padding: 15px;
+  }
+  .c3-training-keyvalues.grid {
+    grid-template-columns: 1fr;
+  }
+  .c3-training-metrics {
+    gap: 5px;
+  }
+  .c3-training-metrics > div {
+    padding: 10px 7px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .c3-training button {
+    transition: none;
+  }
+}

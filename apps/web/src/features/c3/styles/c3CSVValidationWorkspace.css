@@ -1,6 +1,10 @@
-/* ============================================================
-   GeoNex C3 — CSV Validation Workspace
-   ============================================================ */
+/**
+ * ============================================================
+ *    GeoNex C3 — CSV Validation Workspace
+ *    ============================================================
+ *
+ * @format
+ */
 
 .c3-csv-workspace {
   display: grid;
@@ -131,9 +135,7 @@
   text-align: center;
   border: 2px dashed #cad8e7;
   border-radius: 20px;
-  background:
-    radial-gradient(circle at top, #f0f7ff, transparent 70%),
-    #f9fbfe;
+  background: radial-gradient(circle at top, #f0f7ff, transparent 70%), #f9fbfe;
   transition:
     border-color 200ms ease,
     background 200ms ease,
