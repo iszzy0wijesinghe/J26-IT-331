@@ -1,0 +1,312 @@
+# c1 labeling config v1 - GEONEX-5
+# Note: path might move to configs/components/ later. Check with leader.
+# If value is null or PENDING_EVIDENCE, we still need to get it from NBRO, calibration or a paper.
+
+meta:
+  version: "1.0"
+  status: PROVISIONAL        # validate.py won't freeze while this is PROVISIONAL
+  label_schema_version: "1.1"
+  labeling_spec_version: "1.1" # matches our v1.1 doc
+  created_at: "2026-10-16"
+  owner: harshana
+  jira: GEONEX-5
+  sensor_family: soil_moisture
+  source_types: [SYNTHETIC]  # keep SYNTHETIC / PHYSICAL_DEMO / EXTERNAL separate
+
+classes: [CLEAN, ANOMALY, VALID_EVENT]
+
+# windows, rolling stats, model path, confidence threshold -> features/experiment config
+features_config_ref: configs/components/c1_features_v1.yaml
+experiment_config_ref: configs/components/experiments/
+
+forbidden_features:
+  - packet_id
+  - observation_id
+  - record_id
+  - device_serial_number
+  - dataset_row_number
+  - scenario_label
+  - injected_fault_flag
+  - ground_truth_event_flag
+  - future_values
+  - c3_risk_probability
+  - future_operating_mode
+  - fault_type
+  - fault_window
+  - fault_id
+  - event_id
+  - credibility_label
+  - label_source
+  - true_value
+  - test_run_id
+  - dataset_version
+  - source_origin
+  - device_id
+  - zone_id
+  - sensor_instance_id
+  - scenario_id
+  - scenario_type
+  - c1_prediction
+  - split
+  - split_temporal
+  - split_device
+  - ambiguous
+  - ambiguity_reason
+  - borderline_extreme
+  - train_eligible
+  - context_status
+  - calibration_version
+  - observed_at
+
+metadata_only_fields: [device_id, zone_id, sensor_instance_id, scenario_id]
+
+labeling:
+  label_source: scenario_truth   # never recomputed from features
+  precedence: [context_eligibility, fault_truth, event_truth, clean]
+  scenario_to_label:
+    clean_baseline: CLEAN
+    fault_spike: ANOMALY
+    fault_stuck_at: ANOMALY
+    fault_drift: ANOMALY
+    fault_bias: ANOMALY
+    fault_excessive_noise: ANOMALY
+    fault_quantization_adc: ANOMALY
+    fault_out_of_range: ANOMALY
+    fault_dropout: ANOMALY
+    coherent_environmental_event: VALID_EVENT
+  multi_sensor_events: >
+    All sensors in one coherent event share the event_id. 
+    Sensors that respond clearly get VALID_EVENT. Weak responses stay CLEAN. 
+    If a fault happens during an event, the faulty sensor gets ANOMALY, neighbours keep VALID_EVENT.
+
+insufficient_context:
+  policy: exclude_from_training     # runtime returns context_status
+  min_history_obs:         
+    value: null
+    unit: obs
+    source: PENDING_EVIDENCE
+    justification: less history than this means temporal context is too short
+  rainfall_unavailable: true
+  neighbours_unavailable: true
+
+device_health_evidence:
+  note: "real fault evidence only, unusual value alone is not evidence"
+  health_read_failures_min: 
+    value: null
+    unit: failures
+    source: PENDING_EVIDENCE
+    justification: too many recent read failures, device state uncertain
+  health_voltage_min_v:    
+    value: null
+    unit: V
+    source: DEVICE_DATASHEET
+    justification: below this the reading may be unreliable, check esp32 / ina219 range
+
+ambiguous:
+  flag_column: ambiguous
+  reason_column: ambiguity_reason
+  reasons:
+    FAULT_BELOW_DETECTABILITY: exclude
+    ISOLATED_RESPONSE: exclude
+    PARTIAL_NEIGHBOUR_RESPONSE: exclude
+    OVERLAPPING_EVENTS: exclude
+    BORDERLINE_EXTREME: keep
+  analysis: report_separately
+  reason: >
+    Rows are flagged not deleted so we keep the audit trail and can reuse them 
+    for the missing context test.
+
+split:
+  strategy: scenario_grouped
+  group_by: scenario_id
+  random_seed: 42
+  stratify_by: scenario_type # group level, not label level
+  fractions:
+    train:      
+      value: 0.70
+      unit: fraction
+      source: DESIGN_CHOICE
+      justification: standard baseline, applied to scenario groups not rows
+    val: 
+      value: 0.15
+      unit: fraction
+      source: DESIGN_CHOICE
+      justification: model selection and tuning
+    test:       
+      value: 0.15
+      unit: fraction
+      source: DESIGN_CHOICE
+      justification: final evaluation only
+  temporal_holdout:
+    enabled: true
+    conditions:
+      - timeline long enough to hold out a later period
+      - held-out period has all three classes
+      - if not met, skip and write the reason in the manifest
+  device_holdout:
+    enabled: true
+    conditions:
+      - at least 3 distinct devices (adjust to real device count)
+      - held-out devices have more than one class
+      - a device is fully in train or fully in holdout
+      - if not met, skip and write the reason in the manifest
+  assignment_output: data/splits/
+
+# generator params. these only control how scenarios are built.
+# labels do NOT come from these thresholds (see labeling above).
+generator:
+  seed: 42 # separate from split seed
+  
+  device_assignment:
+    strategy: randomized
+    constraint: each class must show up on more than one device
+
+  clean_baseline:
+    valid_range_min:             
+      value: null
+      unit: calibrated unit
+      source: DEVICE_DATASHEET
+      justification: from calibration run of the sensor + ads1115
+    valid_range_max:             
+      value: null
+      unit: calibrated unit
+      source: DEVICE_DATASHEET
+      justification: saturated soil reading from the same calibration run
+    max_normal_rate_pct_per_min: 
+      value: null
+      unit: pct per min
+      source: PENDING_EVIDENCE
+      justification: "biggest normal change without an event, estimate from real data"
+    neighbour_tolerance_k:       
+      value: null
+      unit: x neighbour std
+      source: PENDING_EVIDENCE
+      justification: spread seen between healthy neighbouring pipes
+    unexplained_rise_pct:        
+      value: null
+      unit: pct
+      source: PENDING_EVIDENCE
+      justification: max rise with no rain support in clean scenarios
+    unexplained_rise_window_min: 
+      value: null
+      unit: min
+      source: PENDING_EVIDENCE
+      justification: window for unexplained_rise_pct
+
+  anomaly_injection:
+    # Dropout is generated here (sensor-level invalid reading), but missing packets are still C2's job.
+    spike_min_sigma:           
+      value: null
+      unit: x local std
+      source: PENDING_EVIDENCE
+      justification: smallest spike that is clearly outside normal noise
+    stuck_min_samples:         
+      value: null
+      unit: samples
+      source: PENDING_EVIDENCE
+      justification: "min run of repeated values, depends on sampling interval"
+    stuck_min_variation_sigma: 
+      value: null
+      unit: x local std
+      source: PENDING_EVIDENCE
+      justification: variation below this counts as stuck
+    drift_floor_sigma:         
+      value: null
+      unit: x local std per hour
+      source: PENDING_EVIDENCE
+      justification: "slowest drift worth injecting, hardest to tell from real slow change"
+    bias_min_sigma:            
+      value: null
+      unit: x local std
+      source: PENDING_EVIDENCE
+      justification: smallest constant offset for a bias fault
+    noise_factor_min:          
+      value: null
+      unit: x baseline noise
+      source: PENDING_EVIDENCE
+      justification: minimum noise increase for a noisy-sensor fault
+    quant_step_pct:            
+      value: null
+      unit: pct
+      source: DEVICE_DATASHEET
+      justification: "step size for adc quantization fault, based on ads1115 resolution"
+    out_of_range: reuse valid_range_min / valid_range_max
+
+  valid_event_scenario:
+    rain_lag_min_min:                 
+      value: null
+      unit: min
+      source: PENDING_EVIDENCE
+      justification: shortest delay between rain and soil response
+    rain_lag_max_min:                 
+      value: null
+      unit: min
+      source: PENDING_EVIDENCE
+      justification: longest delay between rain and soil response
+    rain_support_min_mm:              
+      value: null
+      unit: mm
+      source: NBRO
+      reference: null
+      justification: "min rain before a generated event. Independent of regime bounds."
+    event_min_duration_obs:           
+      value: null
+      unit: obs
+      source: PENDING_EVIDENCE
+      justification: "real events build up over time, spikes don't"
+    event_min_duration_min:           
+      value: null
+      unit: min
+      source: PENDING_EVIDENCE
+      justification: same as above in minutes because sampling interval changes with mode
+    event_min_effect_sigma:           
+      value: null
+      unit: x local std
+      source: PENDING_EVIDENCE
+      justification: min change to count as a real environmental change
+    event_response_epsilon_sigma:
+      value: null
+      unit: x local std
+      source: DESIGN_CHOICE
+      justification: minimum response for a sensor to count as participating in an event
+    neighbour_min_count:              
+      value: null
+      unit: sensors
+      source: DESIGN_CHOICE
+      justification: cannot be more than the neighbours in one cluster
+    neighbour_agreement_fraction_min: 
+      value: null
+      unit: fraction
+      source: PENDING_EVIDENCE
+      justification: share of neighbours responding the same way in an event
+    neighbour_max_age_multiplier:
+      value: null
+      unit: x sampling interval
+      source: PENDING_EVIDENCE
+      justification: max age of a neighbour reading, applied as a multiplier
+
+output:
+  dataset_dir: data/synthetic/c1/
+  manifest_dir: data/manifests/
+  commit_policy: manifests, schemas, scripts and tiny samples only
+
+# what validate.py has to enforce before a dataset can be frozen
+validation_rules:
+  block_if_status_provisional: true
+  block_if_value_null: true # only for `value`, not reference
+  block_if_source_pending_evidence: true
+  block_if_justification_missing_or_tbd: true
+  block_if_reference_missing_for_sources: [NBRO, LITERATURE]
+  check_forbidden_features: fail_if_any_in_feature_columns
+  check_device_id_leakage:
+    - device_id must not be a feature
+    - every class appears on more than one device
+    - device_id-only baseline must not beat the majority-class baseline by a clear margin
+  check_split_integrity:
+    - no scenario_id in more than one partition
+    - holdout conditions met or skip recorded
+  check_source_separation: fail if different source_types are mixed without a flag in the manifest
+  check_classes_per_split: true
+  check_generator_independent_of_regimes: true
+  check_as_of_context: true
+  check_fit_on_train_only: true
