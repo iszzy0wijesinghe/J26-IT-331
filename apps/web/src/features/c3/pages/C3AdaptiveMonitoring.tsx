@@ -20,7 +20,12 @@ const DEFAULT_REQUEST: C3AdaptiveReplayRequest = {
   observation_count: 12,
 };
 
-const MODES: C3MonitoringMode[] = ["DEEP_SLEEP", "IDLE", "RISK", "WARNING"];
+const MODES: C3MonitoringMode[] = [
+  "DEEP_SLEEP",
+  "IDLE",
+  "RISK",
+  "WARNING",
+];
 
 function formatNumber(value: number, digits = 2): string {
   return Number.isFinite(value)
@@ -33,10 +38,14 @@ function formatNumber(value: number, digits = 2): string {
 function formatTime(value: string): string {
   const date = new Date(value);
 
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString();
 }
 
-function getForecastDetails(forecast: Record<string, unknown>): {
+function getForecastDetails(
+  forecast: Record<string, unknown>,
+): {
   horizon: string;
   moisture: string;
   model: string;
@@ -62,7 +71,10 @@ function getForecastDetails(forecast: Record<string, unknown>): {
 
   return {
     horizon: String(horizon),
-    moisture: typeof moisture === "number" ? `${formatNumber(moisture)}%` : "—",
+    moisture:
+      typeof moisture === "number"
+        ? `${formatNumber(moisture)}%`
+        : "—",
     model: String(model),
   };
 }
@@ -70,18 +82,25 @@ function getForecastDetails(forecast: Record<string, unknown>): {
 function ModeBadge({ mode }: { mode: C3MonitoringMode }) {
   return (
     <span
-      className={`c3-adaptive-mode c3-adaptive-mode--${mode.toLowerCase()}`}>
+      className={`c3-adaptive-mode c3-adaptive-mode--${mode.toLowerCase()}`}
+    >
       {mode.replace("_", " ")}
     </span>
   );
 }
 
-function ForecastInspector({ step }: { step: C3AdaptiveReplayStep }) {
+function ForecastInspector({
+  step,
+}: {
+  step: C3AdaptiveReplayStep;
+}) {
   return (
     <section className="panel c3-adaptive-section">
       <div className="panel-heading">
         <div>
-          <span className="section-overline">ACTIVE MODEL INFERENCE</span>
+          <span className="section-overline">
+            ACTIVE MODEL INFERENCE
+          </span>
           <h3>Moisture Forecasts</h3>
         </div>
       </div>
@@ -97,7 +116,8 @@ function ForecastInspector({ step }: { step: C3AdaptiveReplayStep }) {
           return (
             <div
               className="c3-adaptive-forecast-card"
-              key={`${details.horizon}-${index}`}>
+              key={`${details.horizon}-${index}`}
+            >
               <span className="c3-adaptive-muted">
                 +{details.horizon} minutes
               </span>
@@ -109,8 +129,8 @@ function ForecastInspector({ step }: { step: C3AdaptiveReplayStep }) {
       </div>
 
       <p className="c3-adaptive-disclaimer">
-        Forecast values represent predicted soil moisture, not landslide
-        probabilities.
+        Forecast values represent predicted soil moisture,
+        not landslide probabilities.
       </p>
     </section>
   );
@@ -120,7 +140,8 @@ export function C3AdaptiveMonitoring() {
   const [request, setRequest] =
     useState<C3AdaptiveReplayRequest>(DEFAULT_REQUEST);
 
-  const [result, setResult] = useState<C3AdaptiveReplayResponse | null>(null);
+  const [result, setResult] =
+    useState<C3AdaptiveReplayResponse | null>(null);
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -172,8 +193,9 @@ export function C3AdaptiveMonitoring() {
 
         <p className="c3-adaptive-muted">
           Replay historical synthetic observations through the active
-          forecasting models and safety-constrained monitoring policy. Compare
-          hypothetical energy consumption against fixed monitoring schedules.
+          forecasting models and safety-constrained monitoring policy.
+          Compare hypothetical energy consumption against fixed
+          monitoring schedules.
         </p>
 
         <form className="c3-adaptive-form" onSubmit={runReplay}>
@@ -269,7 +291,9 @@ export function C3AdaptiveMonitoring() {
           <div className="c3-adaptive-stats">
             <div className="stat-card">
               <span className="stat-label">REPLAY OBSERVATIONS</span>
-              <div className="stat-value">{result.observation_count}</div>
+              <div className="stat-value">
+                {result.observation_count}
+              </div>
               <span className="stat-foot">
                 Historical synthetic observations
               </span>
@@ -280,13 +304,18 @@ export function C3AdaptiveMonitoring() {
               <div className="stat-value">
                 {result.energy_evaluation.adaptive.total_monitoring_cycles}
               </div>
-              <span className="stat-foot">Modeled monitoring cycles</span>
+              <span className="stat-foot">
+                Modeled monitoring cycles
+              </span>
             </div>
 
             <div className="stat-card">
               <span className="stat-label">MODELED ENERGY SAVING</span>
               <div className="stat-value">
-                {formatNumber(result.energy_evaluation.saving_vs_fixed_5s_pct)}%
+                {formatNumber(
+                  result.energy_evaluation.saving_vs_fixed_5s_pct,
+                )}
+                %
               </div>
               <span className="stat-foot">
                 Compared with fixed 5-second sampling
@@ -315,7 +344,8 @@ export function C3AdaptiveMonitoring() {
 
             <div
               className="c3-adaptive-timeline"
-              aria-label="Monitoring decisions in chronological order">
+              aria-label="Monitoring decisions in chronological order"
+            >
               {result.decisions.map((step, index) => (
                 <button
                   type="button"
@@ -324,9 +354,12 @@ export function C3AdaptiveMonitoring() {
                     selectedIndex === index ? "selected" : ""
                   }`}
                   onClick={() => setSelectedIndex(index)}
-                  aria-pressed={selectedIndex === index}>
+                  aria-pressed={selectedIndex === index}
+                >
                   <span>#{index + 1}</span>
-                  <ModeBadge mode={step.adaptive_decision.selected_mode} />
+                  <ModeBadge
+                    mode={step.adaptive_decision.selected_mode}
+                  />
                   <strong>
                     {formatNumber(
                       step.adaptive_decision.monitoring_interval_s,
@@ -345,7 +378,9 @@ export function C3AdaptiveMonitoring() {
               <section className="panel c3-adaptive-section">
                 <div className="panel-heading">
                   <div>
-                    <span className="section-overline">SELECTED DECISION</span>
+                    <span className="section-overline">
+                      SELECTED DECISION
+                    </span>
                     <h3>Safety Policy Inspection</h3>
                   </div>
                   <ModeBadge
@@ -359,7 +394,11 @@ export function C3AdaptiveMonitoring() {
                       Monitoring interval
                     </span>
                     <strong>
-                      {selectedStep.adaptive_decision.monitoring_interval_s}s
+                      {
+                        selectedStep.adaptive_decision
+                          .monitoring_interval_s
+                      }
+                      s
                     </strong>
                   </div>
 
@@ -368,14 +407,20 @@ export function C3AdaptiveMonitoring() {
                       Stable evaluations
                     </span>
                     <strong>
-                      {selectedStep.adaptive_decision.stable_evaluation_count}
+                      {
+                        selectedStep.adaptive_decision
+                          .stable_evaluation_count
+                      }
                     </strong>
                   </div>
 
                   <div>
-                    <span className="c3-adaptive-muted">Safety override</span>
+                    <span className="c3-adaptive-muted">
+                      Safety override
+                    </span>
                     <strong>
-                      {selectedStep.adaptive_decision.safety_override_applied
+                      {selectedStep.adaptive_decision
+                        .safety_override_applied
                         ? "Applied"
                         : "Not applied"}
                     </strong>
@@ -406,62 +451,42 @@ export function C3AdaptiveMonitoring() {
               </div>
             </div>
 
-            <div
-              className="c3-adaptive-energy-chart"
-              role="img"
-              aria-label="Comparison of modeled energy for adaptive and fixed sampling">
+            <div className="c3-adaptive-energy-chart" role="img" aria-label="Comparison of modeled energy for adaptive and fixed sampling">
               {[
-                {
-                  label: "Adaptive policy",
-                  value: result.energy_evaluation.adaptive.total_energy_mj,
-                  adaptive: true,
-                },
+                { label: "Adaptive policy", value: result.energy_evaluation.adaptive.total_energy_mj, adaptive: true },
                 ...result.energy_evaluation.fixed_baselines.map((baseline) => ({
                   label: `Fixed ${baseline.monitoring_interval_s}s`,
                   value: baseline.energy.total_energy_mj,
                   adaptive: false,
                 })),
               ].map((row) => {
-                const max = Math.max(
-                  1,
-                  result.energy_evaluation.adaptive.total_energy_mj,
-                  ...result.energy_evaluation.fixed_baselines.map(
-                    (baseline) => baseline.energy.total_energy_mj,
-                  ),
-                );
+                const max = Math.max(1, result.energy_evaluation.adaptive.total_energy_mj,
+                  ...result.energy_evaluation.fixed_baselines.map((baseline) => baseline.energy.total_energy_mj));
                 return (
                   <div className="c3-adaptive-bar-row" key={row.label}>
                     <span>{row.label}</span>
                     <div className="c3-adaptive-bar-track">
-                      <div
-                        className={
-                          row.adaptive
-                            ? "c3-adaptive-bar-fill is-adaptive"
-                            : "c3-adaptive-bar-fill"
-                        }
-                        style={{
-                          width: `${Math.max(0, (row.value / max) * 100)}%`,
-                        }}
-                      />
+                      <div className={row.adaptive ? "c3-adaptive-bar-fill is-adaptive" : "c3-adaptive-bar-fill"}
+                        style={{ width: `${Math.max(0, row.value / max * 100)}%` }} />
                     </div>
-                    <strong>
-                      {formatNumber(row.value, 0)} <small>mJ</small>
-                    </strong>
+                    <strong>{formatNumber(row.value, 0)} <small>mJ</small></strong>
                   </div>
                 );
               })}
             </div>
 
             <p className="c3-adaptive-disclaimer">
-              Energy values use assumed baseline power and per-cycle energy
-              costs. They are not measured hardware consumption.
+              Energy values use assumed baseline power and per-cycle
+              energy costs. They are not measured hardware consumption.
             </p>
           </section>
 
           <section className="panel c3-adaptive-section">
             <div className="panel-heading">
               <div>
-                <span className="section-overline">RESEARCH TRANSPARENCY</span>
+                <span className="section-overline">
+                  RESEARCH TRANSPARENCY
+                </span>
                 <h3>Limitations and Assumptions</h3>
               </div>
             </div>
@@ -472,14 +497,17 @@ export function C3AdaptiveMonitoring() {
 
             <ul className="c3-adaptive-reasons">
               {result.limitations.map((limitation, index) => (
-                <li key={`${index}-${limitation}`}>{limitation}</li>
+                <li key={`${index}-${limitation}`}>
+                  {limitation}
+                </li>
               ))}
             </ul>
 
             <p className="c3-adaptive-disclaimer">
-              Historical replay is open-loop: monitoring decisions do not alter
-              which historical observations are available to later decisions.
-              Results are not field-validated landslide warnings.
+              Historical replay is open-loop: monitoring decisions
+              do not alter which historical observations are
+              available to later decisions. Results are not
+              field-validated landslide warnings.
             </p>
           </section>
         </div>

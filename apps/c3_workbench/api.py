@@ -28,6 +28,10 @@ from apps.c3_workbench.training_readiness_routes import (
     router as training_readiness_router,
 
 )
+from apps.c3_workbench.training_monitor_routes import (
+    router as training_monitor_router,
+)
+
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -49,6 +53,7 @@ app.include_router(golden_backup_router)
 app.include_router(golden_explorer_router)
 app.include_router(training_router)
 app.include_router(training_readiness_router)
+app.include_router(training_monitor_router)
 app.include_router(adaptive_router)
 
 class ForecastRequest(BaseModel):

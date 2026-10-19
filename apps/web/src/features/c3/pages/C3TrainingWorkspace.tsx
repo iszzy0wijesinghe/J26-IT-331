@@ -1,5 +1,6 @@
 /** @format */
 
+import { C3TrainingMonitor } from "./C3TrainingMonitor";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { c3GoldenApi, type C3GoldenDataset } from "../api/c3Api";
 import { c3TrainingApi, type C3TrainingRecord } from "../api/c3TrainingApi";
@@ -38,6 +39,7 @@ const stateTone = (s: string) =>
 const isReady = (r: Row | null): boolean | null => {
   if (!r) return null;
   const v = first(r, [
+    "training_approved",
     "ready",
     "is_ready",
     "training_ready",
@@ -66,6 +68,7 @@ export function C3TrainingWorkspace() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const refresh = useCallback(async (signal?: AbortSignal) => {
     setRefreshing(true);
@@ -146,6 +149,7 @@ export function C3TrainingWorkspace() {
   const selectedJobSummary = jobs.find((j) => jobId(j) === selectedJob);
   const ready = isReady(readiness);
   const readinessFields = readiness ? compactFields(readiness) : [];
+  const temporalReady = readiness?.temporal_ready === true;
   const result = object(details);
   const resultFields = compactFields(result, [
     "job_id",
@@ -166,7 +170,7 @@ export function C3TrainingWorkspace() {
       const id = jobId(created);
       setNotice(
         id !== "—"
-          ? `Training job ${id} submitted.`
+          ? `Training job ${id} submitted; automatic worker launch requested.`
           : "Training request submitted. Refresh jobs to view progress.",
       );
       await refresh();
@@ -185,8 +189,8 @@ export function C3TrainingWorkspace() {
           <span className="c3-training-eyebrow">TRAINING PIPELINE</span>
           <h3>Experiment control</h3>
           <p>
-            Verify a registered dataset, submit a training job, and inspect
-            backend-reported results.
+            Review dataset readiness, launch an authorized training run, and
+            inspect verified model results.
           </p>
         </div>
         <button
@@ -219,7 +223,7 @@ export function C3TrainingWorkspace() {
             <span className="c3-training-step">01</span>
             <div>
               <h4>Choose research dataset</h4>
-              <p>Registered golden datasets only</p>
+              <p>Validated, registered research datasets</p>
             </div>
           </div>
           <label className="c3-training-label" htmlFor="c3-train-dataset">
@@ -274,13 +278,31 @@ export function C3TrainingWorkspace() {
                 : ready === true
                   ? "Ready to train"
                   : ready === false
-                    ? "Not ready"
+                    ? "Research approval not granted"
                     : readiness
                       ? "Review assessment"
                       : "Choose a dataset"}
             </strong>
           </div>
           {readiness && (
+            <p className="c3-training-footnote">
+              Temporal suitability:{" "}
+              <strong>{temporalReady ? "PASS" : "NOT VERIFIED"}</strong>.
+              Research approval:{" "}
+              <strong>{ready === true ? "APPROVED" : "NOT APPROVED"}</strong>.{" "}
+              {typeof readiness.training_approval_reason === "string"
+                ? readiness.training_approval_reason
+                : ""}
+            </p>
+          )}
+          <button
+            className="c3-training-secondary c3-training-advanced-toggle"
+            type="button"
+            onClick={() => setShowAdvanced((v) => !v)}
+            aria-expanded={showAdvanced}>
+            {showAdvanced ? "Hide technical details" : "Show technical details"}
+          </button>
+          {showAdvanced && readiness && (
             <dl className="c3-training-keyvalues">
               {readinessFields.map(([k, v]) => (
                 <div key={k}>
@@ -290,7 +312,8 @@ export function C3TrainingWorkspace() {
               ))}
             </dl>
           )}
-          {readiness &&
+          {showAdvanced &&
+            readiness &&
             Object.entries(readiness)
               .filter(
                 ([, v]) =>
@@ -307,12 +330,15 @@ export function C3TrainingWorkspace() {
             type="button"
             disabled={starting || checking || ready !== true}
             onClick={() => void startTraining()}>
-            {starting ? "Submitting training job…" : "Start model training →"}
+            {starting
+              ? "Submitting training job…"
+              : "Authorize & launch training →"}
           </button>
           {ready !== true && (
             <p className="c3-training-footnote">
-              Training is enabled only when the backend explicitly reports
-              readiness. Upload and validate data in Data Workspace first.
+              Upload triggers validation and registration in Data Workspace.
+              Explicit synthetic-research authorization is still required before
+              training can run.
             </p>
           )}
         </section>
@@ -381,25 +407,39 @@ export function C3TrainingWorkspace() {
               </span>
             </div>
             <dl className="c3-training-keyvalues grid">
-              {resultFields.map(([k, v]) => (
-                <div key={k}>
-                  <dt>{k.replace(/_/g, " ")}</dt>
-                  <dd>{value(v)}</dd>
-                </div>
-              ))}
+              {resultFields
+                .filter(([k]) =>
+                  [
+                    "current_stage",
+                    "created_at",
+                    "started_at",
+                    "completed_at",
+                    "error_message",
+                  ].includes(k),
+                )
+                .map(([k, v]) => (
+                  <div key={k}>
+                    <dt>{k.replace(/_/g, " ")}</dt>
+                    <dd>{value(v)}</dd>
+                  </div>
+                ))}
             </dl>
-            {Object.entries(result)
-              .filter(
-                ([, v]) =>
-                  Array.isArray(v) || (v !== null && typeof v === "object"),
-              )
-              .map(([k, v]) => (
-                <details className="c3-training-details" key={k}>
-                  <summary>{k.replace(/_/g, " ")}</summary>
-                  <pre>{JSON.stringify(v, null, 2)}</pre>
-                </details>
-              ))}
+            {showAdvanced &&
+              Object.entries(result)
+                .filter(
+                  ([, v]) =>
+                    Array.isArray(v) || (v !== null && typeof v === "object"),
+                )
+                .map(([k, v]) => (
+                  <details className="c3-training-details" key={k}>
+                    <summary>{k.replace(/_/g, " ")}</summary>
+                    <pre>{JSON.stringify(v, null, 2)}</pre>
+                  </details>
+                ))}
           </>
+        )}
+        {selectedJob && selectedJob !== "—" && (
+          <C3TrainingMonitor jobId={selectedJob} />
         )}
         <p className="c3-training-footnote">
           Job submission does not imply checkpoint activation. The backend must

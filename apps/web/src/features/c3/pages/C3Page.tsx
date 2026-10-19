@@ -14,11 +14,36 @@ import {
 import { C3DatasetManager } from "./C3DatasetManager";
 import { C3AdaptiveMonitoring } from "./C3AdaptiveMonitoring";
 import { C3TrainingWorkspace } from "./C3TrainingWorkspace";
+import { C3ModelEvaluation } from "./C3ModelEvaluation";
+import { C3ResearchPipeline } from "./C3ResearchPipeline";
 
 import "../styles/c3Prediction.css";
 import "../styles/c3Studio.css";
 
-type C3WorkbenchTab = "prediction" | "datasets" | "training" | "adaptive";
+// ============================================================
+// Types
+// ============================================================
+
+type C3WorkbenchTab =
+  | "pipeline"
+  | "datasets"
+  | "training"
+  | "evaluation"
+  | "prediction"
+  | "adaptive";
+
+type WorkspaceDefinition = {
+  id: C3WorkbenchTab;
+  index: string;
+  title: string;
+  subtitle: string;
+  heading: string;
+  description: string;
+};
+
+// ============================================================
+// Constants
+// ============================================================
 
 const HORIZONS: Horizon[] = [15, 30, 60];
 
@@ -29,6 +54,63 @@ const ablationNames: Record<Ablation, string> = {
   B: "Operating mode only",
   C: "Elapsed time + mode",
 };
+
+const WORKSPACES: WorkspaceDefinition[] = [
+  {
+    id: "pipeline",
+    index: "01",
+    title: "Research pipeline",
+    subtitle: "Upload · validate · train · evaluate",
+    heading: "Research pipeline",
+    description:
+      "Prepare research datasets, assess readiness, monitor training, and review registered model candidates.",
+  },
+  {
+    id: "datasets",
+    index: "02",
+    title: "Data workspace",
+    subtitle: "Import · verify · inspect",
+    heading: "Dataset preparation",
+    description:
+      "Manage dataset sources, validate observations, and inspect registered research data.",
+  },
+  {
+    id: "training",
+    index: "03",
+    title: "Model training",
+    subtitle: "Readiness · jobs · results",
+    heading: "Model training",
+    description:
+      "Assess dataset readiness, submit training jobs, and inspect recorded training results.",
+  },
+  {
+    id: "evaluation",
+    index: "04",
+    title: "Model evaluation",
+    subtitle: "Candidates · active assignments",
+    heading: "Model evaluation",
+    description:
+      "Compare validation metrics and inspect registered candidates, active assignments, and activation history.",
+  },
+  {
+    id: "prediction",
+    index: "05",
+    title: "Forecast laboratory",
+    subtitle: "Checkpoint inference",
+    heading: "Forecast laboratory",
+    description:
+      "Explore legacy synthetic validation examples and execute available M4 checkpoint forecasts.",
+  },
+  {
+    id: "adaptive",
+    index: "06",
+    title: "Adaptive analysis",
+    subtitle: "Modes · energy · policy",
+    heading: "Adaptive monitoring",
+    description:
+      "Replay historical monitoring decisions and compare modeled energy consumption against fixed-interval baselines.",
+  },
+];
 
 // ============================================================
 // Moisture History
@@ -76,7 +158,8 @@ function MoistureChart({
     170 - ((value - min) / Math.max(max - min, 0.001)) * 130;
 
   const x = (index: number) =>
-    45 + (index / Math.max(example.temporal_sequence.steps.length, 1)) * 450;
+    45 +
+    (index / Math.max(example.temporal_sequence.steps.length, 1)) * 450;
 
   const path = history
     .map(
@@ -97,28 +180,30 @@ function MoistureChart({
         className="c3-chart"
         viewBox="0 0 550 210"
         role="img"
-        aria-label="Observed synthetic soil moisture, actual future target, and optional forecast">
+        aria-label="Observed synthetic soil moisture, actual future target, and optional forecast"
+      >
         {[0, 1, 2, 3].map((tick) => {
-          const val = min + ((max - min) * tick) / 3;
+          const value = min + ((max - min) * tick) / 3;
 
           return (
             <g key={tick}>
               <line
                 x1="45"
                 x2="515"
-                y1={y(val)}
-                y2={y(val)}
+                y1={y(value)}
+                y2={y(value)}
                 stroke="currentColor"
                 opacity="0.12"
               />
 
               <text
                 x="38"
-                y={y(val) + 4}
+                y={y(value) + 4}
                 textAnchor="end"
                 fill="currentColor"
-                fontSize="11">
-                {val.toFixed(1)}
+                fontSize="11"
+              >
+                {value.toFixed(1)}
               </text>
             </g>
           );
@@ -145,7 +230,12 @@ function MoistureChart({
         )}
 
         {last && (
-          <circle cx={x(last.index)} cy={y(last.value)} r="4" fill="#38bdf8" />
+          <circle
+            cx={x(last.index)}
+            cy={y(last.value)}
+            r="4"
+            fill="#38bdf8"
+          />
         )}
 
         {last && (
@@ -160,11 +250,21 @@ function MoistureChart({
           />
         )}
 
-        <circle cx={futureX} cy={y(actual)} r="5" fill="#22c55e" />
+        <circle
+          cx={futureX}
+          cy={y(actual)}
+          r="5"
+          fill="#22c55e"
+        />
 
         {predicted !== undefined && (
           <>
-            <circle cx={futureX} cy={y(predicted)} r="5" fill="#fb923c" />
+            <circle
+              cx={futureX}
+              cy={y(predicted)}
+              r="5"
+              fill="#fb923c"
+            />
 
             <line
               x1={futureX}
@@ -177,7 +277,12 @@ function MoistureChart({
           </>
         )}
 
-        <text x="45" y="201" fill="currentColor" fontSize="11">
+        <text
+          x="45"
+          y="201"
+          fill="currentColor"
+          fontSize="11"
+        >
           Observed sequence
         </text>
 
@@ -186,7 +291,8 @@ function MoistureChart({
           y="201"
           textAnchor="end"
           fill="currentColor"
-          fontSize="11">
+          fontSize="11"
+        >
           Future target
         </text>
       </svg>
@@ -212,28 +318,36 @@ function MoistureChart({
 }
 
 // ============================================================
-// C3 Workbench
+// C3 Research Workbench
 // ============================================================
 
 export function C3Page() {
   // ----------------------------------------------------------
-  // Workbench navigation
+  // Workspace navigation
   // ----------------------------------------------------------
 
-  const [activeTab, setActiveTab] = useState<C3WorkbenchTab>("prediction");
+  const [activeTab, setActiveTab] =
+    useState<C3WorkbenchTab>("pipeline");
 
-  // ----------------------------------------------------------
-  // API and model state
-  // ----------------------------------------------------------
-
-  const [status, setStatus] = useState<"loading" | "online" | "offline">(
-    "loading",
+  const activeWorkspace = useMemo(
+    () =>
+      WORKSPACES.find((workspace) => workspace.id === activeTab) ??
+      WORKSPACES[0],
+    [activeTab],
   );
+
+  // ----------------------------------------------------------
+  // API and legacy model state
+  // ----------------------------------------------------------
+
+  const [status, setStatus] = useState<
+    "loading" | "online" | "offline"
+  >("loading");
 
   const [models, setModels] = useState<ModelAvailability[]>([]);
 
   // ----------------------------------------------------------
-  // Prediction Explorer state
+  // Forecast Laboratory state
   // ----------------------------------------------------------
 
   const [horizon, setHorizon] = useState<Horizon>(15);
@@ -252,12 +366,13 @@ export function C3Page() {
 
   const [running, setRunning] = useState(false);
 
-  const [forecast, setForecast] = useState<ForecastResponse | null>(null);
+  const [forecast, setForecast] =
+    useState<ForecastResponse | null>(null);
 
   const [error, setError] = useState("");
 
   // ==========================================================
-  // Load API health and available checkpoints
+  // Load API health and legacy checkpoints
   // ==========================================================
 
   useEffect(() => {
@@ -268,18 +383,28 @@ export function C3Page() {
       c3Api.models(controller.signal),
     ])
       .then(([health, response]) => {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted) {
+          return;
+        }
 
-        setStatus(health.status === "ok" ? "online" : "offline");
+        setStatus(
+          health.status === "ok" ? "online" : "offline",
+        );
 
         setModels(response.models);
       })
       .catch((cause: unknown) => {
-        if (!controller.signal.aborted) {
-          setStatus("offline");
-
-          setError(cause instanceof Error ? cause.message : "API unavailable");
+        if (controller.signal.aborted) {
+          return;
         }
+
+        setStatus("offline");
+
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "C3 API unavailable",
+        );
       });
 
     return () => controller.abort();
@@ -287,9 +412,15 @@ export function C3Page() {
 
   // ==========================================================
   // Load validation examples
+  //
+  // Only load these while the Forecast Laboratory is open.
   // ==========================================================
 
   useEffect(() => {
+    if (activeTab !== "prediction") {
+      return;
+    }
+
     const controller = new AbortController();
 
     setLoadingExamples(true);
@@ -302,7 +433,9 @@ export function C3Page() {
     c3Api
       .examples(horizon, offset, 10, controller.signal)
       .then((response) => {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted) {
+          return;
+        }
 
         setExamples(response.examples);
 
@@ -311,13 +444,15 @@ export function C3Page() {
         setHasMore(response.has_more);
       })
       .catch((cause: unknown) => {
-        if (!controller.signal.aborted) {
-          setError(
-            cause instanceof Error
-              ? cause.message
-              : "Could not load validation examples",
-          );
+        if (controller.signal.aborted) {
+          return;
         }
+
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Could not load validation examples",
+        );
       })
       .finally(() => {
         if (!controller.signal.aborted) {
@@ -326,32 +461,44 @@ export function C3Page() {
       });
 
     return () => controller.abort();
-  }, [horizon, offset]);
+  }, [activeTab, horizon, offset]);
 
   // ==========================================================
   // Selected example and checkpoint availability
   // ==========================================================
 
   const selected = useMemo(
-    () => examples.find((example) => example.id === selectedId),
+    () =>
+      examples.find(
+        (example) => example.id === selectedId,
+      ),
     [examples, selectedId],
   );
 
-  const available = models.filter((model) => model.available).length;
+  const available = useMemo(
+    () => models.filter((model) => model.available).length,
+    [models],
+  );
 
-  const modelReady = models.some(
-    (model) =>
-      model.model === `M4-${ablation}` &&
-      model.horizon_minutes === horizon &&
-      model.available,
+  const modelReady = useMemo(
+    () =>
+      models.some(
+        (model) =>
+          model.model === `M4-${ablation}` &&
+          model.horizon_minutes === horizon &&
+          model.available,
+      ),
+    [models, ablation, horizon],
   );
 
   // ==========================================================
-  // Run forecast
+  // Run legacy checkpoint forecast
   // ==========================================================
 
   async function runForecast() {
-    if (!selected || running) return;
+    if (!selected || running || !modelReady) {
+      return;
+    }
 
     setRunning(true);
     setError("");
@@ -366,9 +513,26 @@ export function C3Page() {
 
       setForecast(response);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Prediction failed");
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Prediction failed",
+      );
     } finally {
       setRunning(false);
+    }
+  }
+
+  // ==========================================================
+  // Navigation helpers
+  // ==========================================================
+
+  function openWorkspace(tab: C3WorkbenchTab) {
+    setActiveTab(tab);
+
+    if (tab === "prediction") {
+      setForecast(null);
+      setError("");
     }
   }
 
@@ -378,21 +542,34 @@ export function C3Page() {
 
   return (
     <div className="c3-workbench">
+      {/* ======================================================
+          Research Studio Header
+      ====================================================== */}
+
       <header className="c3-studio-header">
         <div>
           <span className="c3-studio-kicker">
             GEONEX / COMPONENT 03 / RESEARCH STUDIO
           </span>
+
           <h1>
-            Forecasting <span>&amp; adaptive intelligence</span>
+            Forecasting{" "}
+            <span>&amp; adaptive intelligence</span>
           </h1>
+
           <p>
-            Explore datasets, validate moisture forecasts, and investigate
-            safety-constrained monitoring decisions.
+            Explore datasets, validate moisture forecasts,
+            and investigate safety-constrained monitoring
+            decisions.
           </p>
         </div>
-        <span className={`connection-pill ${status}`} role="status">
+
+        <span
+          className={`connection-pill ${status}`}
+          role="status"
+        >
           <span className="status-dot" />
+
           {status === "online"
             ? "API connected"
             : status === "loading"
@@ -401,158 +578,208 @@ export function C3Page() {
         </span>
       </header>
 
+      {/* ======================================================
+          Research Studio Layout
+      ====================================================== */}
+
       <div className="c3-studio-layout">
+        {/* ====================================================
+            Sidebar
+        ==================================================== */}
+
         <aside
           className="c3-studio-sidebar"
-          aria-label="C3 workspace navigation">
+          aria-label="C3 workspace navigation"
+        >
           <div className="c3-studio-sidebar-title">
-            WORKSPACES <span>04</span>
+            WORKSPACES <span>{String(WORKSPACES.length).padStart(2, "0")}</span>
           </div>
+
           <nav
             className="c3-studio-nav"
-            aria-label="C3 research workbench sections">
-            <button
-              type="button"
-              className={activeTab === "datasets" ? "selected" : ""}
-              aria-current={activeTab === "datasets" ? "page" : undefined}
-              onClick={() => setActiveTab("datasets")}>
-              <span className="c3-studio-nav-index">01</span>
-              <span>
-                <strong>Data workspace</strong>
-                <small>Import · verify · inspect</small>
-              </span>
-              <span className="c3-studio-nav-arrow" aria-hidden="true">
-                ↗
-              </span>
-            </button>
-            <button
-              type="button"
-              className={activeTab === "training" ? "selected" : ""}
-              aria-current={activeTab === "training" ? "page" : undefined}
-              onClick={() => setActiveTab("training")}>
-              <span className="c3-studio-nav-index">02</span>
-              <span>
-                <strong>Model training</strong>
-                <small>Readiness · jobs · results</small>
-              </span>
-              <span className="c3-studio-nav-arrow" aria-hidden="true">
-                ↗
-              </span>
-            </button>
-            <button
-              type="button"
-              className={activeTab === "prediction" ? "selected" : ""}
-              aria-current={activeTab === "prediction" ? "page" : undefined}
-              onClick={() => setActiveTab("prediction")}>
-              <span className="c3-studio-nav-index">03</span>
-              <span>
-                <strong>Forecast laboratory</strong>
-                <small>Checkpoint inference</small>
-              </span>
-              <span className="c3-studio-nav-arrow" aria-hidden="true">
-                ↗
-              </span>
-            </button>
-            <button
-              type="button"
-              className={activeTab === "adaptive" ? "selected" : ""}
-              aria-current={activeTab === "adaptive" ? "page" : undefined}
-              onClick={() => setActiveTab("adaptive")}>
-              <span className="c3-studio-nav-index">04</span>
-              <span>
-                <strong>Adaptive analysis</strong>
-                <small>Modes · energy · policy</small>
-              </span>
-              <span className="c3-studio-nav-arrow" aria-hidden="true">
-                ↗
-              </span>
-            </button>
+            aria-label="C3 research workbench sections"
+          >
+            {WORKSPACES.map((workspace) => (
+              <button
+                key={workspace.id}
+                type="button"
+                className={
+                  activeTab === workspace.id
+                    ? "selected"
+                    : ""
+                }
+                aria-current={
+                  activeTab === workspace.id
+                    ? "page"
+                    : undefined
+                }
+                onClick={() =>
+                  openWorkspace(workspace.id)
+                }
+              >
+                <span className="c3-studio-nav-index">
+                  {workspace.index}
+                </span>
+
+                <span>
+                  <strong>{workspace.title}</strong>
+
+                  <small>{workspace.subtitle}</small>
+                </span>
+
+                <span
+                  className="c3-studio-nav-arrow"
+                  aria-hidden="true"
+                >
+                  ↗
+                </span>
+              </button>
+            ))}
           </nav>
+
           <div className="c3-studio-sidebar-note">
             <span>RESEARCH BOUNDARY</span>
+
             <p>
-              Synthetic demonstration. Forecasts are moisture estimates, not
-              landslide probabilities.
+              Synthetic demonstration. Forecasts are
+              moisture estimates, not landslide
+              probabilities.
             </p>
           </div>
         </aside>
-        <main className="c3-studio-main" id="c3-workspace-content">
+
+        {/* ====================================================
+            Main Workspace
+        ==================================================== */}
+
+        <main
+          className="c3-studio-main"
+          id="c3-workspace-content"
+        >
+          {/* ==================================================
+              Workspace Context Header
+          ================================================== */}
+
           <div className="c3-studio-context">
             <div>
-              <span className="c3-studio-kicker">ACTIVE WORKSPACE</span>
-              <h2>
-                {activeTab === "datasets"
-                  ? "Dataset preparation"
-                  : activeTab === "training"
-                    ? "Model training"
-                    : activeTab === "prediction"
-                      ? "Forecast laboratory"
-                      : "Adaptive monitoring"}
-              </h2>
-              <p>
-                {activeTab === "datasets"
-                  ? "Manage sources and verify research data."
-                  : activeTab === "training"
-                    ? "Assess readiness, submit jobs, and inspect real training results."
-                    : activeTab === "prediction"
-                      ? "Inspect legacy synthetic validation checkpoint forecasts."
-                      : "Replay historical decisions and compare modeled energy."}
-              </p>
+              <span className="c3-studio-kicker">
+                ACTIVE WORKSPACE
+              </span>
+
+              <h2>{activeWorkspace.heading}</h2>
+
+              <p>{activeWorkspace.description}</p>
             </div>
+
             {activeTab === "prediction" && (
               <div className="c3-studio-context-stat">
                 <strong>
-                  {status === "online" ? `${available} / 9` : "—"}
+                  {status === "online"
+                    ? `${available} / 9`
+                    : "—"}
                 </strong>
+
                 <small>Legacy checkpoints</small>
               </div>
             )}
           </div>
-          {/* =====================================================
-          Prediction Explorer Tab
-          ===================================================== */}
+
+          {/* ==================================================
+              01 — Research Pipeline
+          ================================================== */}
+
+          {activeTab === "pipeline" && (
+            <C3ResearchPipeline
+              onOpenEvaluation={() =>
+                openWorkspace("evaluation")
+              }
+            />
+          )}
+
+          {/* ==================================================
+              02 — Data Workspace
+          ================================================== */}
+
+          {activeTab === "datasets" && (
+            <C3DatasetManager />
+          )}
+
+          {/* ==================================================
+              03 — Model Training
+          ================================================== */}
+
+          {activeTab === "training" && (
+            <C3TrainingWorkspace />
+          )}
+
+          {/* ==================================================
+              04 — Model Evaluation
+          ================================================== */}
+
+          {activeTab === "evaluation" && (
+            <C3ModelEvaluation />
+          )}
+
+          {/* ==================================================
+              05 — Forecast Laboratory
+          ================================================== */}
 
           {activeTab === "prediction" && (
             <>
-              {/* ===============================================
-              Prediction Explorer
-              =============================================== */}
+              {/* ==============================================
+                  Prediction Explorer
+              ============================================== */}
 
               <section className="panel c3-prediction-explorer">
                 <div className="panel-heading">
                   <div>
                     <span className="section-overline">
-                      LIVE CHECKPOINT INFERENCE
+                      LEGACY CHECKPOINT INFERENCE
                     </span>
 
                     <h2>Prediction Explorer</h2>
                   </div>
 
-                  <span className="live-chip">M4 feature-augmented GRU</span>
+                  <span className="live-chip">
+                    M4 feature-augmented GRU
+                  </span>
                 </div>
 
                 <p className="panel-subtitle">
-                  Select a held-out-from-training validation example, choose an
-                  ablation and horizon, then execute the saved checkpoint
-                  through FastAPI.
+                  Select a synthetic validation example,
+                  choose an ablation and forecast horizon,
+                  then execute the saved legacy checkpoint
+                  through FastAPI. This workspace is not yet
+                  connected to the newly trained active-model
+                  registry.
                 </p>
 
-                {/* ===========================================
-                Prediction Controls
-                =========================================== */}
+                {/* ============================================
+                    Prediction Controls
+                ============================================ */}
 
                 <div className="c3-controls">
                   <label>
                     Forecast horizon
+
                     <select
                       value={horizon}
                       onChange={(event) => {
-                        setHorizon(Number(event.target.value) as Horizon);
+                        setHorizon(
+                          Number(
+                            event.target.value,
+                          ) as Horizon,
+                        );
 
                         setOffset(0);
-                      }}>
+                        setForecast(null);
+                      }}
+                    >
                       {HORIZONS.map((value) => (
-                        <option key={value} value={value}>
+                        <option
+                          key={value}
+                          value={value}
+                        >
                           {value} minutes
                         </option>
                       ))}
@@ -561,16 +788,24 @@ export function C3Page() {
 
                   <label>
                     Model ablation
+
                     <select
                       value={ablation}
                       onChange={(event) => {
-                        setAblation(event.target.value as Ablation);
+                        setAblation(
+                          event.target.value as Ablation,
+                        );
 
                         setForecast(null);
-                      }}>
+                      }}
+                    >
                       {ABLATIONS.map((value) => (
-                        <option key={value} value={value}>
-                          M4-{value} — {ablationNames[value]}
+                        <option
+                          key={value}
+                          value={value}
+                        >
+                          M4-{value} —{" "}
+                          {ablationNames[value]}
                         </option>
                       ))}
                     </select>
@@ -578,96 +813,161 @@ export function C3Page() {
 
                   <label>
                     Validation example
+
                     <select
                       value={selectedId}
-                      disabled={loadingExamples || examples.length === 0}
+                      disabled={
+                        loadingExamples ||
+                        examples.length === 0
+                      }
                       onChange={(event) => {
-                        setSelectedId(event.target.value);
+                        setSelectedId(
+                          event.target.value,
+                        );
+
                         setForecast(null);
-                      }}>
-                      {examples.map((example, index) => (
-                        <option key={example.id} value={example.id}>
-                          {offset + index + 1}. {example.episode_id} ·{" "}
-                          {example.temporal_sequence.steps.length} steps
-                        </option>
-                      ))}
+                      }}
+                    >
+                      {examples.map(
+                        (example, index) => (
+                          <option
+                            key={example.id}
+                            value={example.id}
+                          >
+                            {offset + index + 1}.{" "}
+                            {example.episode_id} ·{" "}
+                            {
+                              example.temporal_sequence
+                                .steps.length
+                            }{" "}
+                            steps
+                          </option>
+                        ),
+                      )}
                     </select>
                   </label>
                 </div>
 
-                {/* ===========================================
-                Prediction Actions
-                =========================================== */}
+                {/* ============================================
+                    Prediction Actions
+                ============================================ */}
 
                 <div className="c3-actions">
                   <button
                     type="button"
                     className="c3-primary-button"
-                    onClick={() => void runForecast()}
+                    onClick={() =>
+                      void runForecast()
+                    }
                     disabled={
-                      !selected || !modelReady || running || status !== "online"
-                    }>
-                    {running ? "Running inference…" : "Run checkpoint forecast"}
+                      !selected ||
+                      !modelReady ||
+                      running ||
+                      status !== "online"
+                    }
+                  >
+                    {running
+                      ? "Running inference…"
+                      : "Run checkpoint forecast"}
                   </button>
 
                   <button
                     type="button"
                     className="c3-secondary-button"
-                    disabled={offset === 0 || loadingExamples}
+                    disabled={
+                      offset === 0 ||
+                      loadingExamples
+                    }
                     onClick={() =>
-                      setOffset((value) => Math.max(0, value - 10))
-                    }>
+                      setOffset((value) =>
+                        Math.max(0, value - 10),
+                      )
+                    }
+                  >
                     Previous examples
                   </button>
 
                   <button
                     type="button"
                     className="c3-secondary-button"
-                    disabled={!hasMore || loadingExamples}
-                    onClick={() => setOffset((value) => value + 10)}>
+                    disabled={
+                      !hasMore ||
+                      loadingExamples
+                    }
+                    onClick={() =>
+                      setOffset(
+                        (value) => value + 10,
+                      )
+                    }
+                  >
                     Next examples
                   </button>
                 </div>
 
-                {/* ===========================================
-                Loading and Error Messages
-                =========================================== */}
+                {/* ============================================
+                    Loading and Error Messages
+                ============================================ */}
 
                 {loadingExamples && (
-                  <p className="c3-inline-note">Loading validation examples…</p>
+                  <p className="c3-inline-note">
+                    Loading validation examples…
+                  </p>
                 )}
 
+                {!modelReady &&
+                  status === "online" && (
+                    <p className="c3-inline-note">
+                      The selected legacy checkpoint is
+                      unavailable for this horizon.
+                    </p>
+                  )}
+
                 {error && (
-                  <div className="api-warning" role="alert">
+                  <div
+                    className="api-warning"
+                    role="alert"
+                  >
                     {error}
                   </div>
                 )}
 
-                {/* ===========================================
-                Prediction Results
-                =========================================== */}
+                {/* ============================================
+                    Prediction Results
+                ============================================ */}
 
                 {selected && (
                   <>
                     <div className="c3-result-grid">
                       <div>
-                        <span>Observed input steps</span>
+                        <span>
+                          Observed input steps
+                        </span>
 
                         <strong>
-                          {selected.temporal_sequence.steps.length}
+                          {
+                            selected.temporal_sequence
+                              .steps.length
+                          }
                         </strong>
                       </div>
 
                       <div>
-                        <span>Actual future moisture</span>
+                        <span>
+                          Actual future moisture
+                        </span>
 
                         <strong>
-                          {selected.actual_soil_moisture_percent.toFixed(4)}%
+                          {selected.actual_soil_moisture_percent.toFixed(
+                            4,
+                          )}
+                          %
                         </strong>
                       </div>
 
                       <div>
-                        <span>Model forecast</span>
+                        <span>
+                          Model forecast
+                        </span>
 
                         <strong>
                           {forecast
@@ -679,7 +979,9 @@ export function C3Page() {
                       </div>
 
                       <div>
-                        <span>Absolute error</span>
+                        <span>
+                          Absolute error
+                        </span>
 
                         <strong>
                           {forecast
@@ -692,88 +994,127 @@ export function C3Page() {
                       </div>
                     </div>
 
-                    {/* Moisture chart */}
+                    {/* ========================================
+                        Moisture Forecast Chart
+                    ======================================== */}
 
-                    <MoistureChart example={selected} forecast={forecast} />
+                    <MoistureChart
+                      example={selected}
+                      forecast={forecast}
+                    />
 
-                    {/* Prediction metadata */}
+                    {/* ========================================
+                        Prediction Metadata
+                    ======================================== */}
 
                     <div className="c3-meta">
                       <span>
-                        Episode: <strong>{selected.episode_id}</strong>
+                        Episode:{" "}
+                        <strong>
+                          {selected.episode_id}
+                        </strong>
                       </span>
 
                       <span>
-                        Device: <strong>{selected.device_id}</strong>
+                        Device:{" "}
+                        <strong>
+                          {selected.device_id}
+                        </strong>
                       </span>
 
                       <span>
                         Actual horizon:{" "}
                         <strong>
-                          {selected.actual_horizon_seconds?.toFixed(1) ?? "—"} s
+                          {selected.actual_horizon_seconds?.toFixed(
+                            1,
+                          ) ?? "—"}{" "}
+                          s
                         </strong>
                       </span>
                     </div>
 
-                    {/* =======================================
-                    Sensor Sequence
-                    ======================================= */}
+                    {/* ========================================
+                        Sensor Sequence
+                    ======================================== */}
 
                     <div className="c3-steps">
-                      <h3>Sensor sequence and operating modes</h3>
+                      <h3>
+                        Sensor sequence and operating
+                        modes
+                      </h3>
 
                       <div className="c3-step-list">
-                        {selected.temporal_sequence.steps.map((step, index) => (
-                          <div key={index} className="c3-step">
-                            <strong>Step {index + 1}</strong>
+                        {selected.temporal_sequence.steps.map(
+                          (step, index) => (
+                            <div
+                              key={index}
+                              className="c3-step"
+                            >
+                              <strong>
+                                Step {index + 1}
+                              </strong>
 
-                            <span>{step.operating_mode ?? "UNKNOWN"}</span>
+                              <span>
+                                {step.operating_mode ??
+                                  "UNKNOWN"}
+                              </span>
 
-                            <span>
-                              Δt{" "}
-                              {typeof step.delta_t_seconds === "number"
-                                ? `${step.delta_t_seconds.toFixed(1)} s`
-                                : "unknown"}
-                            </span>
+                              <span>
+                                Δt{" "}
+                                {typeof step.delta_t_seconds ===
+                                "number"
+                                  ? `${step.delta_t_seconds.toFixed(
+                                      1,
+                                    )} s`
+                                  : "unknown"}
+                              </span>
 
-                            <span>
-                              Moisture:{" "}
-                              {typeof step.features?.soil_moisture_pct ===
-                              "number"
-                                ? `${step.features.soil_moisture_pct.toFixed(
-                                    2,
-                                  )}%`
-                                : "missing"}
-                            </span>
-                          </div>
-                        ))}
+                              <span>
+                                Moisture:{" "}
+                                {typeof step.features
+                                  ?.soil_moisture_pct ===
+                                "number"
+                                  ? `${step.features.soil_moisture_pct.toFixed(
+                                      2,
+                                    )}%`
+                                  : "missing"}
+                              </span>
+                            </div>
+                          ),
+                        )}
                       </div>
                     </div>
                   </>
                 )}
 
-                {/* ===========================================
-                Research Disclaimer
-                =========================================== */}
+                {/* ============================================
+                    Research Disclaimer
+                ============================================ */}
 
                 <p className="c3-research-warning">
-                  Research-only demonstration using synthetic validation data.
-                  Forecasts estimate future soil moisture; they are not
-                  landslide probabilities, operational warnings, or evidence of
-                  real-world accuracy.
+                  Research-only demonstration using
+                  synthetic validation data. Forecasts
+                  estimate future soil moisture; they are
+                  not landslide probabilities, operational
+                  warnings, or evidence of real-world
+                  accuracy.
                 </p>
               </section>
 
-              {/* ===============================================
-              Available Model Checkpoints
-              =============================================== */}
+              {/* ==============================================
+                  Legacy Checkpoint Availability
+              ============================================== */}
 
               <section className="panel c3-model-panel">
                 <div className="panel-heading">
                   <div>
-                    <span className="section-overline">CHECKPOINT STATUS</span>
+                    <span className="section-overline">
+                      LEGACY CHECKPOINT STATUS
+                    </span>
 
-                    <h2>Available trained models</h2>
+                    <h2>
+                      Available trained models
+                    </h2>
                   </div>
                 </div>
 
@@ -782,52 +1123,72 @@ export function C3Page() {
                     <span>ABLATION</span>
 
                     {HORIZONS.map((value) => (
-                      <span key={value}>{value} MIN</span>
+                      <span key={value}>
+                        {value} MIN
+                      </span>
                     ))}
                   </div>
 
                   {ABLATIONS.map((value) => (
-                    <div className="model-row" key={value}>
+                    <div
+                      className="model-row"
+                      key={value}
+                    >
                       <strong>
                         M4-{value}
-                        <small>{ablationNames[value]}</small>
+
+                        <small>
+                          {ablationNames[value]}
+                        </small>
                       </strong>
 
                       {HORIZONS.map((h) => {
-                        const isAvailable = models.some(
-                          (model) =>
-                            model.model === `M4-${value}` &&
-                            model.horizon_minutes === h &&
-                            model.available,
-                        );
+                        const isAvailable =
+                          models.some(
+                            (model) =>
+                              model.model ===
+                                `M4-${value}` &&
+                              model.horizon_minutes ===
+                                h &&
+                              model.available,
+                          );
 
                         return (
                           <span
                             key={h}
                             className={`model-indicator ${
-                              isAvailable ? "available" : ""
-                            }`}>
-                            {isAvailable ? "Ready" : "—"}
+                              isAvailable
+                                ? "available"
+                                : ""
+                            }`}
+                          >
+                            {isAvailable
+                              ? "Ready"
+                              : "—"}
                           </span>
                         );
                       })}
                     </div>
                   ))}
                 </div>
+
+                <p className="c3-research-warning">
+                  These are legacy M4 demonstration
+                  checkpoints. They are separate from the
+                  18 newly registered research model
+                  candidates shown in Model Evaluation.
+                </p>
               </section>
             </>
           )}
 
-          {/* =====================================================
-          Dataset Manager Tab
-          ===================================================== */}
+          {/* ==================================================
+              06 — Adaptive Analysis
+          ================================================== */}
 
-          {activeTab === "datasets" && <C3DatasetManager />}
-
-          {activeTab === "training" && <C3TrainingWorkspace />}
-
-          {/* Adaptive Monitoring Research Workspace */}
-          {activeTab === "adaptive" && <C3AdaptiveMonitoring />}
+          {activeTab === "adaptive" && (
+            <C3AdaptiveMonitoring />
+          )}
         </main>
       </div>
     </div>

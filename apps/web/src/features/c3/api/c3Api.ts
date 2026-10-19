@@ -420,11 +420,17 @@ export type C3ObservationFiltersResponse = {
   operating_modes: string[];
 };
 
-function buildObservationQuery(query: C3ObservationQuery): string {
+function buildObservationQuery(
+  query: C3ObservationQuery,
+): string {
   const parameters = new URLSearchParams();
 
   for (const [key, value] of Object.entries(query)) {
-    if (value !== undefined && value !== null && value !== "") {
+    if (
+      value !== undefined &&
+      value !== null &&
+      value !== ""
+    ) {
       parameters.set(key, String(value));
     }
   }
@@ -433,13 +439,19 @@ function buildObservationQuery(query: C3ObservationQuery): string {
 }
 
 export const c3ExplorerApi = {
-  list: (query: C3ObservationQuery, signal?: AbortSignal) =>
+  list: (
+    query: C3ObservationQuery,
+    signal?: AbortSignal,
+  ) =>
     requestJson<C3ObservationListResponse>(
       `/database/observations?${buildObservationQuery(query)}`,
       { signal },
     ),
 
-  filters: (datasetId?: string, signal?: AbortSignal) => {
+  filters: (
+    datasetId?: string,
+    signal?: AbortSignal,
+  ) => {
     const parameters = new URLSearchParams();
 
     if (datasetId) {
@@ -449,11 +461,15 @@ export const c3ExplorerApi = {
     const suffix = parameters.toString();
 
     return requestJson<C3ObservationFiltersResponse>(
-      `/database/observations/filters${suffix ? `?${suffix}` : ""}`,
+      `/database/observations/filters${
+        suffix ? `?${suffix}` : ""
+      }`,
       { signal },
     );
   },
 
   exportUrl: (query: C3ObservationQuery) =>
-    `${BASE}/database/observations/export?${buildObservationQuery(query)}`,
+    `${BASE}/database/observations/export?${buildObservationQuery(
+      query,
+    )}`,
 };

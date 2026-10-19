@@ -1,6 +1,10 @@
 /** @format */
 
-export type C3MonitoringMode = "DEEP_SLEEP" | "IDLE" | "RISK" | "WARNING";
+export type C3MonitoringMode =
+  | "DEEP_SLEEP"
+  | "IDLE"
+  | "RISK"
+  | "WARNING";
 
 export type C3AdaptiveReplayRequest = {
   dataset_id: string;
@@ -71,7 +75,10 @@ export type C3AdaptiveReplayResponse = {
   limitations: string[];
 };
 
-async function postJson<T>(path: string, body: unknown): Promise<T> {
+async function postJson<T>(
+  path: string,
+  body: unknown,
+): Promise<T> {
   const response = await fetch(`/api/c3${path}`, {
     method: "POST",
     headers: {
@@ -93,7 +100,10 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
       ) {
         const value = payload.detail;
 
-        detail = typeof value === "string" ? value : JSON.stringify(value);
+        detail =
+          typeof value === "string"
+            ? value
+            : JSON.stringify(value);
       }
     } catch {
       // Keep the HTTP status message if the response is not JSON.
@@ -106,7 +116,9 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
 }
 
 export const c3AdaptiveApi = {
-  replay(request: C3AdaptiveReplayRequest): Promise<C3AdaptiveReplayResponse> {
+  replay(
+    request: C3AdaptiveReplayRequest,
+  ): Promise<C3AdaptiveReplayResponse> {
     return postJson<C3AdaptiveReplayResponse>(
       "/research/adaptive/replay",
       request,

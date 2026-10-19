@@ -228,7 +228,11 @@
 
   height: 2px;
 
-  background: linear-gradient(90deg, var(--c3-dm-accent), var(--c3-dm-orange));
+  background: linear-gradient(
+    90deg,
+    var(--c3-dm-accent),
+    var(--c3-dm-orange)
+  );
 
   opacity: 0.65;
 }

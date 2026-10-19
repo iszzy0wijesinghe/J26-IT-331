@@ -9,7 +9,10 @@ import {
   type DragEvent,
 } from "react";
 
-import { c3CSVApi, type C3CSVValidationResult } from "../api/c3Api";
+import {
+  c3CSVApi,
+  type C3CSVValidationResult,
+} from "../api/c3Api";
 
 import "../styles/c3CSVValidationWorkspace.css";
 
@@ -17,7 +20,11 @@ import "../styles/c3CSVValidationWorkspace.css";
    Types
    ============================================================ */
 
-type WorkspaceStatus = "IDLE" | "VALIDATING" | "VALIDATED" | "FAILED";
+type WorkspaceStatus =
+  | "IDLE"
+  | "VALIDATING"
+  | "VALIDATED"
+  | "FAILED";
 
 type TerminalLevel = "INFO" | "SUCCESS" | "WARNING" | "ERROR";
 
@@ -120,19 +127,21 @@ export function C3CSVValidationWorkspace({
 
   const [status, setStatus] = useState<WorkspaceStatus>("IDLE");
 
-  const [result, setResult] = useState<C3CSVValidationResult | null>(null);
+  const [result, setResult] =
+    useState<C3CSVValidationResult | null>(null);
 
   /* ----------------------------------------------------------
      Golden Database Registration
      ---------------------------------------------------------- */
 
-  const [registeredDatasetId, setRegisteredDatasetId] = useState("");
+  const [registeredDatasetId, setRegisteredDatasetId] =
+    useState("");
 
-  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
+  const [alreadyRegistered, setAlreadyRegistered] =
+    useState(false);
 
-  const [storedObservations, setStoredObservations] = useState<number | null>(
-    null,
-  );
+  const [storedObservations, setStoredObservations] =
+    useState<number | null>(null);
 
   /* ----------------------------------------------------------
      Feedback
@@ -146,7 +155,8 @@ export function C3CSVValidationWorkspace({
      Terminal
      ---------------------------------------------------------- */
 
-  const [terminalEntries, setTerminalEntries] = useState<TerminalEntry[]>([]);
+  const [terminalEntries, setTerminalEntries] =
+    useState<TerminalEntry[]>([]);
 
   const [terminalExpanded, setTerminalExpanded] = useState(true);
 
@@ -158,24 +168,30 @@ export function C3CSVValidationWorkspace({
 
   const validating = status === "VALIDATING";
 
-  const registered = status === "VALIDATED" && registeredDatasetId !== "";
+  const registered =
+    status === "VALIDATED" && registeredDatasetId !== "";
 
   /* ============================================================
      Activity Logging
      ============================================================ */
 
-  const appendLog = useCallback((level: TerminalLevel, message: string) => {
-    terminalCounter.current += 1;
+  const appendLog = useCallback(
+    (level: TerminalLevel, message: string) => {
+      terminalCounter.current += 1;
 
-    const entry: TerminalEntry = {
-      id: terminalCounter.current,
-      timestamp: new Date().toLocaleTimeString(),
-      level,
-      message,
-    };
+      const entry: TerminalEntry = {
+        id: terminalCounter.current,
+        timestamp: new Date().toLocaleTimeString(),
+        level,
+        message,
+      };
 
-    setTerminalEntries((current) => [...current, entry].slice(-300));
-  }, []);
+      setTerminalEntries((current) =>
+        [...current, entry].slice(-300),
+      );
+    },
+    [],
+  );
 
   /* ============================================================
      Terminal Auto Scroll
@@ -229,7 +245,10 @@ export function C3CSVValidationWorkspace({
 
         setError("Please select a .csv dataset file.");
 
-        appendLog("ERROR", "File selection rejected: unsupported file format.");
+        appendLog(
+          "ERROR",
+          "File selection rejected: unsupported file format.",
+        );
 
         return;
       }
@@ -239,7 +258,10 @@ export function C3CSVValidationWorkspace({
 
         setError("The selected CSV file is empty.");
 
-        appendLog("ERROR", "File selection rejected: empty dataset.");
+        appendLog(
+          "ERROR",
+          "File selection rejected: empty dataset.",
+        );
 
         return;
       }
@@ -247,7 +269,9 @@ export function C3CSVValidationWorkspace({
       if (selected.size > MAX_FILE_BYTES) {
         setFile(null);
 
-        setError("The selected CSV exceeds the 100 MiB upload limit.");
+        setError(
+          "The selected CSV exceeds the 100 MiB upload limit.",
+        );
 
         appendLog(
           "ERROR",
@@ -261,9 +285,9 @@ export function C3CSVValidationWorkspace({
 
       appendLog(
         "INFO",
-        `Selected dataset: ${selected.name} (${(selected.size / 1024).toFixed(
-          1,
-        )} KiB)`,
+        `Selected dataset: ${selected.name} (${(
+          selected.size / 1024
+        ).toFixed(1)} KiB)`,
       );
     },
     [appendLog, validating],
@@ -273,7 +297,9 @@ export function C3CSVValidationWorkspace({
      File Input
      ============================================================ */
 
-  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+  function handleFileChange(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
     selectFile(event.target.files?.[0] ?? null);
 
     event.target.value = "";
@@ -331,7 +357,10 @@ export function C3CSVValidationWorkspace({
          Backend validation + registration
          ------------------------------------------------------ */
 
-      const response = await c3CSVApi.upload(file, controller.signal);
+      const response = await c3CSVApi.upload(
+        file,
+        controller.signal,
+      );
 
       if (controller.signal.aborted) return;
 
@@ -343,7 +372,10 @@ export function C3CSVValidationWorkspace({
          Verified validation information
          ------------------------------------------------------ */
 
-      appendLog("INFO", `Schema version: ${report.schema_version}`);
+      appendLog(
+        "INFO",
+        `Schema version: ${report.schema_version}`,
+      );
 
       appendLog(
         "INFO",
@@ -369,13 +401,17 @@ export function C3CSVValidationWorkspace({
       for (const issue of report.issues) {
         const location =
           issue.row !== null
-            ? `Row ${issue.row}${issue.column ? `, ${issue.column}` : ""}: `
+            ? `Row ${issue.row}${
+                issue.column ? `, ${issue.column}` : ""
+              }: `
             : issue.column
               ? `${issue.column}: `
               : "";
 
         appendLog(
-          issue.severity === "ERROR" ? "ERROR" : "WARNING",
+          issue.severity === "ERROR"
+            ? "ERROR"
+            : "WARNING",
           `${location}${issue.message}`,
         );
       }
@@ -399,7 +435,10 @@ export function C3CSVValidationWorkspace({
 
         setStoredObservations(dataset.observations);
 
-        appendLog("SUCCESS", "CSV validation passed.");
+        appendLog(
+          "SUCCESS",
+          "CSV validation passed.",
+        );
 
         if (dataset.already_registered) {
           appendLog(
@@ -433,10 +472,16 @@ export function C3CSVValidationWorkspace({
           `Dataset ingestion failed. Validation errors: ${report.error_count}.`,
         );
 
-        appendLog("WARNING", "No observations were registered by this upload.");
+        appendLog(
+          "WARNING",
+          "No observations were registered by this upload.",
+        );
       }
 
-      appendLog("INFO", "Automatic model training is not enabled yet.");
+      appendLog(
+        "INFO",
+        "Automatic model training is not enabled yet.",
+      );
     } catch (cause) {
       if (controller.signal.aborted) return;
 
@@ -445,7 +490,10 @@ export function C3CSVValidationWorkspace({
       setError(message);
       setStatus("FAILED");
 
-      appendLog("ERROR", `Golden Data ingestion request failed: ${message}`);
+      appendLog(
+        "ERROR",
+        `Golden Data ingestion request failed: ${message}`,
+      );
     } finally {
       if (requestController.current === controller) {
         requestController.current = null;
@@ -483,21 +531,24 @@ export function C3CSVValidationWorkspace({
       <section className="panel c3-csv-hero">
         <div className="c3-csv-hero-content">
           <div>
-            <span className="section-overline">GEONEX C3 · DATA INTEGRITY</span>
+            <span className="section-overline">
+              GEONEX C3 · DATA INTEGRITY
+            </span>
 
             <h2>Golden Data Ingestion</h2>
 
             <p className="panel-subtitle">
-              Upload sensor observations for automatic validation and persistent
-              Golden Database registration. Invalid datasets are rejected
-              without saving observations.
+              Upload sensor observations for automatic validation
+              and persistent Golden Database registration.
+              Invalid datasets are rejected without saving observations.
             </p>
           </div>
 
           <div
             className={`c3-csv-state c3-csv-state-${status.toLowerCase()}`}
             role="status"
-            aria-live="polite">
+            aria-live="polite"
+          >
             <span className="c3-csv-state-dot" />
 
             {status === "IDLE"
@@ -540,7 +591,9 @@ export function C3CSVValidationWorkspace({
         <section className="panel c3-csv-upload-panel">
           <div className="panel-heading">
             <div>
-              <span className="section-overline">DATA INGESTION</span>
+              <span className="section-overline">
+                DATA INGESTION
+              </span>
 
               <h2>Upload Observations</h2>
             </div>
@@ -557,16 +610,26 @@ export function C3CSVValidationWorkspace({
               .join(" ")}
             onDragOver={handleDragOver}
             onDragLeave={() => setDragActive(false)}
-            onDrop={handleDrop}>
-            <div className="c3-csv-upload-symbol" aria-hidden="true">
+            onDrop={handleDrop}
+          >
+            <div
+              className="c3-csv-upload-symbol"
+              aria-hidden="true"
+            >
               ↑
             </div>
 
-            <h3>{file ? file.name : "Drop your CSV dataset here"}</h3>
+            <h3>
+              {file
+                ? file.name
+                : "Drop your CSV dataset here"}
+            </h3>
 
             <p>
               {file
-                ? `${(file.size / 1024).toFixed(1)} KiB · Ready for ingestion`
+                ? `${(file.size / 1024).toFixed(
+                    1,
+                  )} KiB · Ready for ingestion`
                 : "Choose a file or drag it into this workspace"}
             </p>
 
@@ -584,7 +647,10 @@ export function C3CSVValidationWorkspace({
               type="button"
               className="c3-csv-secondary-button"
               disabled={validating}
-              onClick={() => fileInputRef.current?.click()}>
+              onClick={() =>
+                fileInputRef.current?.click()
+              }
+            >
               {file ? "Change File" : "Browse CSV Files"}
             </button>
 
@@ -597,7 +663,10 @@ export function C3CSVValidationWorkspace({
             type="button"
             className="c3-csv-primary-button"
             disabled={!file || validating}
-            onClick={() => void handleValidateAndSave()}>
+            onClick={() =>
+              void handleValidateAndSave()
+            }
+          >
             {validating ? (
               <>
                 <span className="c3-csv-button-spinner" />
@@ -613,7 +682,10 @@ export function C3CSVValidationWorkspace({
               -------------------------------------------------- */}
 
           {registered && (
-            <div className="c3-csv-registration-success" role="status">
+            <div
+              className="c3-csv-registration-success"
+              role="status"
+            >
               <strong>
                 {alreadyRegistered
                   ? "Dataset Already Registered"
@@ -621,22 +693,30 @@ export function C3CSVValidationWorkspace({
               </strong>
 
               <p>
-                Dataset ID: <code>{registeredDatasetId}</code>
+                Dataset ID:{" "}
+                <code>{registeredDatasetId}</code>
               </p>
 
               {storedObservations !== null && (
                 <p>
                   Stored observations:{" "}
-                  <strong>{formatNumber(storedObservations)}</strong>
+                  <strong>
+                    {formatNumber(storedObservations)}
+                  </strong>
                 </p>
               )}
 
-              <p>This dataset is available in Registered Datasets.</p>
+              <p>
+                This dataset is available in Registered Datasets.
+              </p>
             </div>
           )}
 
           {error && (
-            <div className="c3-csv-error" role="alert">
+            <div
+              className="c3-csv-error"
+              role="alert"
+            >
               {error}
             </div>
           )}
@@ -649,7 +729,9 @@ export function C3CSVValidationWorkspace({
         <section className="panel c3-csv-progress-panel">
           <div className="panel-heading">
             <div>
-              <span className="section-overline">PROCESSING PIPELINE</span>
+              <span className="section-overline">
+                PROCESSING PIPELINE
+              </span>
 
               <h2>Ingestion Stages</h2>
             </div>
@@ -662,7 +744,8 @@ export function C3CSVValidationWorkspace({
               // individual progress updates.
               const completed = registered;
 
-              const active = validating && index === 0;
+              const active =
+                validating && index === 0;
 
               return (
                 <div
@@ -673,9 +756,14 @@ export function C3CSVValidationWorkspace({
                     active ? "is-active" : "",
                   ]
                     .filter(Boolean)
-                    .join(" ")}>
+                    .join(" ")}
+                >
                   <div className="c3-csv-stage-indicator">
-                    {completed ? "✓" : active ? "…" : index + 1}
+                    {completed
+                      ? "✓"
+                      : active
+                        ? "…"
+                        : index + 1}
                   </div>
 
                   <div>
@@ -707,15 +795,20 @@ export function C3CSVValidationWorkspace({
         <section className="panel c3-csv-results">
           <div className="panel-heading">
             <div>
-              <span className="section-overline">VALIDATION REPORT</span>
+              <span className="section-overline">
+                VALIDATION REPORT
+              </span>
 
               <h2>Dataset Quality Overview</h2>
             </div>
 
             <span
               className={`c3-csv-result-badge ${
-                result.status === "VALIDATED" ? "is-valid" : "is-invalid"
-              }`}>
+                result.status === "VALIDATED"
+                  ? "is-valid"
+                  : "is-invalid"
+              }`}
+            >
               {result.status}
             </span>
           </div>
@@ -733,10 +826,15 @@ export function C3CSVValidationWorkspace({
               ["EPISODES", result.episodes],
               ["MISSING READINGS", totalMissing],
             ].map(([label, value]) => (
-              <div className="c3-csv-metric" key={String(label)}>
+              <div
+                className="c3-csv-metric"
+                key={String(label)}
+              >
                 <span>{label}</span>
 
-                <strong>{formatNumber(Number(value))}</strong>
+                <strong>
+                  {formatNumber(Number(value))}
+                </strong>
               </div>
             ))}
           </div>
@@ -750,36 +848,45 @@ export function C3CSVValidationWorkspace({
               <h3>Sensor Coverage</h3>
 
               <div className="c3-csv-sensor-list">
-                {Object.entries(result.missing_values).map(
-                  ([sensor, missing]) => {
-                    const available =
-                      result.total_rows > 0
-                        ? ((result.total_rows - missing) / result.total_rows) *
-                          100
-                        : 0;
+                {Object.entries(
+                  result.missing_values,
+                ).map(([sensor, missing]) => {
+                  const available =
+                    result.total_rows > 0
+                      ? ((result.total_rows -
+                          missing) /
+                          result.total_rows) *
+                        100
+                      : 0;
 
-                    return (
-                      <div className="c3-csv-sensor" key={sensor}>
-                        <div>
-                          <span>{sensor}</span>
+                  return (
+                    <div
+                      className="c3-csv-sensor"
+                      key={sensor}
+                    >
+                      <div>
+                        <span>{sensor}</span>
 
-                          <strong>{available.toFixed(1)}%</strong>
-                        </div>
-
-                        <div className="c3-csv-sensor-track">
-                          <div
-                            style={{
-                              width: `${available}%`,
-                            }}
-                            className="c3-csv-sensor-fill"
-                          />
-                        </div>
-
-                        <small>{missing} missing reading(s)</small>
+                        <strong>
+                          {available.toFixed(1)}%
+                        </strong>
                       </div>
-                    );
-                  },
-                )}
+
+                      <div className="c3-csv-sensor-track">
+                        <div
+                          style={{
+                            width: `${available}%`,
+                          }}
+                          className="c3-csv-sensor-fill"
+                        />
+                      </div>
+
+                      <small>
+                        {missing} missing reading(s)
+                      </small>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -794,17 +901,27 @@ export function C3CSVValidationWorkspace({
 
                 <div>
                   <span>Schema version</span>
-                  <strong>{result.schema_version}</strong>
+                  <strong>
+                    {result.schema_version}
+                  </strong>
                 </div>
 
                 <div>
                   <span>First observation</span>
-                  <strong>{formatTimestamp(result.timestamp_start)}</strong>
+                  <strong>
+                    {formatTimestamp(
+                      result.timestamp_start,
+                    )}
+                  </strong>
                 </div>
 
                 <div>
                   <span>Last observation</span>
-                  <strong>{formatTimestamp(result.timestamp_end)}</strong>
+                  <strong>
+                    {formatTimestamp(
+                      result.timestamp_end,
+                    )}
+                  </strong>
                 </div>
 
                 <div>
@@ -821,10 +938,14 @@ export function C3CSVValidationWorkspace({
               <h4>Operating Modes</h4>
 
               <div className="c3-csv-mode-list">
-                {Object.entries(result.operating_modes).map(([mode, count]) => (
+                {Object.entries(
+                  result.operating_modes,
+                ).map(([mode, count]) => (
                   <div key={mode}>
                     <span>{mode}</span>
-                    <strong>{formatNumber(count)}</strong>
+                    <strong>
+                      {formatNumber(count)}
+                    </strong>
                   </div>
                 ))}
               </div>
@@ -840,7 +961,8 @@ export function C3CSVValidationWorkspace({
               <h3>Validation Findings</h3>
 
               <span>
-                {result.error_count} errors · {result.warning_count} warnings
+                {result.error_count} errors ·{" "}
+                {result.warning_count} warnings
               </span>
             </div>
 
@@ -850,33 +972,52 @@ export function C3CSVValidationWorkspace({
               </p>
             ) : (
               <>
-                {visibleIssues.map((issue, index) => (
-                  <div
-                    key={`${issue.code}-${issue.row}-${index}`}
-                    className={`c3-csv-issue c3-csv-issue-${issue.severity.toLowerCase()}`}>
-                    <span>{issue.severity}</span>
+                {visibleIssues.map(
+                  (issue, index) => (
+                    <div
+                      key={`${issue.code}-${issue.row}-${index}`}
+                      className={`c3-csv-issue c3-csv-issue-${issue.severity.toLowerCase()}`}
+                    >
+                      <span>
+                        {issue.severity}
+                      </span>
 
-                    <div>
-                      <strong>{issue.code}</strong>
+                      <div>
+                        <strong>
+                          {issue.code}
+                        </strong>
 
-                      <p>{issue.message}</p>
+                        <p>
+                          {issue.message}
+                        </p>
 
-                      {(issue.row !== null || issue.column !== null) && (
-                        <small>
-                          {issue.row !== null ? `Row ${issue.row}` : ""}
+                        {(issue.row !== null ||
+                          issue.column !== null) && (
+                          <small>
+                            {issue.row !== null
+                              ? `Row ${issue.row}`
+                              : ""}
 
-                          {issue.column ? ` · Column: ${issue.column}` : ""}
-                        </small>
-                      )}
+                            {issue.column
+                              ? ` · Column: ${issue.column}`
+                              : ""}
+                          </small>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ),
+                )}
 
                 {result.issues.length > 8 && (
                   <button
                     type="button"
                     className="c3-csv-text-button"
-                    onClick={() => setShowAllIssues((value) => !value)}>
+                    onClick={() =>
+                      setShowAllIssues(
+                        (value) => !value,
+                      )
+                    }
+                  >
                     {showAllIssues
                       ? "Show fewer findings"
                       : `Show all ${result.issues.length} findings`}
@@ -887,9 +1028,10 @@ export function C3CSVValidationWorkspace({
           </div>
 
           <div className="c3-csv-research-notice">
-            CSV validation verifies the currently implemented structural and
-            row-level checks. It does not establish temporal forecast readiness,
-            calibrated anomaly quality, model performance, or landslide-warning
+            CSV validation verifies the currently implemented
+            structural and row-level checks. It does not establish
+            temporal forecast readiness, calibrated anomaly
+            quality, model performance, or landslide-warning
             reliability.
           </div>
         </section>
@@ -902,7 +1044,9 @@ export function C3CSVValidationWorkspace({
       <section className="panel c3-csv-terminal-panel">
         <div className="c3-csv-terminal-heading">
           <div>
-            <span className="section-overline">INGESTION ACTIVITY</span>
+            <span className="section-overline">
+              INGESTION ACTIVITY
+            </span>
 
             <h2>Activity Terminal</h2>
           </div>
@@ -910,18 +1054,34 @@ export function C3CSVValidationWorkspace({
           <div className="c3-csv-terminal-actions">
             <button
               type="button"
-              onClick={() => setAutoScroll((value) => !value)}>
-              Auto-scroll: {autoScroll ? "ON" : "OFF"}
+              onClick={() =>
+                setAutoScroll((value) => !value)
+              }
+            >
+              Auto-scroll:{" "}
+              {autoScroll ? "ON" : "OFF"}
             </button>
 
-            <button type="button" onClick={() => setTerminalEntries([])}>
+            <button
+              type="button"
+              onClick={() =>
+                setTerminalEntries([])
+              }
+            >
               Clear
             </button>
 
             <button
               type="button"
-              onClick={() => setTerminalExpanded((value) => !value)}>
-              {terminalExpanded ? "Collapse" : "Expand"}
+              onClick={() =>
+                setTerminalExpanded(
+                  (value) => !value,
+                )
+              }
+            >
+              {terminalExpanded
+                ? "Collapse"
+                : "Expand"}
             </button>
           </div>
         </div>
@@ -932,30 +1092,44 @@ export function C3CSVValidationWorkspace({
             className="c3-csv-terminal"
             role="log"
             aria-label="CSV ingestion activity"
-            aria-live="polite">
+            aria-live="polite"
+          >
             {terminalEntries.length === 0 ? (
               <div className="c3-csv-terminal-empty">
-                <span>geonex@c3:~$</span> Awaiting dataset activity...
+                <span>
+                  geonex@c3:~$
+                </span>{" "}
+                Awaiting dataset activity...
               </div>
             ) : (
-              terminalEntries.map((entry) => (
-                <div
-                  className={`c3-csv-terminal-line c3-csv-log-${entry.level.toLowerCase()}`}
-                  key={entry.id}>
-                  <time>{entry.timestamp}</time>
+              terminalEntries.map(
+                (entry) => (
+                  <div
+                    className={`c3-csv-terminal-line c3-csv-log-${entry.level.toLowerCase()}`}
+                    key={entry.id}
+                  >
+                    <time>
+                      {entry.timestamp}
+                    </time>
 
-                  <span className="c3-csv-terminal-level">{entry.level}</span>
+                    <span className="c3-csv-terminal-level">
+                      {entry.level}
+                    </span>
 
-                  <span>{entry.message}</span>
-                </div>
-              ))
+                    <span>
+                      {entry.message}
+                    </span>
+                  </div>
+                ),
+              )
             )}
           </div>
         )}
 
         <p className="c3-csv-terminal-footnote">
-          Displays frontend upload activity and verified validation results
-          returned by the backend. Live training-worker logs will be integrated
+          Displays frontend upload activity and verified
+          validation results returned by the backend.
+          Live training-worker logs will be integrated
           separately when background training is implemented.
         </p>
       </section>

@@ -118,6 +118,12 @@ def execute_training_job(
                     / f"{stage}.log"
                 ),
             )
+            update_training_job(
+                job_id,
+                status="TRAINING",
+                stage=stage,
+                message=f"Completed task {index}/{len(commands)}: {stage}",
+            )
 
         update_training_job(
             job_id,

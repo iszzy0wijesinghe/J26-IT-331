@@ -115,32 +115,23 @@ def approve_synthetic_dataset(
     if dataset is None:
         raise ValueError("Dataset not found.")
 
-    # Initial research-only allowlist.
-    # Filename alone is not sufficient evidence of provenance.
-    expected_hash = (
-        "16187c5d5c5d659db20d26ba98aaccf"
-        "bac8675074481cc68d268a984e7aa577c"
-    )
+    if dataset["quality_status"] != "GOLDEN":
+        raise ValueError("Dataset must have GOLDEN quality status.")
 
-    if (
-        dataset["filename"]
-        != "geonex_c3_synthetic_observations_v2.csv"
-        or dataset["file_hash"] != expected_hash
-        or dataset["quality_status"] != "GOLDEN"
-    ):
-        raise ValueError(
-            "Dataset is not an approved synthetic "
-            "research source."
-        )
-
-    manifest_path = (
-        EXPORT_ROOT / dataset_id / "manifest.json"
-    )
-
+    # A human declaration is recorded, not treated as verified provenance.
+    # Synthetic experiments are NEVER approved for operational deployment.
+    manifest_path = EXPORT_ROOT / dataset_id / "manifest.json"
     if not manifest_path.is_file():
-        raise ValueError(
-            "Training export manifest does not exist."
-        )
+        raise ValueError("Training export manifest does not exist. Prepare the export first.")
+
+    import json
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if (manifest.get("dataset_id") != dataset_id
+        or manifest.get("source_file_sha256") != dataset["file_hash"]
+        or manifest.get("source_filename") != dataset["filename"]
+        or manifest.get("source_provenance_verified") is not False
+        or manifest.get("training_approved") is not False):
+        raise ValueError("Export manifest/source mismatch or unsupported provenance flags.")
 
     manifest_sha256 = calculate_sha256(manifest_path)
 

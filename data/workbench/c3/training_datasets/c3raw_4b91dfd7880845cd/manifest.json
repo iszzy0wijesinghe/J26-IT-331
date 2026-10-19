@@ -1,0 +1,89 @@
+{
+  "adapter_version": "c3-golden-csv-adapter-v1",
+  "counts_by_split_horizon": {
+    "train": {
+      "15": 3450,
+      "30": 3360,
+      "60": 3180
+    },
+    "validation": {
+      "15": 690,
+      "30": 672,
+      "60": 636
+    }
+  },
+  "dataset_id": "c3raw_4b91dfd7880845cd",
+  "episode_splits": {
+    "SYN-E01": "train",
+    "SYN-E02": "train",
+    "SYN-E03": "train",
+    "SYN-E04": "train",
+    "SYN-E05": "train",
+    "SYN-E06": "validation"
+  },
+  "export_version": "c3-fixed-horizon-v2",
+  "feature_compatibility": {
+    "train": {
+      "gru_shape": [
+        3,
+        14
+      ],
+      "m4_shape": [
+        3,
+        20
+      ],
+      "tabular_features": 79
+    },
+    "validation": {
+      "gru_shape": [
+        3,
+        14
+      ],
+      "m4_shape": [
+        3,
+        20
+      ],
+      "tabular_features": 79
+    }
+  },
+  "files": {
+    "train": {
+      "examples": 9990,
+      "filename": "train.jsonl.gz",
+      "sha256": "ac5dff9f98dfbcb3016a5d74c6230cd70ab1bcbb514b7b42f20ccedc8f94aace"
+    },
+    "validation": {
+      "examples": 1998,
+      "filename": "validation.jsonl.gz",
+      "sha256": "e730ff3c0ed73853d608de1ed598cdc457ce918599fef1e4a705b6671ab52dd9"
+    }
+  },
+  "forecast_horizons_minutes": [
+    15,
+    30,
+    60
+  ],
+  "limitations": [
+    "Golden CSV values do not retain original per-sensor observation provenance.",
+    "Receipt time is unavailable and is assumed equal to observation time for this export.",
+    "Per-sensor measurement ages are unknown.",
+    "Accepted CSV values are not independently verified as unmodified physical measurements.",
+    "Synthetic or experimental source status requires separate provenance approval.",
+    "Forecasting targets are future sensor values, not landslide-event ground truth.",
+    "No held-out test split is generated."
+  ],
+  "maximum_history_steps": 32,
+  "minimum_history_steps": 3,
+  "not_landslide_ground_truth": true,
+  "source_file_sha256": "d1443d2555da39e6f58a1302159b10aa873564e452b52827f6275404909c0bbb",
+  "source_filename": "GeoNex_C3_Synthetic_Test_Dataset_4320.csv",
+  "source_origin": "GOLDEN_CSV",
+  "source_provenance_verified": false,
+  "split_policy": "EPISODE_DISJOINT",
+  "split_seed": 20261019,
+  "target_feature": "soil_moisture_pct",
+  "target_tolerance_minutes": 2.0,
+  "total_examples": 11988,
+  "training_approved": false,
+  "training_objective": "FUTURE_SENSOR_VALUE_REGRESSION"
+}

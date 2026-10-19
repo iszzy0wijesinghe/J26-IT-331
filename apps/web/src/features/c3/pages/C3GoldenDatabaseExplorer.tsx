@@ -1,6 +1,11 @@
 /** @format */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import {
   c3ExplorerApi,
@@ -80,21 +85,30 @@ function getErrorMessage(error: unknown): string {
 function formatTimestamp(value: string): string {
   const date = new Date(value);
 
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString();
 }
 
-function formatNumber(value: number, digits = 3): string {
+function formatNumber(
+  value: number,
+  digits = 3,
+): string {
   return value.toLocaleString(undefined, {
     maximumFractionDigits: digits,
   });
 }
 
-function toIsoTimestamp(value: string): string | undefined {
+function toIsoTimestamp(
+  value: string,
+): string | undefined {
   if (!value) return undefined;
 
   const date = new Date(value);
 
-  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+  return Number.isNaN(date.getTime())
+    ? undefined
+    : date.toISOString();
 }
 
 /* ============================================================
@@ -102,32 +116,43 @@ function toIsoTimestamp(value: string): string | undefined {
    ============================================================ */
 
 export function C3GoldenDatabaseExplorer() {
-  const [query, setQuery] = useState<C3ObservationQuery>(INITIAL_QUERY);
+  const [query, setQuery] =
+    useState<C3ObservationQuery>(INITIAL_QUERY);
 
-  const [searchInput, setSearchInput] = useState("");
+  const [searchInput, setSearchInput] =
+    useState("");
 
-  const [fromInput, setFromInput] = useState("");
+  const [fromInput, setFromInput] =
+    useState("");
 
-  const [toInput, setToInput] = useState("");
+  const [toInput, setToInput] =
+    useState("");
 
-  const [filters, setFilters] = useState<C3ObservationFiltersResponse | null>(
-    null,
-  );
+  const [filters, setFilters] =
+    useState<C3ObservationFiltersResponse | null>(
+      null,
+    );
 
-  const [observations, setObservations] = useState<C3GoldenObservation[]>([]);
+  const [observations, setObservations] =
+    useState<C3GoldenObservation[]>([]);
 
-  const [total, setTotal] = useState(0);
+  const [total, setTotal] =
+    useState(0);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] =
+    useState(true);
 
-  const [filtersLoading, setFiltersLoading] = useState(true);
+  const [filtersLoading, setFiltersLoading] =
+    useState(true);
 
-  const [error, setError] = useState("");
+  const [error, setError] =
+    useState("");
 
   const [selectedObservation, setSelectedObservation] =
     useState<C3GoldenObservation | null>(null);
 
-  const [refreshVersion, setRefreshVersion] = useState(0);
+  const [refreshVersion, setRefreshVersion] =
+    useState(0);
 
   /* ==========================================================
      Load Filter Options
@@ -195,15 +220,18 @@ export function C3GoldenDatabaseExplorer() {
      Query Updates
      ========================================================== */
 
-  const updateQuery = useCallback((updates: Partial<C3ObservationQuery>) => {
-    setQuery((current) => ({
-      ...current,
-      ...updates,
-      offset: 0,
-    }));
+  const updateQuery = useCallback(
+    (updates: Partial<C3ObservationQuery>) => {
+      setQuery((current) => ({
+        ...current,
+        ...updates,
+        offset: 0,
+      }));
 
-    setSelectedObservation(null);
-  }, []);
+      setSelectedObservation(null);
+    },
+    [],
+  );
 
   function applySearch() {
     updateQuery({
@@ -239,12 +267,15 @@ export function C3GoldenDatabaseExplorer() {
      Sorting
      ========================================================== */
 
-  function changeSort(sortBy: C3ObservationSortBy) {
+  function changeSort(
+    sortBy: C3ObservationSortBy,
+  ) {
     setQuery((current) => ({
       ...current,
       sort_by: sortBy,
       sort_order:
-        current.sort_by === sortBy && current.sort_order === "asc"
+        current.sort_by === sortBy &&
+        current.sort_order === "asc"
           ? "desc"
           : "asc",
       offset: 0,
@@ -268,7 +299,9 @@ export function C3GoldenDatabaseExplorer() {
       search: query.search,
     };
 
-    window.location.assign(c3ExplorerApi.exportUrl(exportQuery));
+    window.location.assign(
+      c3ExplorerApi.exportUrl(exportQuery),
+    );
   }
 
   /* ==========================================================
@@ -280,13 +313,21 @@ export function C3GoldenDatabaseExplorer() {
 
   const page = Math.floor(offset / limit) + 1;
 
-  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(total / limit),
+  );
 
-  const showingFrom = total === 0 ? 0 : offset + 1;
+  const showingFrom =
+    total === 0 ? 0 : offset + 1;
 
-  const showingTo = Math.min(offset + observations.length, total);
+  const showingTo = Math.min(
+    offset + observations.length,
+    total,
+  );
 
-  const hasNextPage = offset + observations.length < total;
+  const hasNextPage =
+    offset + observations.length < total;
 
   const activeFilterCount = useMemo(
     () =>
@@ -322,29 +363,41 @@ export function C3GoldenDatabaseExplorer() {
             <h2>Sensor Observation Explorer</h2>
           </div>
 
-          <span className="live-chip">Read-only SQLite</span>
+          <span className="live-chip">
+            Read-only SQLite
+          </span>
         </div>
 
         <p className="panel-subtitle">
-          Explore persistent Golden Database sensor observations using
-          server-side filtering, sorting, and pagination. All measurements shown
-          are retrieved from SQLite rather than generated by the frontend.
+          Explore persistent Golden Database sensor
+          observations using server-side filtering,
+          sorting, and pagination.
+          All measurements shown are retrieved from
+          SQLite rather than generated by the frontend.
         </p>
 
         <div className="c3-explorer-overview">
           <div>
             <span>MATCHING OBSERVATIONS</span>
-            <strong>{loading ? "…" : total.toLocaleString()}</strong>
+            <strong>
+              {loading ? "…" : total.toLocaleString()}
+            </strong>
           </div>
 
           <div>
             <span>VISIBLE RECORDS</span>
-            <strong>{loading ? "…" : observations.length}</strong>
+            <strong>
+              {loading
+                ? "…"
+                : observations.length}
+            </strong>
           </div>
 
           <div>
             <span>ACTIVE FILTERS</span>
-            <strong>{activeFilterCount}</strong>
+            <strong>
+              {activeFilterCount}
+            </strong>
           </div>
 
           <div>
@@ -363,7 +416,9 @@ export function C3GoldenDatabaseExplorer() {
       <section className="panel">
         <div className="panel-heading">
           <div>
-            <span className="section-overline">OBSERVATION QUERY</span>
+            <span className="section-overline">
+              OBSERVATION QUERY
+            </span>
 
             <h2>Search & Filter</h2>
           </div>
@@ -382,16 +437,23 @@ export function C3GoldenDatabaseExplorer() {
               disabled={filtersLoading}
               onChange={(event) =>
                 updateQuery({
-                  dataset_id: event.target.value || undefined,
+                  dataset_id:
+                    event.target.value || undefined,
                   device_id: undefined,
                   episode_id: undefined,
                   operating_mode: undefined,
                 })
-              }>
-              <option value="">All datasets</option>
+              }
+            >
+              <option value="">
+                All datasets
+              </option>
 
               {filters?.datasets.map((dataset) => (
-                <option key={dataset.dataset_id} value={dataset.dataset_id}>
+                <option
+                  key={dataset.dataset_id}
+                  value={dataset.dataset_id}
+                >
                   {dataset.filename}
                 </option>
               ))}
@@ -406,14 +468,21 @@ export function C3GoldenDatabaseExplorer() {
               disabled={filtersLoading}
               onChange={(event) =>
                 updateQuery({
-                  device_id: event.target.value || undefined,
+                  device_id:
+                    event.target.value || undefined,
                   episode_id: undefined,
                 })
-              }>
-              <option value="">All devices</option>
+              }
+            >
+              <option value="">
+                All devices
+              </option>
 
               {filters?.devices.map((device) => (
-                <option key={device} value={device}>
+                <option
+                  key={device}
+                  value={device}
+                >
                   {device}
                 </option>
               ))}
@@ -428,13 +497,20 @@ export function C3GoldenDatabaseExplorer() {
               disabled={filtersLoading}
               onChange={(event) =>
                 updateQuery({
-                  episode_id: event.target.value || undefined,
+                  episode_id:
+                    event.target.value || undefined,
                 })
-              }>
-              <option value="">All episodes</option>
+              }
+            >
+              <option value="">
+                All episodes
+              </option>
 
               {filters?.episodes.map((episode) => (
-                <option key={episode} value={episode}>
+                <option
+                  key={episode}
+                  value={episode}
+                >
                   {episode}
                 </option>
               ))}
@@ -449,13 +525,20 @@ export function C3GoldenDatabaseExplorer() {
               disabled={filtersLoading}
               onChange={(event) =>
                 updateQuery({
-                  operating_mode: event.target.value || undefined,
+                  operating_mode:
+                    event.target.value || undefined,
                 })
-              }>
-              <option value="">All modes</option>
+              }
+            >
+              <option value="">
+                All modes
+              </option>
 
               {filters?.operating_modes.map((mode) => (
-                <option key={mode} value={mode}>
+                <option
+                  key={mode}
+                  value={mode}
+                >
                   {mode}
                 </option>
               ))}
@@ -469,7 +552,9 @@ export function C3GoldenDatabaseExplorer() {
               type="search"
               value={searchInput}
               placeholder="Search identifiers…"
-              onChange={(event) => setSearchInput(event.target.value)}
+              onChange={(event) =>
+                setSearchInput(event.target.value)
+              }
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
                   applySearch();
@@ -484,7 +569,9 @@ export function C3GoldenDatabaseExplorer() {
             <input
               type="datetime-local"
               value={fromInput}
-              onChange={(event) => setFromInput(event.target.value)}
+              onChange={(event) =>
+                setFromInput(event.target.value)
+              }
             />
           </label>
 
@@ -494,7 +581,9 @@ export function C3GoldenDatabaseExplorer() {
             <input
               type="datetime-local"
               value={toInput}
-              onChange={(event) => setToInput(event.target.value)}
+              onChange={(event) =>
+                setToInput(event.target.value)
+              }
             />
           </label>
         </div>
@@ -503,21 +592,24 @@ export function C3GoldenDatabaseExplorer() {
           <button
             type="button"
             className="c3-explorer-button primary"
-            onClick={applySearch}>
+            onClick={applySearch}
+          >
             Apply Filters
           </button>
 
           <button
             type="button"
             className="c3-explorer-button secondary"
-            onClick={clearFilters}>
+            onClick={clearFilters}
+          >
             Clear Filters
           </button>
 
           <button
             type="button"
             className="c3-explorer-button secondary"
-            onClick={refresh}>
+            onClick={refresh}
+          >
             Refresh
           </button>
 
@@ -525,7 +617,8 @@ export function C3GoldenDatabaseExplorer() {
             type="button"
             className="c3-explorer-button export"
             onClick={exportCSV}
-            disabled={loading || total === 0}>
+            disabled={loading || total === 0}
+          >
             Export CSV
           </button>
         </div>
@@ -546,25 +639,33 @@ export function C3GoldenDatabaseExplorer() {
           </div>
 
           <span className="live-chip">
-            {showingFrom.toLocaleString()}–{showingTo.toLocaleString()} of{" "}
+            {showingFrom.toLocaleString()}–
+            {showingTo.toLocaleString()} of{" "}
             {total.toLocaleString()}
           </span>
         </div>
 
         <div className="c3-explorer-table-toolbar">
-          <span>Select a row to inspect all seven sensors.</span>
+          <span>
+            Select a row to inspect all seven sensors.
+          </span>
 
           <label>
             Rows per page
+
             <select
               value={limit}
               onChange={(event) =>
                 updateQuery({
                   limit: Number(event.target.value),
                 })
-              }>
+              }
+            >
               {PAGE_SIZES.map((size) => (
-                <option key={size} value={size}>
+                <option
+                  key={size}
+                  value={size}
+                >
                   {size}
                 </option>
               ))}
@@ -573,7 +674,9 @@ export function C3GoldenDatabaseExplorer() {
         </div>
 
         {loading ? (
-          <div className="c3-explorer-state">Loading observations…</div>
+          <div className="c3-explorer-state">
+            Loading observations…
+          </div>
         ) : observations.length === 0 ? (
           <div className="c3-explorer-state">
             No observations match the selected filters.
@@ -586,7 +689,10 @@ export function C3GoldenDatabaseExplorer() {
                   <th>
                     <button
                       type="button"
-                      onClick={() => changeSort("timestamp")}>
+                      onClick={() =>
+                        changeSort("timestamp")
+                      }
+                    >
                       Timestamp ↕
                     </button>
                   </th>
@@ -594,7 +700,10 @@ export function C3GoldenDatabaseExplorer() {
                   <th>
                     <button
                       type="button"
-                      onClick={() => changeSort("device_id")}>
+                      onClick={() =>
+                        changeSort("device_id")
+                      }
+                    >
                       Device ↕
                     </button>
                   </th>
@@ -602,7 +711,10 @@ export function C3GoldenDatabaseExplorer() {
                   <th>
                     <button
                       type="button"
-                      onClick={() => changeSort("episode_id")}>
+                      onClick={() =>
+                        changeSort("episode_id")
+                      }
+                    >
                       Episode ↕
                     </button>
                   </th>
@@ -610,7 +722,10 @@ export function C3GoldenDatabaseExplorer() {
                   <th>
                     <button
                       type="button"
-                      onClick={() => changeSort("operating_mode")}>
+                      onClick={() =>
+                        changeSort("operating_mode")
+                      }
+                    >
                       Mode ↕
                     </button>
                   </th>
@@ -618,7 +733,10 @@ export function C3GoldenDatabaseExplorer() {
                   <th>
                     <button
                       type="button"
-                      onClick={() => changeSort("soil_moisture_pct")}>
+                      onClick={() =>
+                        changeSort("soil_moisture_pct")
+                      }
+                    >
                       Moisture ↕
                     </button>
                   </th>
@@ -626,7 +744,10 @@ export function C3GoldenDatabaseExplorer() {
                   <th>
                     <button
                       type="button"
-                      onClick={() => changeSort("rainfall_proxy_counts")}>
+                      onClick={() =>
+                        changeSort("rainfall_proxy_counts")
+                      }
+                    >
                       Rainfall ↕
                     </button>
                   </th>
@@ -634,7 +755,10 @@ export function C3GoldenDatabaseExplorer() {
                   <th>
                     <button
                       type="button"
-                      onClick={() => changeSort("tilt_deg")}>
+                      onClick={() =>
+                        changeSort("tilt_deg")
+                      }
+                    >
                       Tilt ↕
                     </button>
                   </th>
@@ -652,8 +776,13 @@ export function C3GoldenDatabaseExplorer() {
                       observation.observation_id
                         ? "selected"
                         : ""
-                    }>
-                    <td>{formatTimestamp(observation.timestamp)}</td>
+                    }
+                  >
+                    <td>
+                      {formatTimestamp(
+                        observation.timestamp,
+                      )}
+                    </td>
 
                     <td>{observation.device_id}</td>
 
@@ -661,22 +790,42 @@ export function C3GoldenDatabaseExplorer() {
 
                     <td>
                       <span
-                        className={`c3-explorer-mode mode-${observation.operating_mode.toLowerCase()}`}>
+                        className={`c3-explorer-mode mode-${observation.operating_mode.toLowerCase()}`}
+                      >
                         {observation.operating_mode}
                       </span>
                     </td>
 
-                    <td>{formatNumber(observation.soil_moisture_pct)}%</td>
+                    <td>
+                      {formatNumber(
+                        observation.soil_moisture_pct,
+                      )}
+                      %
+                    </td>
 
-                    <td>{formatNumber(observation.rainfall_proxy_counts)}</td>
+                    <td>
+                      {formatNumber(
+                        observation.rainfall_proxy_counts,
+                      )}
+                    </td>
 
-                    <td>{formatNumber(observation.tilt_deg)}°</td>
+                    <td>
+                      {formatNumber(
+                        observation.tilt_deg,
+                      )}
+                      °
+                    </td>
 
                     <td>
                       <button
                         type="button"
                         className="c3-explorer-inspect"
-                        onClick={() => setSelectedObservation(observation)}>
+                        onClick={() =>
+                          setSelectedObservation(
+                            observation,
+                          )
+                        }
+                      >
                         Inspect
                       </button>
                     </td>
@@ -696,14 +845,22 @@ export function C3GoldenDatabaseExplorer() {
             <button
               type="button"
               disabled={loading || offset === 0}
-              onClick={() => changePage(Math.max(0, offset - limit))}>
+              onClick={() =>
+                changePage(
+                  Math.max(0, offset - limit),
+                )
+              }
+            >
               Previous
             </button>
 
             <button
               type="button"
               disabled={loading || !hasNextPage}
-              onClick={() => changePage(offset + limit)}>
+              onClick={() =>
+                changePage(offset + limit)
+              }
+            >
               Next
             </button>
           </div>
@@ -718,15 +875,22 @@ export function C3GoldenDatabaseExplorer() {
         <section className="panel">
           <div className="panel-heading">
             <div>
-              <span className="section-overline">OBSERVATION INSPECTION</span>
+              <span className="section-overline">
+                OBSERVATION INSPECTION
+              </span>
 
-              <h2>Reading #{selectedObservation.observation_id}</h2>
+              <h2>
+                Reading #{selectedObservation.observation_id}
+              </h2>
             </div>
 
             <button
               type="button"
               className="c3-explorer-button secondary"
-              onClick={() => setSelectedObservation(null)}>
+              onClick={() =>
+                setSelectedObservation(null)
+              }
+            >
               Close
             </button>
           </div>
@@ -734,49 +898,75 @@ export function C3GoldenDatabaseExplorer() {
           <div className="c3-explorer-detail-grid">
             <div>
               <span>Dataset</span>
-              <strong>{selectedObservation.dataset_id}</strong>
+              <strong>
+                {selectedObservation.dataset_id}
+              </strong>
             </div>
 
             <div>
               <span>Device</span>
-              <strong>{selectedObservation.device_id}</strong>
+              <strong>
+                {selectedObservation.device_id}
+              </strong>
             </div>
 
             <div>
               <span>Episode</span>
-              <strong>{selectedObservation.episode_id}</strong>
+              <strong>
+                {selectedObservation.episode_id}
+              </strong>
             </div>
 
             <div>
               <span>Operating Mode</span>
-              <strong>{selectedObservation.operating_mode}</strong>
+              <strong>
+                {selectedObservation.operating_mode}
+              </strong>
             </div>
 
             <div>
               <span>Observation Timestamp</span>
-              <strong>{formatTimestamp(selectedObservation.timestamp)}</strong>
+              <strong>
+                {formatTimestamp(
+                  selectedObservation.timestamp,
+                )}
+              </strong>
             </div>
 
             <div>
               <span>Database Ingestion Time</span>
-              <strong>{formatTimestamp(selectedObservation.created_at)}</strong>
+              <strong>
+                {formatTimestamp(
+                  selectedObservation.created_at,
+                )}
+              </strong>
             </div>
           </div>
 
-          <h3 className="c3-explorer-subheading">Sensor Measurements</h3>
+          <h3 className="c3-explorer-subheading">
+            Sensor Measurements
+          </h3>
 
           <div className="c3-explorer-sensor-grid">
             {SENSOR_FIELDS.map((sensor) => {
-              const value = selectedObservation[sensor.key];
+              const value =
+                selectedObservation[sensor.key];
 
               return (
-                <div key={sensor.key} className="c3-explorer-sensor-card">
+                <div
+                  key={sensor.key}
+                  className="c3-explorer-sensor-card"
+                >
                   <span>{sensor.label}</span>
 
                   <strong>
-                    {typeof value === "number" ? formatNumber(value, 5) : "—"}
+                    {typeof value === "number"
+                      ? formatNumber(value, 5)
+                      : "—"}
 
-                    <small>{sensor.unit}</small>
+                    <small>
+                      {sensor.unit}
+                    </small>
                   </strong>
                 </div>
               );
@@ -790,15 +980,20 @@ export function C3GoldenDatabaseExplorer() {
           ====================================================== */}
 
       {error && (
-        <div className="c3-explorer-error" role="alert">
+        <div
+          className="c3-explorer-error"
+          role="alert"
+        >
           {error}
         </div>
       )}
 
       <p className="c3-research-warning">
-        Observations displayed here are stored research records. Their presence
-        in the Golden Database does not establish calibration accuracy,
-        forecasting readiness, or real-world landslide-warning reliability.
+        Observations displayed here are stored
+        research records. Their presence in the
+        Golden Database does not establish
+        calibration accuracy, forecasting readiness,
+        or real-world landslide-warning reliability.
       </p>
     </div>
   );
