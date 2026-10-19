@@ -20,6 +20,13 @@ from apps.c3_workbench.golden_backup_routes import (
 from apps.c3_workbench.golden_explorer_routes import (
     router as golden_explorer_router,
 )
+from apps.c3_workbench.training_routes import (
+    router as training_router,
+)
+from apps.c3_workbench.training_readiness_routes import (
+    router as training_readiness_router,
+
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -39,6 +46,8 @@ app.include_router(golden_router)
 app.include_router(dataset_router)
 app.include_router(golden_backup_router)
 app.include_router(golden_explorer_router)
+app.include_router(training_router)
+app.include_router(training_readiness_router)
 
 class ForecastRequest(BaseModel):
     ablation: Literal["A", "B", "C"] = "A"

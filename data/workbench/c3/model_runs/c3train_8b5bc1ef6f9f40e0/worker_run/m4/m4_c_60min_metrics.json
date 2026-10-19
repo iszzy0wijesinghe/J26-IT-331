@@ -1,0 +1,217 @@
+{
+  "model": "m4_gru",
+  "ablation": "C",
+  "include_time": true,
+  "include_mode": true,
+  "dataset_version": "c3-fixed-horizon-v2",
+  "target_feature": "soil_moisture_pct",
+  "horizon_minutes": 60,
+  "device": "mps",
+  "seed": 20261018,
+  "train_examples": 3074,
+  "validation_examples": 742,
+  "parameter_count": 16577,
+  "configuration": {
+    "input_size": 20,
+    "hidden_size": 64,
+    "num_layers": 1,
+    "batch_size": 64,
+    "learning_rate": 0.001,
+    "max_epochs": 30,
+    "patience": 6,
+    "optimizer": "Adam",
+    "loss": "MSE",
+    "loss_units": "standardized_target",
+    "reported_metric_units": "soil_moisture_percentage_points",
+    "selection_metric": "validation_mae"
+  },
+  "normalizer": {
+    "sensor_normalizer": {
+      "sensor_names": [
+        "soil_moisture_pct",
+        "rainfall_proxy_counts",
+        "tilt_deg",
+        "vibration_g",
+        "fsr_adc",
+        "air_temperature_c",
+        "humidity_pct"
+      ],
+      "means": [
+        46.58724594116211,
+        3.141650915145874,
+        1.8563206195831299,
+        0.016741802915930748,
+        1819.98876953125,
+        27.87861442565918,
+        75.48999786376953
+      ],
+      "stds": [
+        14.028834342956543,
+        3.9538259506225586,
+        0.7714607119560242,
+        0.005626647733151913,
+        128.0292205810547,
+        2.4867005348205566,
+        10.2507905960083
+      ]
+    },
+    "time_mean": 5.707110404968262,
+    "time_std": 1.0
+  },
+  "target_normalizer": {
+    "mean": 50.45502374756019,
+    "std": 15.749253720495027
+  },
+  "best_epoch": 14,
+  "best_validation_mae": 1.6291045885523052,
+  "best_validation_metrics": {
+    "mae": 1.6291045885523052,
+    "rmse": 2.251764181087499,
+    "count": 742
+  },
+  "epochs_completed": 20,
+  "history": [
+    {
+      "epoch": 1,
+      "training_mae": 5.153835111728487,
+      "training_rmse": 7.438019680771737,
+      "validation_mae": 2.3502610198892353,
+      "validation_rmse": 3.1442115877820624
+    },
+    {
+      "epoch": 2,
+      "training_mae": 2.0226213570609057,
+      "training_rmse": 2.618103915112213,
+      "validation_mae": 2.177061281435573,
+      "validation_rmse": 2.959701492045743
+    },
+    {
+      "epoch": 3,
+      "training_mae": 1.8625313641579802,
+      "training_rmse": 2.4637337503997703,
+      "validation_mae": 2.002088891206726,
+      "validation_rmse": 2.744753620197212
+    },
+    {
+      "epoch": 4,
+      "training_mae": 1.7914760951958622,
+      "training_rmse": 2.374755997845577,
+      "validation_mae": 1.9423710805065226,
+      "validation_rmse": 2.6966733689442144
+    },
+    {
+      "epoch": 5,
+      "training_mae": 1.7630575412112393,
+      "training_rmse": 2.3261376594187024,
+      "validation_mae": 1.8941828426967735,
+      "validation_rmse": 2.6045214514333854
+    },
+    {
+      "epoch": 6,
+      "training_mae": 1.683036369864787,
+      "training_rmse": 2.2309703856101217,
+      "validation_mae": 1.8128783542190923,
+      "validation_rmse": 2.555766247747427
+    },
+    {
+      "epoch": 7,
+      "training_mae": 1.5843548870893291,
+      "training_rmse": 2.116777941401909,
+      "validation_mae": 1.7673801103370852,
+      "validation_rmse": 2.3713810927514443
+    },
+    {
+      "epoch": 8,
+      "training_mae": 1.627877818041214,
+      "training_rmse": 2.143596545621149,
+      "validation_mae": 1.661962596553998,
+      "validation_rmse": 2.2940542398774446
+    },
+    {
+      "epoch": 9,
+      "training_mae": 1.5270539645490975,
+      "training_rmse": 2.0526747832195618,
+      "validation_mae": 1.7770871010752058,
+      "validation_rmse": 2.367756490395866
+    },
+    {
+      "epoch": 10,
+      "training_mae": 1.4726449424133101,
+      "training_rmse": 1.9848603982893511,
+      "validation_mae": 1.8114488401181614,
+      "validation_rmse": 2.3760297785628253
+    },
+    {
+      "epoch": 11,
+      "training_mae": 1.4825456801683157,
+      "training_rmse": 1.9848291492909875,
+      "validation_mae": 1.684835032954049,
+      "validation_rmse": 2.3254621902471424
+    },
+    {
+      "epoch": 12,
+      "training_mae": 1.4141174135226744,
+      "training_rmse": 1.9063971530101456,
+      "validation_mae": 1.647681079463496,
+      "validation_rmse": 2.2296910225833684
+    },
+    {
+      "epoch": 13,
+      "training_mae": 1.3642189110263883,
+      "training_rmse": 1.86433611450984,
+      "validation_mae": 1.6555169149229148,
+      "validation_rmse": 2.2504913065580525
+    },
+    {
+      "epoch": 14,
+      "training_mae": 1.3458570307853863,
+      "training_rmse": 1.83176055500628,
+      "validation_mae": 1.6291045885523052,
+      "validation_rmse": 2.251764181087499
+    },
+    {
+      "epoch": 15,
+      "training_mae": 1.364237254830871,
+      "training_rmse": 1.844584305867269,
+      "validation_mae": 1.6853957985931973,
+      "validation_rmse": 2.270647672049388
+    },
+    {
+      "epoch": 16,
+      "training_mae": 1.3579079237710212,
+      "training_rmse": 1.83653011924878,
+      "validation_mae": 1.6575952206017837,
+      "validation_rmse": 2.291396264547861
+    },
+    {
+      "epoch": 17,
+      "training_mae": 1.3309322659970881,
+      "training_rmse": 1.8052658870578964,
+      "validation_mae": 1.8387923124986838,
+      "validation_rmse": 2.4322342260950367
+    },
+    {
+      "epoch": 18,
+      "training_mae": 1.3241417909025293,
+      "training_rmse": 1.8152711437366194,
+      "validation_mae": 1.6851833014475368,
+      "validation_rmse": 2.275844618063695
+    },
+    {
+      "epoch": 19,
+      "training_mae": 1.2915060648921255,
+      "training_rmse": 1.7676423837941875,
+      "validation_mae": 1.7861373315281623,
+      "validation_rmse": 2.4399689038784693
+    },
+    {
+      "epoch": 20,
+      "training_mae": 1.2888064834306825,
+      "training_rmse": 1.766194650508024,
+      "validation_mae": 1.6485209812051203,
+      "validation_rmse": 2.220706280449371
+    }
+  ],
+  "checkpoint": "m4_c_60min.pt",
+  "created_at": "2026-10-19T02:25:13.428933+00:00"
+}

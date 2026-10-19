@@ -1,0 +1,287 @@
+{
+  "model": "m4_gru",
+  "ablation": "A",
+  "include_time": true,
+  "include_mode": false,
+  "dataset_version": "c3-fixed-horizon-v2",
+  "target_feature": "soil_moisture_pct",
+  "horizon_minutes": 60,
+  "device": "mps",
+  "seed": 20261018,
+  "train_examples": 3074,
+  "validation_examples": 742,
+  "parameter_count": 16577,
+  "configuration": {
+    "input_size": 20,
+    "hidden_size": 64,
+    "num_layers": 1,
+    "batch_size": 64,
+    "learning_rate": 0.001,
+    "max_epochs": 30,
+    "patience": 6,
+    "optimizer": "Adam",
+    "loss": "MSE",
+    "loss_units": "standardized_target",
+    "reported_metric_units": "soil_moisture_percentage_points",
+    "selection_metric": "validation_mae"
+  },
+  "normalizer": {
+    "sensor_normalizer": {
+      "sensor_names": [
+        "soil_moisture_pct",
+        "rainfall_proxy_counts",
+        "tilt_deg",
+        "vibration_g",
+        "fsr_adc",
+        "air_temperature_c",
+        "humidity_pct"
+      ],
+      "means": [
+        46.58724594116211,
+        3.141650915145874,
+        1.8563206195831299,
+        0.016741802915930748,
+        1819.98876953125,
+        27.87861442565918,
+        75.48999786376953
+      ],
+      "stds": [
+        14.028834342956543,
+        3.9538259506225586,
+        0.7714607119560242,
+        0.005626647733151913,
+        128.0292205810547,
+        2.4867005348205566,
+        10.2507905960083
+      ]
+    },
+    "time_mean": 5.707110404968262,
+    "time_std": 1.0
+  },
+  "target_normalizer": {
+    "mean": 50.45502374756019,
+    "std": 15.749253720495027
+  },
+  "best_epoch": 26,
+  "best_validation_mae": 1.5392143372898153,
+  "best_validation_metrics": {
+    "mae": 1.5392143372898153,
+    "rmse": 2.161099874705873,
+    "count": 742
+  },
+  "epochs_completed": 30,
+  "history": [
+    {
+      "epoch": 1,
+      "training_mae": 5.265327531793479,
+      "training_rmse": 7.638183597892918,
+      "validation_mae": 2.3510736223822333,
+      "validation_rmse": 3.0462045721710442
+    },
+    {
+      "epoch": 2,
+      "training_mae": 2.0303541145002058,
+      "training_rmse": 2.6185763381286837,
+      "validation_mae": 2.189861050834553,
+      "validation_rmse": 2.9612617830293098
+    },
+    {
+      "epoch": 3,
+      "training_mae": 1.873535058214514,
+      "training_rmse": 2.473013849596057,
+      "validation_mae": 2.037519352134026,
+      "validation_rmse": 2.7721478724029733
+    },
+    {
+      "epoch": 4,
+      "training_mae": 1.7865617289198787,
+      "training_rmse": 2.368458445088227,
+      "validation_mae": 1.9468892603871637,
+      "validation_rmse": 2.6661622017648177
+    },
+    {
+      "epoch": 5,
+      "training_mae": 1.7540832226665748,
+      "training_rmse": 2.3155556974714004,
+      "validation_mae": 1.8967087943598908,
+      "validation_rmse": 2.5706665804269426
+    },
+    {
+      "epoch": 6,
+      "training_mae": 1.6675585608398595,
+      "training_rmse": 2.214496019223017,
+      "validation_mae": 1.7780383179451256,
+      "validation_rmse": 2.4759880468184825
+    },
+    {
+      "epoch": 7,
+      "training_mae": 1.5627833957709347,
+      "training_rmse": 2.098329784176901,
+      "validation_mae": 1.7598578666419675,
+      "validation_rmse": 2.342538395073384
+    },
+    {
+      "epoch": 8,
+      "training_mae": 1.616699859083048,
+      "training_rmse": 2.134671741682721,
+      "validation_mae": 1.6703584264873494,
+      "validation_rmse": 2.2651640381167932
+    },
+    {
+      "epoch": 9,
+      "training_mae": 1.5268720392290462,
+      "training_rmse": 2.054636950900049,
+      "validation_mae": 1.7361672650771642,
+      "validation_rmse": 2.324860514173813
+    },
+    {
+      "epoch": 10,
+      "training_mae": 1.4639886708405394,
+      "training_rmse": 1.9767362292769086,
+      "validation_mae": 1.7494916273255876,
+      "validation_rmse": 2.326213576133093
+    },
+    {
+      "epoch": 11,
+      "training_mae": 1.4937249210335328,
+      "training_rmse": 1.9904754325588088,
+      "validation_mae": 1.6722053311905771,
+      "validation_rmse": 2.2953319957241924
+    },
+    {
+      "epoch": 12,
+      "training_mae": 1.41442474236175,
+      "training_rmse": 1.9049003212586046,
+      "validation_mae": 1.6760200027506948,
+      "validation_rmse": 2.25872975884749
+    },
+    {
+      "epoch": 13,
+      "training_mae": 1.368449421462566,
+      "training_rmse": 1.8629918289067566,
+      "validation_mae": 1.639615904610112,
+      "validation_rmse": 2.234706726696064
+    },
+    {
+      "epoch": 14,
+      "training_mae": 1.3575060539766808,
+      "training_rmse": 1.8331106895725258,
+      "validation_mae": 1.643289920776038,
+      "validation_rmse": 2.279767785995385
+    },
+    {
+      "epoch": 15,
+      "training_mae": 1.3757676786622524,
+      "training_rmse": 1.8483425844881678,
+      "validation_mae": 1.6413787420226558,
+      "validation_rmse": 2.2479275861324908
+    },
+    {
+      "epoch": 16,
+      "training_mae": 1.3460856855264638,
+      "training_rmse": 1.817111853582283,
+      "validation_mae": 1.6276755422916052,
+      "validation_rmse": 2.274179328030189
+    },
+    {
+      "epoch": 17,
+      "training_mae": 1.3304013659912188,
+      "training_rmse": 1.799528665674574,
+      "validation_mae": 1.837336959221935,
+      "validation_rmse": 2.4782375726741646
+    },
+    {
+      "epoch": 18,
+      "training_mae": 1.3428121075354076,
+      "training_rmse": 1.8232672996831407,
+      "validation_mae": 1.6148535581933199,
+      "validation_rmse": 2.2277691227028793
+    },
+    {
+      "epoch": 19,
+      "training_mae": 1.3059398183282815,
+      "training_rmse": 1.775207222473311,
+      "validation_mae": 1.723356869021516,
+      "validation_rmse": 2.3897972073608607
+    },
+    {
+      "epoch": 20,
+      "training_mae": 1.3000060654182906,
+      "training_rmse": 1.7695157722310229,
+      "validation_mae": 1.5834233934345914,
+      "validation_rmse": 2.204070458767185
+    },
+    {
+      "epoch": 21,
+      "training_mae": 1.2676019476230995,
+      "training_rmse": 1.7300720321692316,
+      "validation_mae": 1.7567722186888004,
+      "validation_rmse": 2.399587389556372
+    },
+    {
+      "epoch": 22,
+      "training_mae": 1.2851876896080756,
+      "training_rmse": 1.7645423204844615,
+      "validation_mae": 1.6058964228051693,
+      "validation_rmse": 2.245447462877737
+    },
+    {
+      "epoch": 23,
+      "training_mae": 1.252447686725882,
+      "training_rmse": 1.7069173525507513,
+      "validation_mae": 1.6503492596978446,
+      "validation_rmse": 2.273960476215624
+    },
+    {
+      "epoch": 24,
+      "training_mae": 1.2289924609172476,
+      "training_rmse": 1.6813699384147454,
+      "validation_mae": 1.7689394321081773,
+      "validation_rmse": 2.500587009908392
+    },
+    {
+      "epoch": 25,
+      "training_mae": 1.3199512268245104,
+      "training_rmse": 1.7797287084642976,
+      "validation_mae": 1.579665130039431,
+      "validation_rmse": 2.2133607628260465
+    },
+    {
+      "epoch": 26,
+      "training_mae": 1.1954109325917728,
+      "training_rmse": 1.6450670727395564,
+      "validation_mae": 1.5392143372898153,
+      "validation_rmse": 2.161099874705873
+    },
+    {
+      "epoch": 27,
+      "training_mae": 1.191808283600469,
+      "training_rmse": 1.6327831805535402,
+      "validation_mae": 1.7297730407303555,
+      "validation_rmse": 2.389300668244429
+    },
+    {
+      "epoch": 28,
+      "training_mae": 1.1944487862720379,
+      "training_rmse": 1.6363685119648441,
+      "validation_mae": 1.587679927239842,
+      "validation_rmse": 2.264018827672694
+    },
+    {
+      "epoch": 29,
+      "training_mae": 1.1989421211595108,
+      "training_rmse": 1.6433807327554497,
+      "validation_mae": 1.6147070882134038,
+      "validation_rmse": 2.2784123991232943
+    },
+    {
+      "epoch": 30,
+      "training_mae": 1.2277856329159063,
+      "training_rmse": 1.677820435366542,
+      "validation_mae": 1.609575163643315,
+      "validation_rmse": 2.3019394642253834
+    }
+  ],
+  "checkpoint": "m4_a_60min.pt",
+  "created_at": "2026-10-19T02:21:07.072145+00:00"
+}

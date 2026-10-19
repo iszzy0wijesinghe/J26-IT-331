@@ -1,0 +1,7 @@
+{
+  "job_id": "c3train_8b5bc1ef6f9f40e0",
+  "dataset_id": "c3raw_cf19059376cd4dd7",
+  "status": "EVALUATING",
+  "tasks_completed": 14,
+  "job_dir": "/Users/isinduwijesinghe/Downloads/geonex/data/workbench/c3/model_runs/c3train_8b5bc1ef6f9f40e0/worker_run"
+}
