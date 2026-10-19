@@ -1,0 +1,117 @@
+# c1 features config v1 - GEONEX-5
+# goes in configs/components/ next to c1_labeling_v1.yaml
+# same rules as the labeling config: null value / PENDING_EVIDENCE = still has to
+# come from real data, calibration or a paper
+#
+# "stage" says when validate.py has to enforce the section:
+#   dataset_freeze = checked before the dataset is frozen
+#   model_freeze   = checked before the approved model is frozen
+
+meta:
+  version: "1.0"
+  status: PROVISIONAL
+  created_at: "2026-10-16"
+  owner: harshana
+  jira: GEONEX-5
+  sensor_family: soil_moisture
+  labeling_config_ref: configs/components/c1_labeling_v1.yaml
+
+# ---------------------------------------------------------------------------
+# rainfall regime  (stage: dataset_freeze)
+# single source of truth for the regime bounds. the labeling config points
+# here, it does not keep its own copy
+#
+# bounds must come from REAL external rainfall records (nbro) or a cited paper.
+# never from the synthetic dataset, generator output or any c1 split. if
+# percentiles are used they are taken from the external real record only
+# ---------------------------------------------------------------------------
+rainfall_regime:
+  enabled: true
+  regime_classes: [DRY, LIGHT, MODERATE, HEAVY, EXTREME]
+  representation_ablation: [continuous, continuous_plus_regime]
+  allowed_sources: [NBRO, LITERATURE, EXTERNAL_RECORDS]
+  forbidden_derivation_sources: [synthetic_dataset, generator_output, c1_train_split, c1_validation_split, c1_test_split]
+  external_record:
+    provider:      {value: null, source: PENDING_EVIDENCE, justification: who published the real rainfall record (nbro or other), needed to cite it}
+    station_scope: {value: null, source: PENDING_EVIDENCE, justification: stations or region the record covers, should match the demo/deployment area}
+    period:        {value: null, source: PENDING_EVIDENCE, justification: date range of the record, long enough to include heavy rain seasons}
+    reference:     {value: null, source: PENDING_EVIDENCE, justification: citation key or file name of the record}
+  accumulation_basis:
+    value: null
+    unit: min
+    source: PENDING_EVIDENCE
+    justification: bounds only mean something for one accumulation window, use the same one as the cited threshold
+  bounds:   # lower bound of each regime, DRY starts at 0
+    LIGHT:    {value: null, unit: mm, source: NBRO, reference: null, method: null, justification: lower edge of light rain, from the nbro record or cited classification}
+    MODERATE: {value: null, unit: mm, source: NBRO, reference: null, method: null, justification: same source as LIGHT so the scale stays consistent}
+    HEAVY:    {value: null, unit: mm, source: NBRO, reference: null, method: null, justification: range where the nbro landslide rainfall thresholds start to matter}
+    EXTREME:  {value: null, unit: mm, source: NBRO, reference: null, method: null, justification: rare high hazard range, if no direct value use a percentile of the external record and set source EXTERNAL_RECORDS with the method written in "method"}
+  tuning:
+    tuned_on_test_split: false   # bounds are fixed from external evidence, never tuned on c1 results
+
+# ---------------------------------------------------------------------------
+# rainfall accumulation windows  (stage: dataset_freeze)
+# the names fix the lengths, so these are filled in. windows are in minutes not
+# samples because the sampling interval changes with operating mode
+# ---------------------------------------------------------------------------
+rainfall_windows:
+  rain_15m_sum: {value: 15,  unit: min, source: DESIGN_CHOICE, justification: short window for the immediate rain burst}
+  rain_1h_sum:  {value: 60,  unit: min, source: DESIGN_CHOICE, justification: short term accumulation, likely basis for regime classification}
+  rain_6h_sum:  {value: 360, unit: min, source: DESIGN_CHOICE, justification: longer accumulation for soil response lag}
+  alignment: as_of               # only rainfall up to the target timestamp, no future data
+  max_rain_staleness_s:
+    value: null
+    unit: s
+    source: PENDING_EVIDENCE
+    justification: how old the latest rain reading can be before rainfall context counts as unavailable, depends on rain gauge reporting interval
+  missing_rain_handling: explicit_missingness   # do not fabricate context, see insufficient context handling below
+
+# ---------------------------------------------------------------------------
+# temporal features  (stage: dataset_freeze)
+# lengths in minutes for the same reason as above
+# ---------------------------------------------------------------------------
+temporal_features:
+  alignment: as_of
+  rolling_stats: [mean, std, slope, range]
+  rolling_window_short_min: {value: null, unit: min, source: PENDING_EVIDENCE, justification: window for local noise level and short slope, long enough to hold several samples even in the slowest mode}
+  rolling_window_long_min:  {value: null, unit: min, source: PENDING_EVIDENCE, justification: window for baseline behaviour, long enough to separate a slow drift from a real event}
+  min_history_obs:          {value: null, unit: obs, source: PENDING_EVIDENCE, justification: fewer observations than this means history is too short, keep equal to the ambiguity condition in the labeling config}
+
+# ---------------------------------------------------------------------------
+# neighbour features  (stage: dataset_freeze)
+# ---------------------------------------------------------------------------
+neighbour_context:
+  alignment: as_of
+  max_neighbour_age_s:   {value: null, unit: s, source: PENDING_EVIDENCE, justification: older neighbour readings are treated as unavailable, depends on reporting interval per mode}
+  min_neighbour_count:   {value: null, unit: sensors, source: DESIGN_CHOICE, justification: fewer neighbours than this means neighbour context is unavailable}
+  neighbour_missing_handling: explicit_missingness
+
+# ---------------------------------------------------------------------------
+# runtime / model  (stage: model_freeze)
+# these stay null until a model is approved. they do NOT block the dataset freeze
+# ---------------------------------------------------------------------------
+runtime:
+  model_path:           {value: null, source: PENDING_EVIDENCE, justification: path of the approved frozen model artifact, filled after model freeze}
+  model_version:        {value: null, source: PENDING_EVIDENCE, justification: version id of that artifact so every prediction can be traced}
+  confidence_threshold: {value: null, unit: probability, source: DATA_DRIVEN, justification: chosen from calibration / error analysis on the validation split only, never the test split}
+  insufficient_context_policy: return_INSUFFICIENT_CONTEXT   # when rain, neighbours or history are unavailable
+  threshold_tuned_on_test_split: false
+
+# ---------------------------------------------------------------------------
+# what validate.py has to enforce for this file
+# ---------------------------------------------------------------------------
+validation_rules:
+  dataset_freeze:
+    block_if_status_provisional: true
+    block_if_any_value_null: true                # only sections with stage dataset_freeze
+    block_if_source_pending_evidence: true
+    block_if_justification_missing_or_tbd: true
+    block_if_reference_missing_for_sources: [NBRO, LITERATURE, EXTERNAL_RECORDS]
+    block_if_regime_source_not_in: allowed_sources
+    block_if_regime_derived_from: forbidden_derivation_sources
+    check_regime_bounds_increasing: LIGHT < MODERATE < HEAVY < EXTREME
+    check_windows_increasing: rain_15m_sum < rain_1h_sum < rain_6h_sum
+    check_labeling_consistency: rain_support_min_mm in the labeling config must be consistent with these regime bounds
+  model_freeze:
+    block_if_any_runtime_value_null: true
+    block_if_tuned_on_test_split: true
