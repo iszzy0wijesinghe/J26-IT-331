@@ -112,10 +112,10 @@ const WORKSPACES: WorkspaceDefinition[] = [
     id: "forecasting",
     index: "07",
     title: "Active forecasting",
-    subtitle: "Real-time predictions",
+    subtitle: "Historical soil-moisture forecasts",
     heading: "Active forecasting",
     description:
-      "Execute real-time forecasting models and visualize prediction results.",
+      "Generate and inspect 15-, 30-, and 60-minute historical soil-moisture forecasts using activated research models.",
   }
 ];
 

@@ -173,3 +173,25 @@
     grid-template-columns: 1fr;
   }
 }
+
+.c3-active-forecasting .c3-af-field select {
+  width: 100%;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border, #d9e1ea);
+  border-radius: 10px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.c3-active-forecasting .c3-af-field select:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.c3-active-forecasting .c3-af-field select:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}

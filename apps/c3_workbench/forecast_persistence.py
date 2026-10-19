@@ -12,6 +12,7 @@ Research safeguards:
 - Supports idempotent forecast persistence.
 - Rejects conflicting repeated forecast submissions.
 - Preserves atomic database transactions.
+- Returns complete persisted prediction records.
 """
 
 from __future__ import annotations
@@ -182,6 +183,8 @@ def save_forecast_predictions(
     - Identical existing forecast: return existing prediction.
     - Conflicting existing forecast: reject submission.
     - Invalid prediction: roll back the entire transaction.
+
+    Returns complete persisted database records.
     """
 
     initialize_forecast_persistence()
@@ -449,29 +452,10 @@ def save_forecast_predictions(
                             "for this identity."
                         )
 
-                    # The forecast already exists and all
-                    # original prediction data matches.
-                    #
-                    # Return the original prediction ID.
-                    #
-                    # Do not insert another database record.
+                    # Return the complete original database
+                    # record without inserting a duplicate.
 
-                    saved.append(
-                        {
-                            "prediction_id": existing[
-                                "prediction_id"
-                            ],
-                            "horizon_minutes": horizon,
-                            "model_name": existing[
-                                "model_name"
-                            ],
-                            "predicted_soil_moisture_pct": (
-                                existing[
-                                    "predicted_soil_moisture_pct"
-                                ]
-                            ),
-                        }
-                    )
+                    saved.append(dict(existing))
 
                     continue
 
@@ -543,19 +527,24 @@ def save_forecast_predictions(
                 )
 
                 # ------------------------------------------
-                # Record newly saved prediction
+                # Retrieve the complete inserted record
                 # ------------------------------------------
 
-                saved.append(
-                    {
-                        "prediction_id": prediction_id,
-                        "horizon_minutes": horizon,
-                        "model_name": model_name,
-                        "predicted_soil_moisture_pct": (
-                            predicted_value
-                        ),
-                    }
-                )
+                saved_row = connection.execute(
+                    """
+                    SELECT *
+                    FROM c3_forecast_predictions
+                    WHERE prediction_id = ?
+                    """,
+                    (prediction_id,),
+                ).fetchone()
+
+                if saved_row is None:
+                    raise ForecastPersistenceError(
+                        "Saved forecast could not be retrieved."
+                    )
+
+                saved.append(dict(saved_row))
 
             # ----------------------------------------------
             # Commit the complete forecast batch
