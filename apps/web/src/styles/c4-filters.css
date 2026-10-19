@@ -1,0 +1,363 @@
+/* C4 Filters - Separate CSS for filter components */
+
+/* Filter Section Container */
+.c4-filter-section {
+  background: var(--c4-surface);
+  border: 1px solid var(--c4-border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.c4-filter-section h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--c4-navy);
+  margin: 0 0 12px 0;
+}
+
+/* Filter Group */
+.c4-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.c4-filter-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c4-navy);
+  margin-bottom: 4px;
+}
+
+/* Filter Options Container */
+.c4-filter-options {
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid var(--c4-border-light);
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--c4-canvas);
+}
+
+.c4-filter-options::-webkit-scrollbar {
+  width: 6px;
+}
+
+.c4-filter-options::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+.c4-filter-options::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.c4-filter-options::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Individual Filter Option */
+.c4-filter-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--c4-text);
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.c4-filter-option:hover {
+  background: white;
+}
+
+.c4-filter-option input[type="checkbox"] {
+  accent-color: var(--c4-teal);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.c4-filter-option input[type="checkbox"]:focus {
+  outline: 2px solid var(--c4-teal);
+  outline-offset: 2px;
+}
+
+/* Filter Chips/Tags */
+.c4-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.c4-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--c4-surface);
+  border: 1px solid var(--c4-border);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--c4-text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.c4-filter-chip:hover {
+  border-color: var(--c4-teal);
+  background: var(--c4-teal-light);
+  color: var(--c4-teal-dark);
+}
+
+.c4-filter-chip.active {
+  background: var(--c4-teal);
+  border-color: var(--c4-teal-dark);
+  color: white;
+}
+
+.c4-filter-chip .remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  font-size: 10px;
+  line-height: 1;
+  transition: background 0.2s ease;
+}
+
+.c4-filter-chip .remove:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.c4-filter-chip.active .remove {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.c4-filter-chip.active .remove:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Filter Count Badge */
+.c4-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: var(--c4-teal);
+  color: white;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.c4-filter-chip:not(.active) .c4-filter-count {
+  background: var(--c4-border);
+  color: var(--c4-text-muted);
+}
+
+/* Filter Toggle Switch */
+.c4-filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--c4-surface);
+  border: 1px solid var(--c4-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c4-text);
+}
+
+.c4-filter-toggle:hover {
+  border-color: var(--c4-teal);
+  background: var(--c4-teal-light);
+}
+
+.c4-filter-toggle input[type="checkbox"] {
+  accent-color: var(--c4-teal);
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+/* Filter Dropdown */
+.c4-filter-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.c4-filter-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--c4-surface);
+  border: 1px solid var(--c4-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c4-text);
+  white-space: nowrap;
+}
+
+.c4-filter-dropdown-trigger:hover {
+  border-color: var(--c4-teal);
+  background: var(--c4-teal-light);
+}
+
+.c4-filter-dropdown-trigger::after {
+  content: '▼';
+  font-size: 10px;
+  margin-left: 4px;
+  color: var(--c4-text-muted);
+}
+
+.c4-filter-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 200px;
+  max-height: 300px;
+  overflow-y: auto;
+  background: var(--c4-surface);
+  border: 1px solid var(--c4-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  padding: 8px 0;
+}
+
+.c4-filter-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  font-size: 13px;
+  color: var(--c4-text);
+}
+
+.c4-filter-dropdown-item:hover {
+  background: var(--c4-canvas);
+}
+
+.c4-filter-dropdown-item input[type="checkbox"] {
+  accent-color: var(--c4-teal);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* Filter Status Bar */
+.c4-filter-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--c4-info-light);
+  border: 1px solid var(--c4-info);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--c4-info-dark);
+}
+
+.c4-filter-status .filter-count {
+  font-weight: 600;
+}
+
+.c4-filter-status .clear-filters {
+  padding: 4px 12px;
+  background: var(--c4-danger-light);
+  border: 1px solid var(--c4-danger);
+  border-radius: 6px;
+  color: var(--c4-danger);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.c4-filter-status .clear-filters:hover {
+  background: var(--c4-danger);
+  color: white;
+}
+
+/* Active Filters Display */
+.c4-active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+  background: var(--c4-canvas);
+  border: 1px solid var(--c4-border);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.c4-active-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--c4-teal);
+  color: white;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.c4-active-filter .remove {
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+.c4-active-filter .remove:hover {
+  opacity: 1;
+}
+
+/* Responsive Filters */
+@media (max-width: 768px) {
+  .c4-filter-section {
+    padding: 12px;
+  }
+
+  .c4-filter-options {
+    max-height: 120px;
+  }
+
+  .c4-filter-dropdown-menu {
+    min-width: 180px;
+    max-height: 200px;
+  }
+
+  .c4-filter-chips {
+    gap: 6px;
+  }
+
+  .c4-filter-chip {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+}

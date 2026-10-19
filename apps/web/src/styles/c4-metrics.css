@@ -1,0 +1,132 @@
+/* C4 Metrics Grid - Separate CSS for Command Center metrics */
+
+.c4-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.c4-metrics-grid .c4-metric-card {
+  min-width: 0;
+  padding: 16px 14px;
+  background: var(--c4-surface);
+  border: 1px solid var(--c4-border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  transition: all 0.2s ease;
+  cursor: default;
+  position: relative;
+  overflow: hidden;
+}
+
+.c4-metrics-grid .c4-metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--c4-teal);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.c4-metrics-grid .c4-metric-card:hover {
+  box-shadow: 0 4px 12px rgba(16, 35, 58, 0.12);
+  transform: translateY(-2px);
+  border-color: var(--c4-teal-light);
+}
+
+.c4-metrics-grid .c4-metric-card:hover::before {
+  opacity: 1;
+}
+
+/* Metric type colorings */
+.c4-metrics-grid .c4-metric-card.success .c4-metric-value {
+  color: var(--c4-success);
+}
+
+.c4-metrics-grid .c4-metric-card.success::before {
+  background: var(--c4-success);
+}
+
+.c4-metrics-grid .c4-metric-card.warning .c4-metric-value {
+  color: var(--c4-warning);
+}
+
+.c4-metrics-grid .c4-metric-card.warning::before {
+  background: var(--c4-warning);
+}
+
+.c4-metrics-grid .c4-metric-card.danger .c4-metric-value {
+  color: var(--c4-danger);
+}
+
+.c4-metrics-grid .c4-metric-card.danger::before {
+  background: var(--c4-danger);
+}
+
+.c4-metrics-grid .c4-metric-card.info .c4-metric-value {
+  color: var(--c4-info);
+}
+
+.c4-metrics-grid .c4-metric-card.info::before {
+  background: var(--c4-info);
+}
+
+.c4-metrics-grid .c4-metric-value {
+  font-size: clamp(24px, 2.5vw, 32px);
+  font-weight: 800;
+  color: var(--c4-navy);
+  line-height: 1.2;
+  margin-bottom: 4px;
+  letter-spacing: -0.5px;
+}
+
+.c4-metrics-grid .c4-metric-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--c4-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1.3;
+}
+
+.c4-metrics-grid .c4-metric-help {
+  font-size: 10px;
+  color: var(--c4-text-muted);
+  margin-top: 4px;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+/* Responsive metrics grid */
+@media (max-width: 1200px) {
+  .c4-metrics-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .c4-metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .c4-metrics-grid .c4-metric-card {
+    padding: 12px 10px;
+  }
+
+  .c4-metrics-grid .c4-metric-value {
+    font-size: 20px;
+  }
+
+  .c4-metrics-grid .c4-metric-label {
+    font-size: 10px;
+  }
+}
