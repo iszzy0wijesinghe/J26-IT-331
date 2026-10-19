@@ -83,6 +83,10 @@ packages = [
     "components.c1_credibility",
     "components.c2_diagnostics",
     "components.c3_forecasting",
+    "components.c3_forecasting.data",
+    "components.c3_forecasting.features",
+    "components.c3_forecasting.preprocessing",
+    "components.c3_forecasting.models",
     "components.c4_trust",
 
 

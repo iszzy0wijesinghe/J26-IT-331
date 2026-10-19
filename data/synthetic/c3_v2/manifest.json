@@ -1,0 +1,56 @@
+{
+  "dataset_version": "c3-synthetic-v2",
+  "source_origin": "SIMULATED",
+  "not_field_data": true,
+  "not_landslide_ground_truth": true,
+  "training_objective": "UNLABELED_TELEMETRY_PREPARATION; EVENT_LABELS_NOT_DEFINED",
+  "seed": 20261017,
+  "episodes": 240,
+  "steps_per_episode": 40,
+  "packets": 31469,
+  "scenario_family_packet_counts": {
+    "backup_verification": 3984,
+    "post_rain_drying": 1532,
+    "isolated_vibration": 1266,
+    "sensor_drift": 255,
+    "disagreement": 2704,
+    "fast_motion": 1857,
+    "creep": 1639,
+    "intermittent_rain": 4025,
+    "daily_cycle": 1851,
+    "packet_loss": 1233,
+    "rain_pulses": 2640,
+    "dry_motion": 1000,
+    "long_rain": 3093,
+    "wet_no_motion": 1148,
+    "dry_stable": 1232,
+    "antecedent_wet": 774,
+    "cloudburst": 740,
+    "wet_motion": 496
+  },
+  "mode_packet_counts": {
+    "DEEP_SLEEP": 10897,
+    "IDLE": 14363,
+    "WARNING": 2220,
+    "RISK": 2967,
+    "EMERGENCY": 1022
+  },
+  "split_packet_counts": {
+    "train": 22100,
+    "validation": 4809,
+    "test": 4560
+  },
+  "imputed_feature_count": 1863,
+  "missingness_policy": "Finite numeric placeholder + observed mask + age + imputed flag; no future interpolation",
+  "mode_policy": "Synthetic scheduled/evidence controller; not field-validated; no ML forecast feedback",
+  "hardware": "Planned simulated Pipe A, Pipe B, Backup Pipe, Sensor Hub; Black Box gateway; power unit not environmental sensor",
+  "packet_file": "telemetry.jsonl.gz",
+  "packet_sha256": "222a915f7c41c2d02610af8d5c048f4103a7918bfe90c12719e19349dbe41b19",
+  "limitations": [
+    "Heuristic environmental dynamics, not calibrated geotechnical simulation",
+    "Scenario families and noise assumptions may create synthetic artifacts",
+    "No verified landslide labels or real-world risk probability",
+    "Sensor profile and thresholds are provisional",
+    "Training splits are episode-disjoint, not independent simulator-family validation"
+  ]
+}
