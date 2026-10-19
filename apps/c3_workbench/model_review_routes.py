@@ -1,8 +1,10 @@
 """Read-only model registry API. No model activation or rollback side effects."""
 from fastapi import APIRouter, HTTPException, Query
+
 from apps.c3_workbench.golden_db import get_connection, initialize_golden_database
 from apps.c3_workbench.model_activation import (
-    ModelActivationError, list_active_model_assignments,
+    ModelActivationError,
+    list_active_model_assignments,
     list_model_activation_history,
 )
 

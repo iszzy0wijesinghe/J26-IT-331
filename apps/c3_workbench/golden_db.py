@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import json
 import sqlite3
-
+from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterator
-
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -24,7 +23,7 @@ DATABASE_PATH = (
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 @contextmanager

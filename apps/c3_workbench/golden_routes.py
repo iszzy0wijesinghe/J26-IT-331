@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import re
-
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -13,7 +12,6 @@ from apps.c3_workbench.golden_db import (
     get_connection,
     initialize_golden_database,
 )
-
 
 router = APIRouter(
     prefix="/datasets/golden",

@@ -12,22 +12,18 @@ Research safeguards:
 
 from __future__ import annotations
 
-import json
 import math
 import uuid
-
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
-
-from apps.c3_workbench.golden_db import (
-    get_connection,
-    initialize_golden_database,
-)
 
 from apps.c3_workbench.forecasting_reader import (
     parse_timestamp,
 )
-
+from apps.c3_workbench.golden_db import (
+    get_connection,
+    initialize_golden_database,
+)
 
 VALID_HORIZONS = {15, 30, 60}
 
@@ -37,7 +33,7 @@ class ForecastPersistenceError(ValueError):
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def initialize_forecast_persistence() -> None:

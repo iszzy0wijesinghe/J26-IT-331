@@ -5,8 +5,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
-
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -17,7 +16,6 @@ from apps.c3_workbench.golden_db import (
     initialize_golden_database,
     utc_now,
 )
-
 
 SENSOR_COLUMNS = (
     "soil_moisture_pct",
@@ -140,7 +138,7 @@ def ingest_golden_csv(
 
                 timestamp = datetime.fromisoformat(
                     timestamp_text
-                ).astimezone(timezone.utc).isoformat()
+                ).astimezone(UTC).isoformat()
 
                 connection.execute(
                     """

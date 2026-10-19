@@ -5,12 +5,10 @@ from __future__ import annotations
 import csv
 import io
 import sqlite3
-
 from datetime import datetime
 from typing import Any
 
 from apps.c3_workbench.golden_db import DATABASE_PATH
-
 
 OBSERVATION_COLUMNS = (
     "observation_id",

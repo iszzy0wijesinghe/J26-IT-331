@@ -6,12 +6,11 @@ import csv
 import math
 from collections import Counter
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from apps.c3_workbench.csv_schema import get_csv_schema
-
 
 MAX_CSV_BYTES = 100 * 1024 * 1024
 MAX_ROWS = 1_000_000
@@ -78,7 +77,7 @@ def _parse_timestamp(value: str) -> datetime:
             "Timestamp must include timezone information"
         )
 
-    return parsed.astimezone(timezone.utc)
+    return parsed.astimezone(UTC)
 
 
 def validate_csv(path: str | Path) -> CSVValidationResult:

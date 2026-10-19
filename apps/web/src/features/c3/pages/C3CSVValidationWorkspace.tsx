@@ -15,6 +15,7 @@ import {
 } from "../api/c3Api";
 
 import "../styles/c3CSVValidationWorkspace.css";
+import { c3ExperimentApi, c3TrainingApi } from "../api/c3TrainingApi";
 
 /* ============================================================
    Types
@@ -122,6 +123,8 @@ export function C3CSVValidationWorkspace({
      ---------------------------------------------------------- */
 
   const [file, setFile] = useState<File | null>(null);
+  const [autoTrain, setAutoTrain] = useState(false);
+  const [researcher, setResearcher] = useState("");
 
   const [dragActive, setDragActive] = useState(false);
 
@@ -464,6 +467,29 @@ export function C3CSVValidationWorkspace({
            ---------------------------------------------------- */
 
         onDatasetRegistered?.(dataset.dataset_id);
+
+        if (autoTrain) {
+          appendLog("INFO", "Preparing synthetic training export and checking temporal readiness...");
+          try {
+            const admission = await c3ExperimentApi.admission(dataset.dataset_id);
+            if (!admission.temporal_ready) {
+              appendLog("WARNING", "Dataset registered, but temporal readiness failed. Training was not started.");
+            } else {
+              if (!admission.synthetic_experiment_authorized) {
+                await c3ExperimentApi.prepare(dataset.dataset_id);
+                await c3ExperimentApi.authorize(
+                  dataset.dataset_id,
+                  researcher.trim(),
+                  "Explicit synthetic-only research experiment for automated C3 model comparison; not approved for field use.",
+                );
+              }
+              const job = await c3TrainingApi.start(dataset.dataset_id);
+              appendLog("SUCCESS", `Automatic training requested: ${String(job.job_id ?? "job submitted")}. Monitor progress in Model Training.`);
+            }
+          } catch (cause) {
+            appendLog("ERROR", `Dataset was registered, but automatic training could not start: ${getErrorMessage(cause)}`);
+          }
+        }
       } else {
         setStatus("FAILED");
 
@@ -478,10 +504,7 @@ export function C3CSVValidationWorkspace({
         );
       }
 
-      appendLog(
-        "INFO",
-        "Automatic model training is not enabled yet.",
-      );
+
     } catch (cause) {
       if (controller.signal.aborted) return;
 
@@ -659,10 +682,23 @@ export function C3CSVValidationWorkspace({
             </span>
           </div>
 
+          <div style={{ padding: "14px 0", display: "grid", gap: 8 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 9 }}>
+              <input type="checkbox" checked={autoTrain} disabled={validating}
+                onChange={(event) => setAutoTrain(event.target.checked)} />
+              Automatically prepare, authorize and train after successful upload (synthetic research only)
+            </label>
+            {autoTrain && <>
+              <input aria-label="Researcher name" placeholder="Researcher name (required)"
+                value={researcher} onChange={(event) => setResearcher(event.target.value)}
+                disabled={validating} style={{ padding: 10, border: "1px solid #cad5df", borderRadius: 8 }} />
+              <small>By enabling this, you explicitly declare the uploaded dataset is synthetic and acknowledge that training does not authorize field deployment or landslide warnings.</small>
+            </>}
+          </div>
           <button
             type="button"
             className="c3-csv-primary-button"
-            disabled={!file || validating}
+            disabled={!file || validating || (autoTrain && researcher.trim().length < 2)}
             onClick={() =>
               void handleValidateAndSave()
             }

@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import json
 import traceback
-
 from pathlib import Path
 
 from apps.c3_workbench.training_artifact_integrity import (
@@ -17,9 +16,9 @@ from apps.c3_workbench.training_queue import (
     update_training_job,
 )
 from apps.c3_workbench.training_runner import (
+    MODEL_RUN_ROOT,
     build_training_commands,
     run_training_command,
-    MODEL_RUN_ROOT,
 )
 
 

@@ -20,9 +20,8 @@ It does not validate physical landslide detection.
 from __future__ import annotations
 
 import math
-
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -46,7 +45,7 @@ def _parse_timestamp(value: str) -> datetime:
             "Timestamps must include a timezone."
         )
 
-    return parsed.astimezone(timezone.utc)
+    return parsed.astimezone(UTC)
 
 
 def estimate_adaptive_detection_latency(

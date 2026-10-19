@@ -7,9 +7,9 @@ warning thresholds or measured hardware characteristics.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from enum import Enum
-import math
 
 
 class OperatingMode(str, Enum):

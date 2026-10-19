@@ -7,7 +7,7 @@ import json
 import os
 import shutil
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -114,8 +114,7 @@ def register_dataset(dataset_dir: str | Path) -> dict[str, Any]:
 
     dataset_dir = Path(dataset_dir)
 
-    # Validate before accepting anything into the registry.
-    validation = validate_dataset_directory(dataset_dir)
+    validate_dataset_directory(dataset_dir)
 
     fingerprint = _dataset_fingerprint(dataset_dir)
 
@@ -161,7 +160,7 @@ def register_dataset(dataset_dir: str | Path) -> dict[str, Any]:
         metadata = {
             "dataset_id": dataset_id,
             "status": "VALIDATED",
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
             "fingerprint": fingerprint,
             "dataset_version": stored_validation["dataset_version"],
             "export_version": stored_validation["export_version"],

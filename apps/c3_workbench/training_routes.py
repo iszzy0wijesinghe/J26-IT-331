@@ -1,17 +1,17 @@
 """Training job API for GeoNex C3."""
 
-from fastapi import APIRouter, HTTPException, Query
 import subprocess
 import sys
 from pathlib import Path
-from apps.c3_workbench.training_artifact_integrity import verify_training_artifacts
 
+from fastapi import APIRouter, HTTPException, Query
+
+from apps.c3_workbench.training_artifact_integrity import verify_training_artifacts
 from apps.c3_workbench.training_queue import (
     enqueue_training_job,
     get_training_job,
     list_training_jobs,
 )
-
 
 router = APIRouter(
     prefix="/training",

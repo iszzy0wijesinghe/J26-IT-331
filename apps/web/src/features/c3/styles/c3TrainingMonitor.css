@@ -1,1 +1,585 @@
-.c3-monitor{margin:24px 0;padding:22px;border:1px solid #dce5ed;border-radius:16px;background:#f8fafc;color:#122c43;min-width:0}.c3-monitor header,.c3-monitor-console-heading,.c3-monitor-progress-heading{display:flex;justify-content:space-between;align-items:center;gap:14px}.c3-monitor h3{font-size:20px;margin:6px 0}.c3-monitor h4{margin:24px 0 12px;font-size:14px}.c3-monitor-eyebrow{font-size:10px;letter-spacing:1px;font-weight:800;color:#e66a00}.c3-monitor-state{font-size:11px;font-weight:800;color:#086b62}.c3-monitor-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:20px 0}.c3-monitor-stats>div{padding:14px;border:1px solid #dce5ed;border-radius:10px;display:flex;flex-direction:column;gap:7px;overflow-wrap:anywhere}.c3-monitor-stats span,.c3-monitor-progress-heading span,.c3-monitor-note{font-size:11px;color:#667d90}.c3-monitor-stats strong{font-size:13px}.c3-monitor-track{height:10px;background:#e1e9ee;border-radius:20px;overflow:hidden;margin:10px 0}.c3-monitor-track>div{height:100%;background:linear-gradient(90deg,#0a7891,#ff7100);transition:width .3s}.c3-monitor-chart{border:1px solid #dce5ed;border-radius:10px;padding:12px;background:white}.c3-monitor-chart svg{width:100%;height:auto}.c3-monitor-chart p,.c3-monitor-empty{font-size:12px;color:#667d90}.c3-monitor-console-heading label{font-size:11px;display:flex;gap:6px;align-items:center}.c3-monitor-console{height:260px;overflow:auto;border-radius:12px;background:#0a1a29;color:#d3e9ef;padding:15px;font:11px/1.8 ui-monospace,SFMono-Regular,Menlo,monospace}.c3-monitor-console>div{display:flex;gap:12px;overflow-wrap:anywhere}.c3-monitor-console time{color:#7aabb6;flex-shrink:0}.c3-monitor-console b{color:#ffb36f;flex-shrink:0}.c3-monitor-error{padding:12px;background:#fff0ef;color:#a62626;border-radius:8px}@media(max-width:800px){.c3-monitor-stats{grid-template-columns:1fr}.c3-monitor{padding:14px}.c3-monitor-console>div{flex-wrap:wrap;gap:5px}}
+/* ============================================================
+   GEONEX C3 — TRAINING MONITOR
+   Scoped to C3. Does not modify shared application styles.
+============================================================ */
+
+.c3-monitor {
+  margin: 24px 0;
+  padding: 24px;
+  border: 1px solid #dce5ed;
+  border-radius: 16px;
+  background: #f8fafc;
+  color: #122c43;
+  min-width: 0;
+}
+
+.c3-monitor * {
+  box-sizing: border-box;
+}
+
+/* ============================================================
+   HEADER
+============================================================ */
+
+.c3-monitor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.c3-monitor-eyebrow {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  font-weight: 800;
+  color: #e66a00;
+}
+
+.c3-monitor h3 {
+  font-size: 21px;
+  margin: 7px 0 4px;
+  letter-spacing: -0.4px;
+}
+
+.c3-monitor-subtitle {
+  margin: 0;
+  font-size: 12px;
+  color: #718397;
+}
+
+.c3-monitor-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 12px;
+  border-radius: 100px;
+  background: #e5f4ef;
+  color: #08745c;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.c3-monitor-state.failed,
+.c3-monitor-state.cancelled,
+.c3-monitor-state.canceled {
+  background: #fff0ef;
+  color: #a62626;
+}
+
+.c3-monitor-state.queued,
+.c3-monitor-state.pending {
+  background: #e8eef8;
+  color: #285b92;
+}
+
+/* ============================================================
+   STATUS CARDS
+============================================================ */
+
+.c3-monitor-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 24px 0;
+}
+
+.c3-monitor-stats > div {
+  padding: 17px;
+  border: 1px solid #e0e7ef;
+  border-radius: 12px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.c3-monitor-stats span {
+  font-size: 11px;
+  color: #728297;
+}
+
+.c3-monitor-stats strong {
+  font-size: 14px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+/* ============================================================
+   PROGRESS
+============================================================ */
+
+.c3-monitor-progress-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.c3-monitor-progress-heading strong {
+  font-size: 13px;
+}
+
+.c3-monitor-progress-heading span {
+  font-size: 13px;
+  font-weight: 800;
+  color: #087d79;
+}
+
+.c3-monitor-track {
+  height: 10px;
+  background: #e0e9ef;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.c3-monitor-track > div {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    #0a8e95,
+    #13a89e
+  );
+  transition: width 0.3s ease;
+}
+
+.c3-monitor-note {
+  font-size: 11px;
+  color: #758598;
+  margin-top: 9px;
+  line-height: 1.6;
+}
+
+/* ============================================================
+   SECTION HEADINGS
+============================================================ */
+
+.c3-monitor-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin: 30px 0 15px;
+}
+
+.c3-monitor-section-heading h4 {
+  font-size: 16px;
+  margin: 0 0 5px;
+}
+
+.c3-monitor-section-heading p {
+  font-size: 12px;
+  margin: 0;
+  color: #718397;
+}
+
+.c3-monitor-live-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #087d79;
+}
+
+.c3-monitor-live-label i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #0aa89b;
+}
+
+/* ============================================================
+   CHART GRID
+============================================================ */
+
+.c3-monitor-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.c3-monitor-metric-card {
+  min-width: 0;
+  padding: 18px;
+  background: #fff;
+  border: 1px solid #e0e7ef;
+  border-radius: 13px;
+}
+
+.c3-monitor-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.c3-monitor-chart-header h5 {
+  font-size: 14px;
+  margin: 0 0 5px;
+  font-weight: 800;
+}
+
+.c3-monitor-chart-header p {
+  font-size: 11px;
+  color: #8290a0;
+  margin: 0;
+}
+
+.c3-monitor-chart-unit {
+  font-size: 10px;
+  font-weight: 700;
+  color: #087d79;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   METRIC SUMMARY
+============================================================ */
+
+.c3-monitor-metric-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin: 17px 0;
+}
+
+.c3-monitor-metric-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: #f5f8fa;
+  border-radius: 9px;
+  padding: 11px;
+}
+
+.c3-monitor-metric-summary span {
+  font-size: 10px;
+  color: #7a899a;
+}
+
+.c3-monitor-metric-summary strong {
+  font-size: 17px;
+  color: #15344b;
+  font-weight: 800;
+}
+
+.c3-monitor-metric-summary small {
+  font-size: 10px;
+  color: #8795a4;
+}
+
+/* ============================================================
+   LEGEND
+============================================================ */
+
+.c3-monitor-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 17px;
+  margin-bottom: 12px;
+}
+
+.c3-monitor-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  font-weight: 650;
+  color: #536579;
+}
+
+.c3-monitor-legend i {
+  width: 18px;
+  height: 3px;
+  border-radius: 10px;
+  display: inline-block;
+}
+
+.c3-monitor-legend i.train {
+  background: #0c9f9b;
+}
+
+.c3-monitor-legend i.validation {
+  background: #ff7100;
+}
+
+/* ============================================================
+   SVG CHART
+============================================================ */
+
+.c3-monitor-chart-container {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.c3-monitor-chart-container svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.c3-monitor-chart-tooltip {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 11px 13px;
+  border: 1px solid #dbe4ed;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 8px 24px rgba(18, 44, 67, 0.09);
+  font-size: 11px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.c3-monitor-chart-tooltip strong {
+  font-size: 11px;
+  margin-bottom: 3px;
+}
+
+.c3-monitor-chart-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  color: #8491a0;
+  font-size: 10px;
+}
+
+.c3-monitor-chart-empty {
+  display: grid;
+  place-items: center;
+  min-height: 200px;
+  text-align: center;
+  color: #8190a0;
+  font-size: 12px;
+  padding: 20px;
+}
+
+/* ============================================================
+   EXPLANATION
+============================================================ */
+
+.c3-monitor-explanation {
+  font-size: 11px;
+  color: #6c7e91;
+  line-height: 1.75;
+  margin: 15px 0 5px;
+  padding: 13px 15px;
+  border-radius: 10px;
+  background: #edf3f7;
+}
+
+.c3-monitor-explanation strong {
+  color: #36566d;
+}
+
+/* ============================================================
+   CONSOLE HEADER
+============================================================ */
+
+.c3-monitor-console-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin: 28px 0 12px;
+}
+
+.c3-monitor-console-heading h4 {
+  font-size: 15px;
+  margin: 0 0 4px;
+}
+
+.c3-monitor-console-heading p {
+  font-size: 11px;
+  color: #8290a0;
+  margin: 0;
+}
+
+.c3-monitor-console-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 13px;
+}
+
+.c3-monitor-console-actions label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #566b7c;
+  cursor: pointer;
+}
+
+.c3-monitor-console-actions input {
+  accent-color: #0a9b96;
+  cursor: pointer;
+}
+
+.c3-monitor-jump-button {
+  border: 1px solid #d4e0e8;
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px 11px;
+  color: #176b77;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.c3-monitor-jump-button:hover {
+  background: #eef8f7;
+}
+
+/* ============================================================
+   WORKER CONSOLE
+============================================================ */
+
+.c3-monitor-console {
+  height: 290px;
+  overflow-y: auto;
+  overflow-x: auto;
+  border-radius: 12px;
+  background: #0a1a29;
+  color: #d3e9ef;
+  padding: 16px;
+  font:
+    11px/1.85
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace;
+  scroll-behavior: auto;
+  overscroll-behavior: contain;
+}
+
+.c3-monitor-console-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: max-content;
+}
+
+.c3-monitor-console-row time {
+  color: #80b7c4;
+  flex-shrink: 0;
+}
+
+.c3-monitor-console-row b {
+  font-weight: 800;
+  color: #ffb36f;
+  flex-shrink: 0;
+}
+
+.c3-monitor-console-row b.level-error {
+  color: #ff7777;
+}
+
+.c3-monitor-console-row b.level-warning,
+.c3-monitor-console-row b.level-warn {
+  color: #ffd16d;
+}
+
+.c3-monitor-console-row b.level-info {
+  color: #ffb36f;
+}
+
+.c3-monitor-console-row span {
+  color: #d3e9ef;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ============================================================
+   CONSOLE FOOTER
+============================================================ */
+
+.c3-monitor-console-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 9px;
+  color: #8391a0;
+  font-size: 10px;
+}
+
+/* ============================================================
+   ERROR
+============================================================ */
+
+.c3-monitor-error {
+  padding: 13px 15px;
+  background: #fff0ef;
+  color: #a62626;
+  border: 1px solid #ffd7d4;
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* ============================================================
+   RESPONSIVE
+============================================================ */
+
+@media (max-width: 1200px) {
+  .c3-monitor-chart-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 800px) {
+  .c3-monitor {
+    padding: 15px;
+  }
+
+  .c3-monitor-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .c3-monitor-header,
+  .c3-monitor-section-heading,
+  .c3-monitor-console-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .c3-monitor-metric-card {
+    padding: 13px;
+  }
+
+  .c3-monitor-console-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .c3-monitor-console-row {
+    gap: 8px;
+  }
+
+  .c3-monitor-console-footer {
+    flex-direction: column;
+    gap: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .c3-monitor-track > div {
+    transition: none;
+  }
+}

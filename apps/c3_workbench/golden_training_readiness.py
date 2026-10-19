@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from apps.c3_workbench.golden_db import (
     get_connection,
     initialize_golden_database,
 )
-
 
 HORIZONS_MINUTES = (15, 30, 60)
 
@@ -37,7 +36,7 @@ def parse_timestamp(value: str) -> datetime:
             "Golden observation timestamp must include timezone"
         )
 
-    return timestamp.astimezone(timezone.utc)
+    return timestamp.astimezone(UTC)
 
 
 def load_dataset_observations(

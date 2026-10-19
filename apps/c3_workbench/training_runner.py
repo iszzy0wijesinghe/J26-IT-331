@@ -5,9 +5,9 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-
 from pathlib import Path
 
+from apps.c3_workbench.golden_db import get_connection
 from apps.c3_workbench.training_artifact_integrity import (
     verify_training_artifacts,
 )
@@ -15,8 +15,6 @@ from apps.c3_workbench.training_queue import (
     append_training_event,
     update_training_job,
 )
-from apps.c3_workbench.golden_db import get_connection
-
 
 MODEL_RUN_ROOT = Path(
     "data/workbench/c3/model_runs"

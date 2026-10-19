@@ -42,7 +42,6 @@ from components.c3_forecasting.preprocessing.m4_features import (
     extract_m4_sequence,
 )
 
-
 # ============================================================
 # Supported dataset configuration
 # ============================================================

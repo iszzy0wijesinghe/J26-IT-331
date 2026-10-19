@@ -15,16 +15,14 @@ Not a field-certified landslide warning controller.
 from __future__ import annotations
 
 import math
-
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from components.c3_adaptive.config import (
-    AdaptiveControllerConfig,
     MODE_PRIORITY,
+    AdaptiveControllerConfig,
     OperatingMode,
 )
-
 from components.c3_adaptive.risk_assessment import (
     RiskAssessment,
 )
@@ -82,7 +80,7 @@ class AdaptiveSafetyPolicy:
                 "Observation timestamp must include a timezone."
             )
 
-        return parsed.astimezone(timezone.utc)
+        return parsed.astimezone(UTC)
 
     def evaluate(
         self,

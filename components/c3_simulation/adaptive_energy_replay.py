@@ -13,10 +13,8 @@ Research assumptions:
 
 from __future__ import annotations
 
-import math
-
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from components.c3_simulation.energy_model import (
@@ -62,7 +60,7 @@ def _parse_timestamp(value: str) -> datetime:
             "Replay timestamps must include a timezone."
         )
 
-    return parsed.astimezone(timezone.utc)
+    return parsed.astimezone(UTC)
 
 
 def estimate_adaptive_energy(

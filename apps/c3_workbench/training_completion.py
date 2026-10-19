@@ -7,11 +7,11 @@ from apps.c3_workbench.golden_db import (
     initialize_golden_database,
     utc_now,
 )
-from apps.c3_workbench.training_artifact_integrity import (
-    verify_training_artifacts,
-)
 from apps.c3_workbench.model_registry import (
     collect_model_candidates,
+)
+from apps.c3_workbench.training_artifact_integrity import (
+    verify_training_artifacts,
 )
 
 

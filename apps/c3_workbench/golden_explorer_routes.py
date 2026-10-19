@@ -11,7 +11,6 @@ from apps.c3_workbench.golden_explorer import (
     list_observations,
 )
 
-
 router = APIRouter(
     prefix="/database/observations",
     tags=["C3 Golden Database Explorer"],

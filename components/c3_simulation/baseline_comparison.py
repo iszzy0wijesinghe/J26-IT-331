@@ -12,8 +12,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from components.c3_simulation.energy_model import (
-    EnergyModelConfig,
     EnergyEstimate,
+    EnergyModelConfig,
     estimate_fixed_interval_energy,
 )
 

@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from apps.c3_workbench.golden_db import (
     get_connection,
     initialize_golden_database,
 )
-
 
 SENSOR_COLUMNS = (
     "soil_moisture_pct",
@@ -44,7 +43,7 @@ def parse_timestamp(value: str) -> datetime:
             "Forecast timestamps must include timezone information."
         )
 
-    return parsed.astimezone(timezone.utc)
+    return parsed.astimezone(UTC)
 
 
 def load_historical_sequence(

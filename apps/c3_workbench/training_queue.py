@@ -4,15 +4,13 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
-
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from apps.c3_workbench.golden_db import (
     get_connection,
     initialize_golden_database,
 )
-
 
 TRAINING_STATUSES = {
     "QUEUED",
@@ -26,7 +24,7 @@ TRAINING_STATUSES = {
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def generate_job_id() -> str:

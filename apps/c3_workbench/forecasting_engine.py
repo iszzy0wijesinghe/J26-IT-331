@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import hashlib
 import math
-
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -41,11 +40,9 @@ from apps.c3_workbench.model_registry import (
 from apps.c3_workbench.training_artifact_integrity import (
     verify_training_artifacts,
 )
-
 from components.c3_forecasting.inference.m4_predictor import (
     C3M4Predictor,
 )
-
 
 HORIZONS = (15, 30, 60)
 

@@ -22,7 +22,6 @@ from apps.c3_workbench.forecasting_engine import (
 from apps.c3_workbench.forecasting_reader import (
     parse_timestamp,
 )
-
 from components.c3_adaptive.config import (
     AdaptiveControllerConfig,
     OperatingMode,

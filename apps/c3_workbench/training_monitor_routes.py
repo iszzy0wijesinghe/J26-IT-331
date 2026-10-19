@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import re
+
 from fastapi import APIRouter, HTTPException, Query
+
 from apps.c3_workbench.training_queue import get_training_job
 
 router = APIRouter(prefix='/training', tags=['C3 Training Telemetry'])

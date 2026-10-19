@@ -22,19 +22,15 @@ from apps.c3_workbench.forecasting_reader import (
     load_historical_sequence,
     parse_timestamp,
 )
-
 from apps.c3_workbench.golden_training_adapter import (
     build_sequence,
 )
-
 from components.c3_forecasting.features.tabular_features import (
     extract_tabular_features,
 )
-
 from components.c3_forecasting.preprocessing.gru_dataset import (
     extract_gru_sequence,
 )
-
 from components.c3_forecasting.preprocessing.m4_features import (
     extract_m4_sequence,
 )

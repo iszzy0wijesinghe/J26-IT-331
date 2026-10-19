@@ -10,29 +10,28 @@ from typing import Any, Literal
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from apps.c3_workbench.dataset_routes import router as dataset_router
 from apps.c3_workbench.adaptive_routes import router as adaptive_router
 from apps.c3_workbench.csv_routes import router as csv_router
-from apps.c3_workbench.golden_routes import router as golden_router
-from components.c3_forecasting.inference.m4_predictor import C3M4Predictor
+from apps.c3_workbench.dataset_routes import router as dataset_router
 from apps.c3_workbench.golden_backup_routes import (
     router as golden_backup_router,
 )
 from apps.c3_workbench.golden_explorer_routes import (
     router as golden_explorer_router,
 )
-from apps.c3_workbench.training_routes import (
-    router as training_router,
-)
-from apps.c3_workbench.training_readiness_routes import (
-    router as training_readiness_router,
-
-)
+from apps.c3_workbench.golden_routes import router as golden_router
+from apps.c3_workbench.model_review_routes import router as model_review_router
+from apps.c3_workbench.training_experiment_routes import router as training_experiment_router
 from apps.c3_workbench.training_monitor_routes import (
     router as training_monitor_router,
 )
-
-
+from apps.c3_workbench.training_readiness_routes import (
+    router as training_readiness_router,
+)
+from apps.c3_workbench.training_routes import (
+    router as training_router,
+)
+from components.c3_forecasting.inference.m4_predictor import C3M4Predictor
 
 ROOT = Path(__file__).resolve().parents[2]
 CHECKPOINT_DIR = ROOT / "data" / "processed" / "c3_m4_results"
@@ -55,6 +54,8 @@ app.include_router(training_router)
 app.include_router(training_readiness_router)
 app.include_router(training_monitor_router)
 app.include_router(adaptive_router)
+app.include_router(model_review_router)
+app.include_router(training_experiment_router)
 
 class ForecastRequest(BaseModel):
     ablation: Literal["A", "B", "C"] = "A"

@@ -1,5 +1,6 @@
 """Run from GeoNex repository root after copying patch files."""
 from pathlib import Path
+
 p = Path('apps/c3_workbench/api.py')
 s = p.read_text()
 imp = 'from apps.c3_workbench.training_monitor_routes import router as training_monitor_router\n'

@@ -10,16 +10,14 @@ This module does not predict landslide probability.
 from __future__ import annotations
 
 import math
-
 from dataclasses import dataclass
 from typing import Any
 
 from components.c3_adaptive.config import (
-    AdaptiveControllerConfig,
     MODE_PRIORITY,
+    AdaptiveControllerConfig,
     OperatingMode,
 )
-
 
 REQUIRED_SENSORS = (
     "soil_moisture_pct",

@@ -16,18 +16,17 @@ import gzip
 import hashlib
 import json
 import random
-
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from apps.c3_workbench.golden_training_readiness import (
-    assess_training_readiness,
-)
 from apps.c3_workbench.golden_db import (
     get_connection,
     initialize_golden_database,
+)
+from apps.c3_workbench.golden_training_readiness import (
+    assess_training_readiness,
 )
 from components.c3_forecasting.features.tabular_features import (
     FEATURE_NAMES,
@@ -69,7 +68,7 @@ def parse_timestamp(value: str) -> datetime:
             "Observation timestamp must be timezone-aware."
         )
 
-    return timestamp.astimezone(timezone.utc)
+    return timestamp.astimezone(UTC)
 
 
 def sha256_file(path: Path) -> str:

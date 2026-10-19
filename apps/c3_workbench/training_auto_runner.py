@@ -6,10 +6,11 @@ from __future__ import annotations
 
 import argparse
 import traceback
-from apps.c3_workbench.training_worker import execute_training_job
+
 from apps.c3_workbench.model_registry import register_model_candidates
 from apps.c3_workbench.training_completion import complete_training_job
 from apps.c3_workbench.training_queue import get_training_job, update_training_job
+from apps.c3_workbench.training_worker import execute_training_job
 
 
 def run(job_id: str) -> dict:

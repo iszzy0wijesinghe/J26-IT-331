@@ -7,7 +7,6 @@ import os
 import sqlite3
 import sys
 import uuid
-
 from pathlib import Path
 
 from apps.c3_workbench.golden_backup import (
@@ -148,9 +147,7 @@ def restore_golden_database(
         backup_id
     )
 
-    backup_statistics = verify_database(
-        backup_path
-    )
+    verify_database(backup_path)
 
     DATABASE_PATH.parent.mkdir(
         parents=True,

@@ -21,12 +21,10 @@ from apps.c3_workbench.csv_validator import (
     MAX_CSV_BYTES,
     validate_csv,
 )
-
 from apps.c3_workbench.golden_ingestion import (
     GoldenIngestionError,
     ingest_golden_csv,
 )
-
 
 router = APIRouter(
     prefix="/datasets/csv",

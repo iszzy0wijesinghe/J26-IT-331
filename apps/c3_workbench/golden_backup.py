@@ -8,8 +8,6 @@ import os
 import re
 import sqlite3
 import uuid
-
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +17,6 @@ from apps.c3_workbench.golden_db import (
     initialize_golden_database,
     utc_now,
 )
-
 
 BACKUP_DIRECTORY = DATABASE_PATH.parent / "backups"
 

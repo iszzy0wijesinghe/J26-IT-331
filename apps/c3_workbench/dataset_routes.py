@@ -20,7 +20,6 @@ It does not validate landslide-warning performance.
 
 from __future__ import annotations
 
-import shutil
 import stat
 import tempfile
 import zipfile
@@ -38,7 +37,6 @@ from apps.c3_workbench.dataset_registry import (
 from apps.c3_workbench.dataset_validator import (
     C3DatasetValidationError,
 )
-
 
 # ============================================================
 # Router configuration

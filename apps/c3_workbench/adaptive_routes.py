@@ -11,7 +11,6 @@ Research-only historical replay:
 from __future__ import annotations
 
 import sqlite3
-
 from dataclasses import asdict
 from datetime import timedelta
 from pathlib import Path
@@ -21,20 +20,16 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from apps.c3_workbench.forecasting_reader import parse_timestamp
-
 from components.c3_adaptive.mode_controller import (
     C3AdaptiveModeController,
 )
-
+from components.c3_simulation.adaptive_energy_replay import (
+    estimate_adaptive_energy,
+)
 from components.c3_simulation.energy_model import (
     EnergyModelConfig,
     estimate_fixed_interval_energy,
 )
-
-from components.c3_simulation.adaptive_energy_replay import (
-    estimate_adaptive_energy,
-)
-
 
 router = APIRouter(
     prefix="/research/adaptive",

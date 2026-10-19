@@ -11,7 +11,6 @@ from apps.c3_workbench.golden_backup import (
     list_golden_backups,
 )
 
-
 router = APIRouter(
     prefix="/database/backups",
     tags=["C3 Golden Database Backups"],

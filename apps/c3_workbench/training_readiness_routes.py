@@ -2,11 +2,10 @@
 
 from fastapi import APIRouter, HTTPException
 
-from apps.c3_workbench.training_approval import get_training_approval
 from apps.c3_workbench.golden_training_readiness import (
     assess_training_readiness,
 )
-
+from apps.c3_workbench.training_approval import get_training_approval
 
 router = APIRouter(
     prefix="/training/readiness",

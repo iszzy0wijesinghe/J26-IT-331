@@ -14,7 +14,6 @@ from apps.c3_workbench.golden_training_readiness import (
     assess_training_readiness,
 )
 
-
 EXPORT_ROOT = Path(
     "data/workbench/c3/training_datasets"
 )
