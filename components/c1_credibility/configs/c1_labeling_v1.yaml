@@ -8,7 +8,7 @@ meta:
   label_schema_version: "1.1"
   labeling_spec_version: "1.1" # matches our v1.1 doc
   created_at: "2026-10-16"
-  owner: harshana
+  owner: kanishka            
   jira: GEONEX-5
   sensor_family: soil_moisture
   source_types: [SYNTHETIC]  # keep SYNTHETIC / PHYSICAL_DEMO / EXTERNAL separate
@@ -298,10 +298,17 @@ validation_rules:
   block_if_justification_missing_or_tbd: true
   block_if_reference_missing_for_sources: [NBRO, LITERATURE]
   check_forbidden_features: fail_if_any_in_feature_columns
+  # FIXED: Moved device_baseline_margin OUT of the list and made it a proper object
   check_device_id_leakage:
-    - device_id must not be a feature
-    - every class appears on more than one device
-    - device_id-only baseline must not beat the majority-class baseline by a clear margin
+    checks:
+      - device_id must not be a feature
+      - every class appears on more than one device
+      - device_id-only baseline must not beat the majority-class baseline by a clear margin
+    device_baseline_margin:
+      value: 0.10
+      unit: accuracy difference
+      source: DESIGN_CHOICE
+      justification: margin for the baseline check to ensure the model isn't just memorizing the device
   check_split_integrity:
     - no scenario_id in more than one partition
     - holdout conditions met or skip recorded
