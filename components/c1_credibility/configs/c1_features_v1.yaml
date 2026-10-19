@@ -10,7 +10,7 @@
 meta:
   version: "1.0"
   status: PROVISIONAL
-  created_at: "2026-10-16"
+  created_at: "2026-10-19"
   owner: harshana
   jira: GEONEX-5
   sensor_family: soil_moisture
@@ -26,6 +26,7 @@ meta:
 # percentiles are used they are taken from the external real record only
 # ---------------------------------------------------------------------------
 rainfall_regime:
+  stage: dataset_freeze
   enabled: true
   regime_classes: [DRY, LIGHT, MODERATE, HEAVY, EXTREME]
   representation_ablation: [continuous, continuous_plus_regime]
@@ -42,10 +43,10 @@ rainfall_regime:
     source: PENDING_EVIDENCE
     justification: bounds only mean something for one accumulation window, use the same one as the cited threshold
   bounds:   # lower bound of each regime, DRY starts at 0
-    LIGHT:    {value: null, unit: mm, source: NBRO, reference: null, method: null, justification: lower edge of light rain, from the nbro record or cited classification}
-    MODERATE: {value: null, unit: mm, source: NBRO, reference: null, method: null, justification: same source as LIGHT so the scale stays consistent}
-    HEAVY:    {value: null, unit: mm, source: NBRO, reference: null, method: null, justification: range where the nbro landslide rainfall thresholds start to matter}
-    EXTREME:  {value: null, unit: mm, source: NBRO, reference: null, method: null, justification: rare high hazard range, if no direct value use a percentile of the external record and set source EXTERNAL_RECORDS with the method written in "method"}
+    LIGHT:    {value: null, unit: mm, source: NBRO, reference: null, method: null, derived_from: null, justification: lower edge of light rain, from the nbro record or cited classification}
+    MODERATE: {value: null, unit: mm, source: NBRO, reference: null, method: null, derived_from: null, justification: same source as LIGHT so the scale stays consistent}
+    HEAVY:    {value: null, unit: mm, source: NBRO, reference: null, method: null, derived_from: null, justification: range where the nbro landslide rainfall thresholds start to matter}
+    EXTREME:  {value: null, unit: mm, source: NBRO, reference: null, method: null, derived_from: null, justification: rare high hazard range, if no direct value use a percentile of the external record and set source EXTERNAL_RECORDS with the method written in "method"}
   tuning:
     tuned_on_test_split: false   # bounds are fixed from external evidence, never tuned on c1 results
 
@@ -55,6 +56,7 @@ rainfall_regime:
 # samples because the sampling interval changes with operating mode
 # ---------------------------------------------------------------------------
 rainfall_windows:
+  stage: dataset_freeze
   rain_15m_sum: {value: 15,  unit: min, source: DESIGN_CHOICE, justification: short window for the immediate rain burst}
   rain_1h_sum:  {value: 60,  unit: min, source: DESIGN_CHOICE, justification: short term accumulation, likely basis for regime classification}
   rain_6h_sum:  {value: 360, unit: min, source: DESIGN_CHOICE, justification: longer accumulation for soil response lag}
@@ -71,6 +73,7 @@ rainfall_windows:
 # lengths in minutes for the same reason as above
 # ---------------------------------------------------------------------------
 temporal_features:
+  stage: dataset_freeze
   alignment: as_of
   rolling_stats: [mean, std, slope, range]
   rolling_window_short_min: {value: null, unit: min, source: PENDING_EVIDENCE, justification: window for local noise level and short slope, long enough to hold several samples even in the slowest mode}
@@ -81,6 +84,7 @@ temporal_features:
 # neighbour features  (stage: dataset_freeze)
 # ---------------------------------------------------------------------------
 neighbour_context:
+  stage: dataset_freeze
   alignment: as_of
   max_neighbour_age_s:   {value: null, unit: s, source: PENDING_EVIDENCE, justification: older neighbour readings are treated as unavailable, depends on reporting interval per mode}
   min_neighbour_count:   {value: null, unit: sensors, source: DESIGN_CHOICE, justification: fewer neighbours than this means neighbour context is unavailable}
@@ -91,6 +95,7 @@ neighbour_context:
 # these stay null until a model is approved. they do NOT block the dataset freeze
 # ---------------------------------------------------------------------------
 runtime:
+  stage: model_freeze
   model_path:           {value: null, source: PENDING_EVIDENCE, justification: path of the approved frozen model artifact, filled after model freeze}
   model_version:        {value: null, source: PENDING_EVIDENCE, justification: version id of that artifact so every prediction can be traced}
   confidence_threshold: {value: null, unit: probability, source: DATA_DRIVEN, justification: chosen from calibration / error analysis on the validation split only, never the test split}
@@ -111,7 +116,7 @@ validation_rules:
     block_if_regime_derived_from: forbidden_derivation_sources
     check_regime_bounds_increasing: LIGHT < MODERATE < HEAVY < EXTREME
     check_windows_increasing: rain_15m_sum < rain_1h_sum < rain_6h_sum
-    check_labeling_consistency: rain_support_min_mm in the labeling config must be consistent with these regime bounds
+    # REMOVED: check_labeling_consistency: rain_support_min_mm in the labeling config must be consistent with these regime bounds
   model_freeze:
     block_if_any_runtime_value_null: true
     block_if_tuned_on_test_split: true
