@@ -1,10 +1,6 @@
 /** @format */
 
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   c3ExplorerApi,
@@ -21,7 +17,7 @@ import {
 import "../styles/c3ActiveForecasting.css";
 
 /* ============================================================
-   Constants
+   Configuration
    ============================================================ */
 
 const ACTIVE_MODEL_DATASET_ID = "c3raw_cf19059376cd4dd7";
@@ -41,11 +37,22 @@ const SENSOR_FIELDS: (keyof C3GoldenObservation)[] = [
   "humidity_pct",
 ];
 
+const FORECAST_HORIZONS = [15, 30, 60] as const;
+
+type ForecastMode = "latest" | "historical";
+
 type ForecastInput = {
   dataset_id: string;
   device_id: string;
   episode_id: string;
   forecast_origin: string;
+};
+
+type ForecastPoint = {
+  timestamp: string;
+  value: number;
+  type: "observed" | "predicted";
+  horizon?: number;
 };
 
 const INITIAL_INPUT: ForecastInput = {
@@ -59,17 +66,22 @@ const INITIAL_INPUT: ForecastInput = {
    Formatting
    ============================================================ */
 
-function formatValue(value: number): string {
-  return Number.isFinite(value)
-    ? `${value.toFixed(2)}%`
-    : "—";
+function formatValue(value?: number | null): string {
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value)
+  ) {
+    return "—";
+  }
+
+  return `${value.toFixed(2)}%`;
 }
 
 function formatTimestamp(
   value?: string | null,
 ): string {
   if (!value) {
-    return "Timestamp unavailable";
+    return "—";
   }
 
   const date = new Date(value);
@@ -92,6 +104,47 @@ function formatTimestamp(
   return `${formatted} (UTC+05:30)`;
 }
 
+function formatShortTime(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Colombo",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(date);
+}
+
+function formatShortDate(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Colombo",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function addMinutes(
+  timestamp: string,
+  minutes: number,
+): string {
+  const date = new Date(timestamp);
+
+  return new Date(
+    date.getTime() + minutes * 60_000,
+  ).toISOString();
+}
+
 function getErrorMessage(
   error: unknown,
   fallback: string,
@@ -102,7 +155,7 @@ function getErrorMessage(
 }
 
 /* ============================================================
-   Observation Utilities
+   Observation Loading
    ============================================================ */
 
 async function loadAllObservations(
@@ -111,7 +164,7 @@ async function loadAllObservations(
   episodeId: string | undefined,
   signal: AbortSignal,
 ): Promise<C3GoldenObservation[]> {
-  const all: C3GoldenObservation[] = [];
+  const observations: C3GoldenObservation[] = [];
 
   let offset = 0;
 
@@ -136,7 +189,7 @@ async function loadAllObservations(
       signal,
     );
 
-    all.push(...response.observations);
+    observations.push(...response.observations);
 
     if (
       !response.has_more ||
@@ -148,7 +201,21 @@ async function loadAllObservations(
     offset += response.observations.length;
   }
 
-  return all;
+  return observations;
+}
+
+function sortObservations(
+  observations: C3GoldenObservation[],
+): C3GoldenObservation[] {
+  return [...observations].sort((a, b) => {
+    const difference =
+      new Date(a.timestamp).getTime() -
+      new Date(b.timestamp).getTime();
+
+    return difference !== 0
+      ? difference
+      : a.observation_id - b.observation_id;
+  });
 }
 
 function hasValidSensors(
@@ -164,62 +231,428 @@ function hasValidSensors(
   });
 }
 
+/**
+ * An origin is eligible when the latest backend-equivalent
+ * historical window has at least 3 complete observations.
+ *
+ * All observations sharing a timestamp are included before
+ * checking eligibility, matching the backend's <= origin rule.
+ */
 function getEligibleOrigins(
   observations: C3GoldenObservation[],
 ): string[] {
-  const origins: string[] = [];
+  const ordered = sortObservations(observations);
 
-  const ordered = [...observations].sort((a, b) => {
-    const timeDifference =
-      new Date(a.timestamp).getTime() -
-      new Date(b.timestamp).getTime();
+  const eligible: string[] = [];
 
-    return timeDifference !== 0
-      ? timeDifference
-      : a.observation_id - b.observation_id;
-  });
+  let index = 0;
 
-  const validObservations: C3GoldenObservation[] = [];
-
-  for (const observation of ordered) {
-    const timestamp = new Date(
-      observation.timestamp,
+  while (index < ordered.length) {
+    const currentTime = new Date(
+      ordered[index].timestamp,
     ).getTime();
 
-    if (!Number.isFinite(timestamp)) {
+    if (!Number.isFinite(currentTime)) {
+      index += 1;
       continue;
     }
 
-    validObservations.push(observation);
+    let nextIndex = index + 1;
 
-    // The backend includes every observation at or before
-    // the selected timestamp, then takes the latest 32.
-    const historical = validObservations.slice(
+    while (
+      nextIndex < ordered.length &&
+      new Date(
+        ordered[nextIndex].timestamp,
+      ).getTime() === currentTime
+    ) {
+      nextIndex += 1;
+    }
+
+    const historical = ordered.slice(
+      0,
+      nextIndex,
+    );
+
+    const window = historical.slice(
       -MAX_SEQUENCE_LENGTH,
     );
 
     if (
-      historical.length < MIN_SEQUENCE_LENGTH ||
-      !historical.every(hasValidSensors)
+      window.length >= MIN_SEQUENCE_LENGTH &&
+      window.every(hasValidSensors)
     ) {
-      continue;
+      eligible.push(
+        ordered[nextIndex - 1].timestamp,
+      );
     }
 
-    origins.push(observation.timestamp);
+    index = nextIndex;
   }
 
-  return [...new Set(origins)];
+  return eligible;
 }
 
 /* ============================================================
-   Component
+   Chart
+   ============================================================ */
+
+type ForecastChartProps = {
+  observations: C3GoldenObservation[];
+  origin: string;
+  predictions: ForecastPrediction[];
+};
+
+function ForecastChart({
+  observations,
+  origin,
+  predictions,
+}: ForecastChartProps) {
+  const points = useMemo(() => {
+    const originTime = new Date(origin).getTime();
+
+    const observed = sortObservations(observations)
+      .filter(
+        (observation) =>
+          new Date(observation.timestamp).getTime() <=
+            originTime &&
+          Number.isFinite(
+            observation.soil_moisture_pct,
+          ),
+      )
+      .slice(-MAX_SEQUENCE_LENGTH)
+      .map<ForecastPoint>((observation) => ({
+        timestamp: observation.timestamp,
+        value: observation.soil_moisture_pct,
+        type: "observed",
+      }));
+
+    const predicted = predictions
+      .filter((prediction) =>
+        Number.isFinite(
+          prediction.predicted_soil_moisture_pct,
+        ),
+      )
+      .map<ForecastPoint>((prediction) => ({
+        timestamp: prediction.target_timestamp,
+        value:
+          prediction.predicted_soil_moisture_pct,
+        type: "predicted",
+        horizon: prediction.horizon_minutes,
+      }))
+      .sort(
+        (a, b) =>
+          new Date(a.timestamp).getTime() -
+          new Date(b.timestamp).getTime(),
+      );
+
+    return { observed, predicted };
+  }, [observations, origin, predictions]);
+
+  const allPoints = [
+    ...points.observed,
+    ...points.predicted,
+  ];
+
+  if (allPoints.length < 2) {
+    return (
+      <p className="c3-af-description">
+        Not enough data to display the forecast chart.
+      </p>
+    );
+  }
+
+  const width = 1000;
+  const height = 330;
+
+  const left = 65;
+  const right = 30;
+  const top = 30;
+  const bottom = 65;
+
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+
+  const values = allPoints.map((point) => point.value);
+
+  const minimumValue = Math.min(...values);
+  const maximumValue = Math.max(...values);
+
+  const valuePadding = Math.max(
+    0.5,
+    (maximumValue - minimumValue) * 0.2,
+  );
+
+  const minY = Math.max(
+    0,
+    minimumValue - valuePadding,
+  );
+
+  const maxY = Math.min(
+    100,
+    maximumValue + valuePadding,
+  );
+
+  const timeValues = allPoints.map((point) =>
+    new Date(point.timestamp).getTime(),
+  );
+
+  const minX = Math.min(...timeValues);
+  const maxX = Math.max(...timeValues);
+
+  const xRange = Math.max(1, maxX - minX);
+  const yRange = Math.max(0.0001, maxY - minY);
+
+  function x(timestamp: string): number {
+    const time = new Date(timestamp).getTime();
+
+    return (
+      left +
+      ((time - minX) / xRange) * plotWidth
+    );
+  }
+
+  function y(value: number): number {
+    return (
+      top +
+      (1 - (value - minY) / yRange) *
+        plotHeight
+    );
+  }
+
+  function linePath(
+    data: ForecastPoint[],
+  ): string {
+    return data
+      .map(
+        (point, index) =>
+          `${index === 0 ? "M" : "L"} ${x(
+            point.timestamp,
+          )} ${y(point.value)}`,
+      )
+      .join(" ");
+  }
+
+  const lastObserved =
+    points.observed[points.observed.length - 1];
+
+  const forecastPath = lastObserved
+    ? linePath([
+        lastObserved,
+        ...points.predicted,
+      ])
+    : linePath(points.predicted);
+
+  const originX = x(origin);
+
+  const yTicks = Array.from(
+    { length: 5 },
+    (_, index) =>
+      minY + ((maxY - minY) * index) / 4,
+  );
+
+  const xTicks = [
+    minX,
+    minX + (maxX - minX) * 0.25,
+    minX + (maxX - minX) * 0.5,
+    minX + (maxX - minX) * 0.75,
+    maxX,
+  ];
+
+  return (
+    <div className="c3-af-chart">
+      <div className="c3-af-chart-header">
+        <div>
+          <h3>Historical observations → Future forecasts</h3>
+
+          <p>
+            The blue series contains recorded synthetic
+            observations. The orange series contains
+            predictions generated by activated models.
+          </p>
+        </div>
+
+        <span className="c3-af-chart-badge">
+          HISTORICAL REPLAY
+        </span>
+      </div>
+
+      <div className="c3-af-chart-scroll">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          role="img"
+          aria-label="Soil moisture over time. Historical observations are blue, future model predictions are orange."
+        >
+          {yTicks.map((tick) => (
+            <g key={tick}>
+              <line
+                x1={left}
+                x2={width - right}
+                y1={y(tick)}
+                y2={y(tick)}
+                className="c3-af-grid-line"
+              />
+
+              <text
+                x={left - 12}
+                y={y(tick) + 4}
+                textAnchor="end"
+                className="c3-af-axis-label"
+              >
+                {tick.toFixed(1)}%
+              </text>
+            </g>
+          ))}
+
+          {xTicks.map((tick, index) => {
+            const timestamp = new Date(
+              tick,
+            ).toISOString();
+
+            return (
+              <text
+                key={index}
+                x={left + (index / 4) * plotWidth}
+                y={height - 30}
+                textAnchor="middle"
+                className="c3-af-axis-label"
+              >
+                {formatShortTime(timestamp)}
+              </text>
+            );
+          })}
+
+          <line
+            x1={originX}
+            x2={originX}
+            y1={top}
+            y2={height - bottom}
+            className="c3-af-origin-line"
+          />
+
+          <text
+            x={Math.min(
+              originX + 8,
+              width - 130,
+            )}
+            y={top + 15}
+            className="c3-af-origin-label"
+          >
+            Forecast origin
+          </text>
+
+          <path
+            d={linePath(points.observed)}
+            className="c3-af-observed-line"
+          />
+
+          <path
+            d={forecastPath}
+            className="c3-af-predicted-line"
+          />
+
+          {points.observed.map((point, index) => (
+            <circle
+              key={`observed-${index}`}
+              cx={x(point.timestamp)}
+              cy={y(point.value)}
+              r={3.5}
+              className="c3-af-observed-point"
+            >
+              <title>
+                {`${formatTimestamp(
+                  point.timestamp,
+                )}: ${formatValue(point.value)}`}
+              </title>
+            </circle>
+          ))}
+
+          {points.predicted.map((point, index) => (
+            <circle
+              key={`predicted-${index}`}
+              cx={x(point.timestamp)}
+              cy={y(point.value)}
+              r={6}
+              className="c3-af-predicted-point"
+            >
+              <title>
+                {`+${
+                  point.horizon
+                } minutes: ${formatValue(
+                  point.value,
+                )} at ${formatTimestamp(
+                  point.timestamp,
+                )}`}
+              </title>
+            </circle>
+          ))}
+
+          <text
+            x={width / 2}
+            y={height - 4}
+            textAnchor="middle"
+            className="c3-af-axis-title"
+          >
+            Observation / forecast time (Asia/Colombo)
+          </text>
+
+          <text
+            x={18}
+            y={height / 2}
+            textAnchor="middle"
+            transform={`rotate(-90 18 ${
+              height / 2
+            })`}
+            className="c3-af-axis-title"
+          >
+            Soil moisture (%)
+          </text>
+        </svg>
+      </div>
+
+      <div className="c3-af-chart-legend">
+        <span>
+          <i className="c3-af-legend-observed" />
+          Historical observations
+        </span>
+
+        <span>
+          <i className="c3-af-legend-predicted" />
+          Model-generated predictions
+        </span>
+
+        <span>
+          <i className="c3-af-legend-origin" />
+          Forecast boundary
+        </span>
+      </div>
+
+      <p className="c3-af-chart-footnote">
+        Predictions are independent horizon-specific
+        estimates. The orange line connects them for
+        visualization; it does not represent a continuous
+        forecast or intermediate predictions.
+      </p>
+    </div>
+  );
+}
+
+/* ============================================================
+   Main Component
    ============================================================ */
 
 export function C3ActiveForecasting() {
   const [input, setInput] =
     useState<ForecastInput>(INITIAL_INPUT);
 
+  const [forecastMode, setForecastMode] =
+    useState<ForecastMode>("latest");
+
   const [filters, setFilters] =
+    useState<C3ObservationFiltersResponse | null>(
+      null,
+    );
+
+  const [datasetFilters, setDatasetFilters] =
     useState<C3ObservationFiltersResponse | null>(
       null,
     );
@@ -236,7 +669,10 @@ export function C3ActiveForecasting() {
   const [devicesLoading, setDevicesLoading] =
     useState(false);
 
-  const [episodesLoading, setEpisodesLoading] =
+  const [deviceDataLoading, setDeviceDataLoading] =
+    useState(false);
+
+  const [episodeDataLoading, setEpisodeDataLoading] =
     useState(false);
 
   const [busy, setBusy] = useState(false);
@@ -251,7 +687,7 @@ export function C3ActiveForecasting() {
     useState<ForecastPrediction[]>([]);
 
   /* ==========================================================
-     Load Dataset Options
+     Load Datasets
      ========================================================== */
 
   useEffect(() => {
@@ -266,29 +702,29 @@ export function C3ActiveForecasting() {
 
         setFilters(response);
 
-        const preferredDataset =
+        const preferred =
           response.datasets.find(
             (dataset) =>
               dataset.dataset_id ===
               ACTIVE_MODEL_DATASET_ID,
           );
 
-        if (preferredDataset) {
+        if (preferred) {
           setInput((previous) => ({
             ...previous,
-            dataset_id: preferredDataset.dataset_id,
+            dataset_id: preferred.dataset_id,
           }));
         }
       })
       .catch((cause: unknown) => {
-        if (controller.signal.aborted) return;
-
-        setError(
-          getErrorMessage(
-            cause,
-            "Unable to load datasets.",
-          ),
-        );
+        if (!controller.signal.aborted) {
+          setError(
+            getErrorMessage(
+              cause,
+              "Unable to load datasets.",
+            ),
+          );
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) {
@@ -300,13 +736,8 @@ export function C3ActiveForecasting() {
   }, []);
 
   /* ==========================================================
-     Load Devices for Selected Dataset
+     Load Devices
      ========================================================== */
-
-  const [datasetFilters, setDatasetFilters] =
-    useState<C3ObservationFiltersResponse | null>(
-      null,
-    );
 
   useEffect(() => {
     if (!input.dataset_id) {
@@ -322,19 +753,19 @@ export function C3ActiveForecasting() {
     c3ExplorerApi
       .filters(input.dataset_id, controller.signal)
       .then((response) => {
-        if (controller.signal.aborted) return;
-
-        setDatasetFilters(response);
+        if (!controller.signal.aborted) {
+          setDatasetFilters(response);
+        }
       })
       .catch((cause: unknown) => {
-        if (controller.signal.aborted) return;
-
-        setError(
-          getErrorMessage(
-            cause,
-            "Unable to load devices.",
-          ),
-        );
+        if (!controller.signal.aborted) {
+          setError(
+            getErrorMessage(
+              cause,
+              "Unable to load devices.",
+            ),
+          );
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) {
@@ -346,7 +777,7 @@ export function C3ActiveForecasting() {
   }, [input.dataset_id]);
 
   /* ==========================================================
-     Load Device Observations to Discover Episodes
+     Discover Episodes
      ========================================================== */
 
   useEffect(() => {
@@ -357,7 +788,7 @@ export function C3ActiveForecasting() {
 
     const controller = new AbortController();
 
-    setEpisodesLoading(true);
+    setDeviceDataLoading(true);
     setDeviceObservations([]);
 
     loadAllObservations(
@@ -367,23 +798,23 @@ export function C3ActiveForecasting() {
       controller.signal,
     )
       .then((observations) => {
-        if (controller.signal.aborted) return;
-
-        setDeviceObservations(observations);
+        if (!controller.signal.aborted) {
+          setDeviceObservations(observations);
+        }
       })
       .catch((cause: unknown) => {
-        if (controller.signal.aborted) return;
-
-        setError(
-          getErrorMessage(
-            cause,
-            "Unable to load device episodes.",
-          ),
-        );
+        if (!controller.signal.aborted) {
+          setError(
+            getErrorMessage(
+              cause,
+              "Unable to load episodes.",
+            ),
+          );
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) {
-          setEpisodesLoading(false);
+          setDeviceDataLoading(false);
         }
       });
 
@@ -391,7 +822,7 @@ export function C3ActiveForecasting() {
   }, [input.dataset_id, input.device_id]);
 
   /* ==========================================================
-     Load Selected Episode
+     Load Episode Observations
      ========================================================== */
 
   useEffect(() => {
@@ -406,7 +837,7 @@ export function C3ActiveForecasting() {
 
     const controller = new AbortController();
 
-    setEpisodesLoading(true);
+    setEpisodeDataLoading(true);
     setEpisodeObservations([]);
 
     loadAllObservations(
@@ -416,23 +847,23 @@ export function C3ActiveForecasting() {
       controller.signal,
     )
       .then((observations) => {
-        if (controller.signal.aborted) return;
-
-        setEpisodeObservations(observations);
+        if (!controller.signal.aborted) {
+          setEpisodeObservations(observations);
+        }
       })
       .catch((cause: unknown) => {
-        if (controller.signal.aborted) return;
-
-        setError(
-          getErrorMessage(
-            cause,
-            "Unable to load episode observations.",
-          ),
-        );
+        if (!controller.signal.aborted) {
+          setError(
+            getErrorMessage(
+              cause,
+              "Unable to load episode observations.",
+            ),
+          );
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) {
-          setEpisodesLoading(false);
+          setEpisodeDataLoading(false);
         }
       });
 
@@ -453,37 +884,103 @@ export function C3ActiveForecasting() {
     [datasetFilters],
   );
 
-  const episodes = useMemo(() => {
-    return [
-      ...new Set(
-        deviceObservations.map(
-          (observation) => observation.episode_id,
+  const episodes = useMemo(
+    () =>
+      [
+        ...new Set(
+          deviceObservations.map(
+            (observation) =>
+              observation.episode_id,
+          ),
         ),
-      ),
-    ].sort();
-  }, [deviceObservations]);
+      ].sort(),
+    [deviceObservations],
+  );
+
+  const orderedObservations = useMemo(
+    () => sortObservations(episodeObservations),
+    [episodeObservations],
+  );
 
   const eligibleOrigins = useMemo(
     () => getEligibleOrigins(episodeObservations),
     [episodeObservations],
   );
 
+  const latestEligibleOrigin =
+    eligibleOrigins[eligibleOrigins.length - 1] ?? "";
+
+  const effectiveOrigin =
+    forecastMode === "latest"
+      ? latestEligibleOrigin
+      : input.forecast_origin;
+
+  const originTime = effectiveOrigin
+    ? new Date(effectiveOrigin).getTime()
+    : NaN;
+
+  const inputWindow = useMemo(
+    () =>
+      orderedObservations
+        .filter(
+          (observation) =>
+            new Date(
+              observation.timestamp,
+            ).getTime() <= originTime,
+        )
+        .slice(-MAX_SEQUENCE_LENGTH),
+    [orderedObservations, originTime],
+  );
+
+  const latestObserved =
+    inputWindow[inputWindow.length - 1] ?? null;
+
   const activeDatasetMatches =
     input.dataset_id === ACTIVE_MODEL_DATASET_ID;
 
-  const selectedOriginIsValid =
-    eligibleOrigins.includes(input.forecast_origin);
+  const originIsValid =
+    eligibleOrigins.includes(effectiveOrigin);
+
+  const loading =
+    filtersLoading ||
+    devicesLoading ||
+    deviceDataLoading ||
+    episodeDataLoading;
 
   const canGenerate =
     !busy &&
-    !filtersLoading &&
-    !devicesLoading &&
-    !episodesLoading &&
+    !loading &&
     activeDatasetMatches &&
     Boolean(input.dataset_id) &&
     Boolean(input.device_id) &&
     Boolean(input.episode_id) &&
-    selectedOriginIsValid;
+    originIsValid;
+
+  const targetPreview = useMemo(() => {
+    if (!effectiveOrigin) {
+      return [];
+    }
+
+    return FORECAST_HORIZONS.map((horizon) => ({
+      horizon,
+      target: addMinutes(
+        effectiveOrigin,
+        horizon,
+      ),
+    }));
+  }, [effectiveOrigin]);
+
+  const sortedPredictions = useMemo(
+    () =>
+      result
+        ? [...result.predictions].sort(
+            (a, b) =>
+              a.horizon_minutes -
+              b.horizon_minutes,
+          )
+        : [],
+    [result],
+  );
 
   /* ==========================================================
      Selection Handlers
@@ -504,6 +1001,7 @@ export function C3ActiveForecasting() {
       forecast_origin: "",
     });
 
+    setDatasetFilters(null);
     setDeviceObservations([]);
     setEpisodeObservations([]);
 
@@ -536,6 +1034,17 @@ export function C3ActiveForecasting() {
     clearResults();
   }
 
+  function changeMode(mode: ForecastMode) {
+    setForecastMode(mode);
+
+    setInput((previous) => ({
+      ...previous,
+      forecast_origin: "",
+    }));
+
+    clearResults();
+  }
+
   function changeOrigin(origin: string) {
     setInput((previous) => ({
       ...previous,
@@ -546,43 +1055,47 @@ export function C3ActiveForecasting() {
   }
 
   /* ==========================================================
-     Forecast Actions
+     Forecast Generation
      ========================================================== */
 
   async function generate() {
     if (!canGenerate) return;
 
+    const request: ForecastInput = {
+      ...input,
+      forecast_origin: effectiveOrigin,
+    };
+
     setBusy(true);
     setError("");
     setNotice("");
+    setResult(null);
 
     try {
       const response = await c3ForecastApi.generate(
-        input,
+        request,
       );
 
       setResult(response);
 
       setNotice(
-        "Forecasts generated and saved successfully.",
+        "Three model-generated forecasts were saved successfully.",
       );
 
       try {
         const saved = await c3ForecastApi.history(
-          input.dataset_id,
-          input.device_id,
-          input.episode_id,
+          request.dataset_id,
+          request.device_id,
+          request.episode_id,
         );
 
         setHistory(saved.predictions);
       } catch (historyError) {
         setError(
-          `Forecasts were saved, but history could not be loaded: ${
-            getErrorMessage(
-              historyError,
-              "History retrieval failed.",
-            )
-          }`,
+          `Forecasts were generated and saved, but history could not be loaded: ${getErrorMessage(
+            historyError,
+            "History retrieval failed.",
+          )}`,
         );
       }
     } catch (caught) {
@@ -634,13 +1147,6 @@ export function C3ActiveForecasting() {
     }
   }
 
-  const sortedPredictions = result
-    ? [...result.predictions].sort(
-        (a, b) =>
-          a.horizon_minutes - b.horizon_minutes,
-      )
-    : [];
-
   /* ==========================================================
      Render
      ========================================================== */
@@ -648,34 +1154,56 @@ export function C3ActiveForecasting() {
   return (
     <div className="c3-active-forecasting">
       {/* ======================================================
-          Configuration
+          Page Introduction
+      ====================================================== */}
+
+      <section className="c3-af-intro">
+        <div>
+          <span className="section-overline">
+            COMPONENT 03 · RESEARCH FORECASTING
+          </span>
+
+          <h2>Future soil-moisture forecasting</h2>
+
+          <p>
+            Use activated machine-learning models to
+            estimate soil moisture 15, 30, and 60 minutes
+            after the selected observation.
+          </p>
+        </div>
+
+        <span className="c3-af-research-badge">
+          SYNTHETIC RESEARCH
+        </span>
+      </section>
+
+      {/* ======================================================
+          Forecast Configuration
       ====================================================== */}
 
       <section className="panel">
         <div className="panel-heading">
           <div>
             <span className="section-overline">
-              ACTIVE MODEL INFERENCE
+              STEP 01 · FORECAST CONFIGURATION
             </span>
 
-            <h2>Historical forecasting</h2>
+            <h2>Select the observation source</h2>
           </div>
         </div>
 
         <p className="c3-af-description">
-          Generate soil-moisture forecasts using the
-          activated research models for 15-, 30-, and
-          60-minute horizons.
+          Historical sensor observations provide the
+          input context. Future values are generated
+          by the activated models, not copied from the
+          Golden Database.
         </p>
 
         <div className="c3-af-form">
-          {/* Dataset */}
-
           <label className="c3-af-field">
             <span>Dataset</span>
 
             <select
-              required
               value={input.dataset_id}
               disabled={busy || filtersLoading}
               onChange={(event) =>
@@ -699,13 +1227,10 @@ export function C3ActiveForecasting() {
             </select>
           </label>
 
-          {/* Device */}
-
           <label className="c3-af-field">
             <span>Device</span>
 
             <select
-              required
               value={input.device_id}
               disabled={
                 busy ||
@@ -730,25 +1255,22 @@ export function C3ActiveForecasting() {
             </select>
           </label>
 
-          {/* Episode */}
-
           <label className="c3-af-field">
             <span>Episode</span>
 
             <select
-              required
               value={input.episode_id}
               disabled={
                 busy ||
                 !input.device_id ||
-                episodesLoading
+                deviceDataLoading
               }
               onChange={(event) =>
                 changeEpisode(event.target.value)
               }
             >
               <option value="">
-                {episodesLoading
+                {deviceDataLoading
                   ? "Loading episodes..."
                   : "Select episode"}
               </option>
@@ -763,30 +1285,72 @@ export function C3ActiveForecasting() {
               ))}
             </select>
           </label>
+        </div>
 
-          {/* Forecast Origin */}
+        <div className="c3-af-mode-selector">
+          <div>
+            <strong>Forecasting mode</strong>
 
-          <label className="c3-af-field">
+            <p>
+              Choose the latest available observation
+              or replay a previous historical origin.
+            </p>
+          </div>
+
+          <div className="c3-af-mode-buttons">
+            <button
+              type="button"
+              className={
+                forecastMode === "latest"
+                  ? "c3-af-mode-button active"
+                  : "c3-af-mode-button"
+              }
+              onClick={() => changeMode("latest")}
+              disabled={busy}
+              aria-pressed={forecastMode === "latest"}
+            >
+              Latest observation
+            </button>
+
+            <button
+              type="button"
+              className={
+                forecastMode === "historical"
+                  ? "c3-af-mode-button active"
+                  : "c3-af-mode-button"
+              }
+              onClick={() =>
+                changeMode("historical")
+              }
+              disabled={busy}
+              aria-pressed={
+                forecastMode === "historical"
+              }
+            >
+              Historical replay
+            </button>
+          </div>
+        </div>
+
+        {forecastMode === "historical" && (
+          <label className="c3-af-field c3-af-origin-field">
             <span>
-              Forecast origin — Asia/Colombo
+              Historical forecast origin · Asia/Colombo
             </span>
 
             <select
-              required
               value={input.forecast_origin}
               disabled={
                 busy ||
                 !input.episode_id ||
-                episodesLoading
+                episodeDataLoading
               }
               onChange={(event) =>
                 changeOrigin(event.target.value)
               }
             >
               <option value="">
-                {episodesLoading
-                  ? "Loading observations..."
-                  : "Select forecast origin"}
+                Select historical observation
               </option>
 
               {eligibleOrigins.map((origin) => (
@@ -796,61 +1360,148 @@ export function C3ActiveForecasting() {
               ))}
             </select>
           </label>
-        </div>
+        )}
 
-        {/* Selection Information */}
+        {input.episode_id && !episodeDataLoading && (
+          <div className="c3-af-source-summary">
+            <div>
+              <span>Episode observations</span>
+              <strong>
+                {episodeObservations.length}
+              </strong>
+            </div>
 
-        {input.episode_id && !episodesLoading && (
-          <p className="c3-af-description">
-            Episode observations:{" "}
-            <strong>
-              {episodeObservations.length}
-            </strong>
-            {" · "}
-            Eligible forecast origins:{" "}
-            <strong>
-              {eligibleOrigins.length}
-            </strong>
-            {" · "}
-            Maximum input window:{" "}
-            <strong>
-              {MAX_SEQUENCE_LENGTH} observations
-            </strong>
-          </p>
+            <div>
+              <span>Eligible forecast origins</span>
+              <strong>{eligibleOrigins.length}</strong>
+            </div>
+
+            <div>
+              <span>Input sequence</span>
+              <strong>
+                {inputWindow.length} /{" "}
+                {MAX_SEQUENCE_LENGTH}
+              </strong>
+            </div>
+          </div>
         )}
 
         {!activeDatasetMatches &&
           input.dataset_id && (
-            <p className="c3-af-error" role="status">
-              The currently activated forecasting
-              models belong to a different dataset.
-              Select the active-model dataset to
-              generate forecasts.
+            <p
+              className="c3-af-error"
+              role="status"
+            >
+              The currently activated models belong
+              to another dataset. This dataset needs
+              compatible model activation before
+              forecasts can be generated.
             </p>
           )}
 
         {input.episode_id &&
-          !episodesLoading &&
+          !episodeDataLoading &&
           eligibleOrigins.length === 0 && (
-            <p className="c3-af-error" role="status">
-              This episode does not contain an
-              eligible forecasting window with at
-              least three complete historical
-              observations.
+            <p
+              className="c3-af-error"
+              role="status"
+            >
+              No eligible forecasting origin was
+              found. At least three complete historical
+              observations are required.
             </p>
           )}
+      </section>
 
-        {/* Actions */}
+      {/* ======================================================
+          Forecast Preview
+      ====================================================== */}
+
+      <section className="panel">
+        <div className="panel-heading">
+          <div>
+            <span className="section-overline">
+              STEP 02 · FORECAST PREVIEW
+            </span>
+
+            <h2>Observation → Future targets</h2>
+          </div>
+        </div>
+
+        {!effectiveOrigin ? (
+          <p className="c3-af-description">
+            Select a dataset, device, and episode
+            to preview the forecast timestamps.
+          </p>
+        ) : (
+          <>
+            <div className="c3-af-origin-summary">
+              <div>
+                <span>Forecast origin</span>
+
+                <strong>
+                  {formatTimestamp(effectiveOrigin)}
+                </strong>
+
+                <small>
+                  {forecastMode === "latest"
+                    ? "Latest eligible observation"
+                    : "Selected historical replay origin"}
+                </small>
+              </div>
+
+              <div>
+                <span>Last observed soil moisture</span>
+
+                <strong>
+                  {formatValue(
+                    latestObserved?.soil_moisture_pct,
+                  )}
+                </strong>
+
+                <small>
+                  Recorded synthetic sensor value
+                </small>
+              </div>
+            </div>
+
+            <div className="c3-af-target-preview">
+              {targetPreview.map((target) => (
+                <article
+                  key={target.horizon}
+                  className="c3-af-target-card"
+                >
+                  <span>
+                    +{target.horizon} MINUTES
+                  </span>
+
+                  <strong>
+                    {formatShortTime(target.target)}
+                  </strong>
+
+                  <small>
+                    {formatShortDate(target.target)}
+                  </small>
+
+                  <em>
+                    Awaiting model prediction
+                  </em>
+                </article>
+              ))}
+            </div>
+          </>
+        )}
 
         <div className="c3-af-actions">
           <button
             type="button"
             onClick={() => void generate()}
             disabled={!canGenerate}
+            className="c3-af-generate-button"
           >
             {busy
-              ? "Processing..."
-              : "Generate forecasts"}
+              ? "Generating forecasts..."
+              : "Generate future forecasts"}
           </button>
 
           <button
@@ -882,7 +1533,7 @@ export function C3ActiveForecasting() {
       </section>
 
       {/* ======================================================
-          Forecast Results
+          Generated Predictions
       ====================================================== */}
 
       {result && (
@@ -890,46 +1541,89 @@ export function C3ActiveForecasting() {
           <div className="panel-heading">
             <div>
               <span className="section-overline">
-                FORECAST RESULTS
+                STEP 03 · MODEL-GENERATED RESULTS
               </span>
 
-              <h2>Predicted soil moisture</h2>
+              <h2>Future soil-moisture predictions</h2>
             </div>
-          </div>
 
-          <div className="c3-af-results">
-            {sortedPredictions.map((prediction) => (
-              <article
-                className="c3-af-result-card"
-                key={prediction.prediction_id}
-              >
-                <span className="c3-af-horizon">
-                  +{prediction.horizon_minutes} MIN
-                </span>
-
-                <strong className="c3-af-value">
-                  {formatValue(
-                    prediction.predicted_soil_moisture_pct,
-                  )}
-                </strong>
-
-                <span className="c3-af-model">
-                  {prediction.model_name}
-                </span>
-
-                <small>
-                  Target:{" "}
-                  {formatTimestamp(
-                    prediction.target_timestamp,
-                  )}
-                </small>
-              </article>
-            ))}
+            <span className="c3-af-success-badge">
+              SAVED TO DATABASE
+            </span>
           </div>
 
           <p className="c3-af-description">
+            These values were generated by the
+            activated forecasting models using
+            observations available at or before
+            the forecast origin.
+          </p>
+
+          <div className="c3-af-results">
+            {sortedPredictions.map((prediction) => {
+              const change =
+                latestObserved &&
+                Number.isFinite(
+                  latestObserved.soil_moisture_pct,
+                )
+                  ? prediction.predicted_soil_moisture_pct -
+                    latestObserved.soil_moisture_pct
+                  : null;
+
+              return (
+                <article
+                  className="c3-af-result-card"
+                  key={prediction.prediction_id}
+                >
+                  <span className="c3-af-horizon">
+                    +{prediction.horizon_minutes} MIN
+                  </span>
+
+                  <strong className="c3-af-value">
+                    {formatValue(
+                      prediction.predicted_soil_moisture_pct,
+                    )}
+                  </strong>
+
+                  <span className="c3-af-model">
+                    {prediction.model_name}
+                  </span>
+
+                  <div className="c3-af-result-divider" />
+
+                  <span className="c3-af-result-label">
+                    Target date & time
+                  </span>
+
+                  <strong className="c3-af-result-time">
+                    {formatTimestamp(
+                      prediction.target_timestamp,
+                    )}
+                  </strong>
+
+                  {change !== null && (
+                    <span className="c3-af-result-change">
+                      {change >= 0 ? "+" : ""}
+                      {change.toFixed(2)} percentage
+                      points from last observation
+                    </span>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+
+          <ForecastChart
+            observations={episodeObservations}
+            origin={result.forecast_origin}
+            predictions={sortedPredictions}
+          />
+
+          <p className="c3-af-description">
             Forecast origin:{" "}
-            {formatTimestamp(result.forecast_origin)}
+            <strong>
+              {formatTimestamp(result.forecast_origin)}
+            </strong>
           </p>
         </section>
       )}
@@ -942,24 +1636,25 @@ export function C3ActiveForecasting() {
         <div className="panel-heading">
           <div>
             <span className="section-overline">
-              PERSISTED PREDICTIONS
+              PERSISTED MODEL OUTPUTS
             </span>
 
-            <h2>Forecast history</h2>
+            <h2>Saved forecast history</h2>
           </div>
         </div>
 
         {history.length === 0 ? (
           <p className="c3-af-description">
-            No forecast records loaded.
+            No saved forecasts loaded for this
+            dataset, device, and episode.
           </p>
         ) : (
           <div className="c3-af-history">
             <table>
               <thead>
                 <tr>
-                  <th>Origin</th>
-                  <th>Target</th>
+                  <th>Forecast origin</th>
+                  <th>Future target</th>
                   <th>Horizon</th>
                   <th>Model</th>
                   <th>Predicted moisture</th>
@@ -982,7 +1677,7 @@ export function C3ActiveForecasting() {
                     </td>
 
                     <td>
-                      {prediction.horizon_minutes} min
+                      +{prediction.horizon_minutes} min
                     </td>
 
                     <td>
@@ -1003,18 +1698,21 @@ export function C3ActiveForecasting() {
       </section>
 
       {/* ======================================================
-          Research Limitations
+          Research Boundaries
       ====================================================== */}
 
       <section className="panel c3-af-limitation">
-        <strong>Research limitations</strong>
+        <strong>Research interpretation</strong>
 
         <p>
-          These forecasts estimate future soil moisture
-          using synthetic historical observations.
-          They are not landslide probabilities,
-          operational warnings, or evidence of
-          field-validated accuracy.
+          This workspace performs historical replay
+          using synthetic research observations.
+          Forecast timestamps may be later than the
+          final observation, but they are not live
+          calendar-time predictions. The outputs
+          estimate soil moisture only—not landslide
+          probability, disaster risk, or operational
+          warning status.
         </p>
       </section>
     </div>
