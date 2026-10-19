@@ -13,6 +13,9 @@ from pydantic import BaseModel, Field
 from apps.c3_workbench.adaptive_routes import router as adaptive_router
 from apps.c3_workbench.csv_routes import router as csv_router
 from apps.c3_workbench.dataset_routes import router as dataset_router
+from apps.c3_workbench.forecast_routes import (
+    router as forecast_router,
+)
 from apps.c3_workbench.golden_backup_routes import (
     router as golden_backup_router,
 )
@@ -56,6 +59,7 @@ app.include_router(training_monitor_router)
 app.include_router(adaptive_router)
 app.include_router(model_review_router)
 app.include_router(training_experiment_router)
+app.include_router(forecast_router)
 
 class ForecastRequest(BaseModel):
     ablation: Literal["A", "B", "C"] = "A"
@@ -133,7 +137,11 @@ def examples(
                 if not isinstance(sequence, dict) or not isinstance(sequence.get("steps"), list):
                     continue
                 items.append({
-                    "id": f"{record.get('episode_id', 'unknown')}:{record.get('forecast_origin', '')}:{matched}",
+                    "id": (
+                        f"{record.get('episode_id', 'unknown')}:"
+                        f"{record.get('forecast_origin', '')}:"
+                        f"{matched}"
+                    ),
                     "episode_id": record.get("episode_id"),
                     "device_id": record.get("device_id"),
                     "forecast_origin": record.get("forecast_origin"),

@@ -8,13 +8,17 @@ Research safeguards:
 - Distinguishes historical replay from live inference.
 - Does not fabricate actual future observations.
 - Does not modify legacy forecasting tables.
+- Prevents duplicate forecast identities.
+- Supports idempotent forecast persistence.
+- Rejects conflicting repeated forecast submissions.
+- Preserves atomic database transactions.
 """
 
 from __future__ import annotations
 
 import math
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from apps.c3_workbench.forecasting_reader import (
@@ -29,19 +33,26 @@ VALID_HORIZONS = {15, 30, 60}
 
 
 class ForecastPersistenceError(ValueError):
-    pass
+    """Raised when forecast persistence validation fails."""
 
 
 def utc_now() -> str:
+    """Return the current UTC timestamp."""
+
     return datetime.now(UTC).isoformat()
 
 
 def initialize_forecast_persistence() -> None:
-    """Create the forecast prediction table if necessary."""
+    """Initialize forecast persistence tables and indexes."""
 
     initialize_golden_database()
 
     with get_connection() as connection:
+
+        # --------------------------------------------------
+        # Forecast prediction table
+        # --------------------------------------------------
+
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS c3_forecast_predictions (
@@ -103,6 +114,10 @@ def initialize_forecast_persistence() -> None:
             """
         )
 
+        # --------------------------------------------------
+        # Historical forecast retrieval index
+        # --------------------------------------------------
+
         connection.execute(
             """
             CREATE INDEX IF NOT EXISTS
@@ -118,15 +133,62 @@ def initialize_forecast_persistence() -> None:
             """
         )
 
+        # --------------------------------------------------
+        # Unique forecast identity index
+        # --------------------------------------------------
+        #
+        # A forecast is uniquely identified by:
+        #
+        # - Dataset
+        # - Device
+        # - Episode
+        # - Forecast origin
+        # - Horizon
+        # - Model version
+        #
+        # Different model versions may generate separate
+        # predictions for the same forecast origin.
+        #
+        # Existing duplicate identities must be resolved
+        # before this index can be created.
+        # --------------------------------------------------
+
+        connection.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS
+                idx_c3_forecast_predictions_identity
+
+            ON c3_forecast_predictions (
+                dataset_id,
+                device_id,
+                episode_id,
+                forecast_origin,
+                horizon_minutes,
+                model_version_id
+            )
+            """
+        )
+
         connection.commit()
 
 
 def save_forecast_predictions(
     forecast_result: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    """Persist one forecasting result atomically."""
+    """Persist one forecasting result atomically.
+
+    Behavior:
+    - New forecast: insert prediction.
+    - Identical existing forecast: return existing prediction.
+    - Conflicting existing forecast: reject submission.
+    - Invalid prediction: roll back the entire transaction.
+    """
 
     initialize_forecast_persistence()
+
+    # --------------------------------------------------
+    # Extract forecast identity
+    # --------------------------------------------------
 
     dataset_id = forecast_result["dataset_id"]
     device_id = forecast_result["device_id"]
@@ -144,6 +206,10 @@ def save_forecast_predictions(
         forecast_result["input_window_end"]
     )
 
+    # --------------------------------------------------
+    # Validate historical input window
+    # --------------------------------------------------
+
     if not (
         window_start <= window_end <= forecast_origin
     ):
@@ -151,12 +217,20 @@ def save_forecast_predictions(
             "Invalid historical input window."
         )
 
+    # --------------------------------------------------
+    # Validate forecast type
+    # --------------------------------------------------
+
     forecast_type = forecast_result["forecast_type"]
 
     if forecast_type != "HISTORICAL_REPLAY":
         raise ForecastPersistenceError(
             "Only historical replay persistence is enabled."
         )
+
+    # --------------------------------------------------
+    # Validate prediction collection
+    # --------------------------------------------------
 
     predictions = forecast_result["predictions"]
 
@@ -178,17 +252,56 @@ def save_forecast_predictions(
             "Invalid or duplicate forecast horizons."
         )
 
+    # --------------------------------------------------
+    # Prepare shared persistence metadata
+    # --------------------------------------------------
+
     created_at = utc_now()
-    saved = []
+
+    sequence_length = int(
+        forecast_result["sequence_length"]
+    )
+
+    source_origin = forecast_result["source_origin"]
+
+    source_provenance_verified = int(
+        forecast_result["source_provenance_verified"]
+    )
+
+    receipt_time_basis = forecast_result[
+        "receipt_time_basis"
+    ]
+
+    saved: list[dict[str, Any]] = []
+
+    # --------------------------------------------------
+    # Atomic persistence transaction
+    # --------------------------------------------------
 
     with get_connection() as connection:
+
         try:
+
+            # BEGIN IMMEDIATE serializes SQLite writers.
+            #
+            # The duplicate lookup and INSERT execute
+            # within the same write transaction.
+
             connection.execute("BEGIN IMMEDIATE")
 
             for prediction in predictions:
+
+                # ------------------------------------------
+                # Validate forecast horizon
+                # ------------------------------------------
+
                 horizon = int(
                     prediction["horizon_minutes"]
                 )
+
+                # ------------------------------------------
+                # Validate target timestamp
+                # ------------------------------------------
 
                 target_timestamp = parse_timestamp(
                     prediction["target_timestamp"]
@@ -196,15 +309,17 @@ def save_forecast_predictions(
 
                 expected_target = (
                     forecast_origin
-                    + __import__("datetime").timedelta(
-                        minutes=horizon
-                    )
+                    + timedelta(minutes=horizon)
                 )
 
                 if target_timestamp != expected_target:
                     raise ForecastPersistenceError(
                         "Forecast target timestamp mismatch."
                     )
+
+                # ------------------------------------------
+                # Validate predicted value
+                # ------------------------------------------
 
                 predicted_value = float(
                     prediction[
@@ -217,8 +332,18 @@ def save_forecast_predictions(
                         "Non-finite forecast value."
                     )
 
+                # ------------------------------------------
+                # Validate registered model identity
+                # ------------------------------------------
+
                 model_version_id = prediction[
                     "model_version_id"
+                ]
+
+                model_name = prediction["model_name"]
+
+                checkpoint_sha256 = prediction[
+                    "checkpoint_sha256"
                 ]
 
                 model_row = connection.execute(
@@ -241,18 +366,127 @@ def save_forecast_predictions(
 
                 if (
                     model_row["dataset_id"] != dataset_id
-                    or model_row["model_name"]
-                    != prediction["model_name"]
+                    or model_row["model_name"] != model_name
                     or model_row["horizon_minutes"] != horizon
                 ):
                     raise ForecastPersistenceError(
                         "Forecast/model identity mismatch."
                     )
 
+                # ------------------------------------------
+                # Check for an existing forecast
+                # ------------------------------------------
+
+                existing = connection.execute(
+                    """
+                    SELECT *
+                    FROM c3_forecast_predictions
+                    WHERE dataset_id = ?
+                      AND device_id = ?
+                      AND episode_id = ?
+                      AND forecast_origin = ?
+                      AND horizon_minutes = ?
+                      AND model_version_id = ?
+                    """,
+                    (
+                        dataset_id,
+                        device_id,
+                        episode_id,
+                        forecast_origin.isoformat(),
+                        horizon,
+                        model_version_id,
+                    ),
+                ).fetchone()
+
+                # ------------------------------------------
+                # Idempotent forecast handling
+                # ------------------------------------------
+
+                if existing is not None:
+
+                    identical = (
+                        existing["forecast_type"]
+                        == forecast_type
+
+                        and existing["target_timestamp"]
+                        == target_timestamp.isoformat()
+
+                        and existing["model_name"]
+                        == model_name
+
+                        and existing[
+                            "predicted_soil_moisture_pct"
+                        ]
+                        == predicted_value
+
+                        and existing["input_window_start"]
+                        == window_start.isoformat()
+
+                        and existing["input_window_end"]
+                        == window_end.isoformat()
+
+                        and existing["sequence_length"]
+                        == sequence_length
+
+                        and existing["source_origin"]
+                        == source_origin
+
+                        and existing[
+                            "source_provenance_verified"
+                        ]
+                        == source_provenance_verified
+
+                        and existing["receipt_time_basis"]
+                        == receipt_time_basis
+
+                        and existing["checkpoint_sha256"]
+                        == checkpoint_sha256
+                    )
+
+                    if not identical:
+                        raise ForecastPersistenceError(
+                            "Conflicting forecast already exists "
+                            "for this identity."
+                        )
+
+                    # The forecast already exists and all
+                    # original prediction data matches.
+                    #
+                    # Return the original prediction ID.
+                    #
+                    # Do not insert another database record.
+
+                    saved.append(
+                        {
+                            "prediction_id": existing[
+                                "prediction_id"
+                            ],
+                            "horizon_minutes": horizon,
+                            "model_name": existing[
+                                "model_name"
+                            ],
+                            "predicted_soil_moisture_pct": (
+                                existing[
+                                    "predicted_soil_moisture_pct"
+                                ]
+                            ),
+                        }
+                    )
+
+                    continue
+
+                # ------------------------------------------
+                # Create new prediction identity
+                # ------------------------------------------
+
                 prediction_id = (
                     "c3prediction_"
                     + uuid.uuid4().hex[:16]
                 )
+
+                # ------------------------------------------
+                # Insert new forecast prediction
+                # ------------------------------------------
 
                 connection.execute(
                     """
@@ -295,36 +529,47 @@ def save_forecast_predictions(
                         horizon,
                         target_timestamp.isoformat(),
                         model_version_id,
-                        prediction["model_name"],
+                        model_name,
                         predicted_value,
                         window_start.isoformat(),
                         window_end.isoformat(),
-                        int(forecast_result["sequence_length"]),
-                        forecast_result["source_origin"],
-                        int(
-                            forecast_result[
-                                "source_provenance_verified"
-                            ]
-                        ),
-                        forecast_result["receipt_time_basis"],
-                        prediction["checkpoint_sha256"],
+                        sequence_length,
+                        source_origin,
+                        source_provenance_verified,
+                        receipt_time_basis,
+                        checkpoint_sha256,
                         created_at,
                     ),
                 )
+
+                # ------------------------------------------
+                # Record newly saved prediction
+                # ------------------------------------------
 
                 saved.append(
                     {
                         "prediction_id": prediction_id,
                         "horizon_minutes": horizon,
-                        "model_name": prediction["model_name"],
-                        "predicted_soil_moisture_pct": predicted_value,
+                        "model_name": model_name,
+                        "predicted_soil_moisture_pct": (
+                            predicted_value
+                        ),
                     }
                 )
+
+            # ----------------------------------------------
+            # Commit the complete forecast batch
+            # ----------------------------------------------
 
             connection.commit()
 
         except Exception:
+
+            # Any failure rolls back all new predictions
+            # inserted within this transaction.
+
             connection.rollback()
+
             raise
 
     return saved
@@ -347,6 +592,7 @@ def list_forecast_predictions(
         )
 
     with get_connection() as connection:
+
         rows = connection.execute(
             """
             SELECT *

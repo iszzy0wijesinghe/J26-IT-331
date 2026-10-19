@@ -16,13 +16,10 @@ import { C3AdaptiveMonitoring } from "./C3AdaptiveMonitoring";
 import { C3TrainingWorkspace } from "./C3TrainingWorkspace";
 import { C3ModelEvaluation } from "./C3ModelEvaluation";
 import { C3ResearchPipeline } from "./C3ResearchPipeline";
+import { C3ActiveForecasting } from "./C3ActiveForecasting";
 
 import "../styles/c3Prediction.css";
 import "../styles/c3Studio.css";
-
-// ============================================================
-// Types
-// ============================================================
 
 type C3WorkbenchTab =
   | "pipeline"
@@ -30,6 +27,7 @@ type C3WorkbenchTab =
   | "training"
   | "evaluation"
   | "prediction"
+  | "forecasting"
   | "adaptive";
 
 type WorkspaceDefinition = {
@@ -110,6 +108,15 @@ const WORKSPACES: WorkspaceDefinition[] = [
     description:
       "Replay historical monitoring decisions and compare modeled energy consumption against fixed-interval baselines.",
   },
+  {
+    id: "forecasting",
+    index: "07",
+    title: "Active forecasting",
+    subtitle: "Real-time predictions",
+    heading: "Active forecasting",
+    description:
+      "Execute real-time forecasting models and visualize prediction results.",
+  }
 ];
 
 // ============================================================
@@ -1188,6 +1195,10 @@ export function C3Page() {
 
           {activeTab === "adaptive" && (
             <C3AdaptiveMonitoring />
+          )}
+          {/* Active Forecasting Workspace */}
+          {activeTab === "forecasting" && (
+            <C3ActiveForecasting />
           )}
         </main>
       </div>
