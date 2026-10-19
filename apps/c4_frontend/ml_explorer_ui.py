@@ -3,6 +3,12 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
+from apps.c4_frontend.upload_training import (
+    prepare_uploaded_dataset,
+    train_uploaded_random_forest,
+    save_candidate_model,
+)
+
 from apps.c4_frontend.ml_explorer import (
     MODEL_CATALOG,
     WHAT_IF_FEATURES,
@@ -99,6 +105,7 @@ def render_ml_model_explorer() -> None:
             "Sample Inspector",
             "What-If Scoring",
             "SHAP Plots",
+            "Upload & Train",
         ]
     )
 
@@ -119,6 +126,9 @@ def render_ml_model_explorer() -> None:
 
     with tabs[5]:
         _render_shap(explorer)
+
+    with tabs[6]:
+        _render_upload_training()
 
 
 def _render_profile(explorer: C4ModelExplorer, profile: dict) -> None:
@@ -374,3 +384,211 @@ def _render_shap(explorer: C4ModelExplorer) -> None:
 
     for path, caption in plots:
         st.image(str(path), caption=caption, width="stretch")
+
+
+
+def _render_upload_training() -> None:
+    import hashlib
+
+    _heading(
+        "Train a Random Forest Candidate",
+        "Upload labelled telemetry, evaluate on unseen devices, and save "
+        "a separate candidate model. The live C4 model is not changed.",
+    )
+
+    st.warning(
+        "Candidate models are not activated automatically. Behavioral ML "
+        "cannot override mandatory C4 cryptographic or device-trust checks."
+    )
+
+    uploaded_file = st.file_uploader(
+        "Upload a labelled telemetry CSV",
+        type=["csv"],
+        key="c4_candidate_csv",
+    )
+
+    if uploaded_file is None:
+        st.info(
+            "Upload a CSV containing device identifiers, timestamps, "
+            "telemetry features, freshness_status, and trust_label."
+        )
+        return
+
+    try:
+        file_bytes = uploaded_file.getvalue()
+        file_digest = hashlib.sha256(file_bytes).hexdigest()
+        uploaded_df = pd.read_csv(
+            uploaded_file,
+            low_memory=False,
+        )
+        prepared = prepare_uploaded_dataset(uploaded_df)
+    except Exception as exc:
+        st.error(f"Unable to read or validate the CSV: {exc}")
+        return
+
+    if st.session_state.get("c4_candidate_source") != file_digest:
+        st.session_state.pop("c4_candidate_result", None)
+        st.session_state.pop("c4_candidate_saved_path", None)
+        st.session_state["c4_candidate_source"] = file_digest
+
+    st.success("CSV loaded and validated.")
+
+    metric1, metric2, metric3 = st.columns(3)
+    metric1.metric("Valid rows", f"{len(prepared):,}")
+    metric2.metric(
+        "Unique devices",
+        f"{prepared['device_id'].nunique():,}",
+    )
+    metric3.metric(
+        "Trust classes",
+        str(prepared["trust_label"].nunique()),
+    )
+
+    with st.expander("Preview cleaned dataset", expanded=True):
+        st.dataframe(prepared.head(20), use_container_width=True)
+
+    st.markdown("#### Trust-label distribution")
+    class_counts = (
+        prepared["trust_label"]
+        .value_counts()
+        .rename_axis("Trust label")
+        .reset_index(name="Rows")
+    )
+    st.dataframe(class_counts, use_container_width=True, hide_index=True)
+
+    st.caption(
+        "The trainer uses only the defined 18 behavioral features. "
+        "Security decision fields such as c4_decision and c4_trust_score "
+        "are not model inputs."
+    )
+
+    st.markdown("#### Train and evaluate")
+    st.write(
+        "Split strategy: 70% training devices, 15% validation devices, "
+        "and 15% test devices. Devices are kept separate between splits."
+    )
+
+    if st.button(
+        "Train Random Forest",
+        type="primary",
+        key="c4_train_uploaded_rf",
+    ):
+        try:
+            with st.spinner(
+                "Training Random Forest and evaluating unseen devices..."
+            ):
+                result = train_uploaded_random_forest(uploaded_df)
+
+            st.session_state["c4_candidate_result"] = result
+            st.session_state.pop("c4_candidate_saved_path", None)
+            st.success("Training and test evaluation completed.")
+        except Exception as exc:
+            st.error(f"Training failed: {type(exc).__name__}: {exc}")
+            return
+
+    result = st.session_state.get("c4_candidate_result")
+    if not result:
+        return
+
+    st.divider()
+    st.markdown("#### Test-set results")
+
+    test = result["splits"]["test"]
+    validation = result["splits"]["validation"]
+    train = result["splits"]["train"]
+
+    metric1, metric2, metric3, metric4 = st.columns(4)
+    metric1.metric("Test accuracy", f"{result['accuracy']:.2%}")
+    metric2.metric("Training rows", f"{len(train):,}")
+    metric3.metric("Validation rows", f"{len(validation):,}")
+    metric4.metric("Test rows", f"{len(test):,}")
+
+    st.caption(
+        f"Distinct devices — training: {train['device_id'].nunique()}, "
+        f"validation: {validation['device_id'].nunique()}, "
+        f"test: {test['device_id'].nunique()}."
+    )
+
+    st.markdown("#### Per-class precision, recall, and F1")
+
+    report = result["report"]
+    class_rows = []
+
+    for label in result["classes"]:
+        metrics = report[label]
+        class_rows.append(
+            {
+                "Class": label,
+                "Precision": metrics["precision"],
+                "Recall": metrics["recall"],
+                "F1 score": metrics["f1-score"],
+                "Support": int(metrics["support"]),
+            }
+        )
+
+    st.dataframe(
+        pd.DataFrame(class_rows).set_index("Class").style.format(
+            {
+                "Precision": "{:.3f}",
+                "Recall": "{:.3f}",
+                "F1 score": "{:.3f}",
+            }
+        ),
+        use_container_width=True,
+    )
+
+    st.markdown("#### Confusion matrix")
+    classes = result["classes"]
+    matrix_df = pd.DataFrame(
+        result["confusion_matrix"],
+        index=[f"Actual: {label}" for label in classes],
+        columns=[f"Predicted: {label}" for label in classes],
+    )
+    st.dataframe(matrix_df, use_container_width=True)
+
+    st.markdown("#### Test-set predictions")
+    st.dataframe(
+        result["predictions"].head(100),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    prediction_csv = result["predictions"].to_csv(index=False).encode("utf-8")
+    st.download_button(
+        "Download test predictions CSV",
+        data=prediction_csv,
+        file_name="c4_candidate_test_predictions.csv",
+        mime="text/csv",
+        key="c4_download_candidate_predictions",
+    )
+
+    st.markdown("#### Feature importance")
+    st.dataframe(
+        result["feature_importance"],
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    st.warning(
+        "The candidate's evaluation is experimental. Its feature "
+        "compatibility with the live runtime has not been certified."
+    )
+
+    if st.button(
+        "Save as Candidate Model",
+        key="c4_save_uploaded_candidate",
+    ):
+        try:
+            candidate_path = save_candidate_model(result)
+            st.session_state["c4_candidate_saved_path"] = str(candidate_path)
+        except Exception as exc:
+            st.error(f"Could not save candidate: {type(exc).__name__}: {exc}")
+
+    saved_path = st.session_state.get("c4_candidate_saved_path")
+    if saved_path:
+        st.success("Candidate model saved successfully.")
+        st.code(saved_path)
+        st.caption(
+            "This file is stored separately under "
+            "experiments/c4/models/uploads/. It is not activated in C4."
+        )
