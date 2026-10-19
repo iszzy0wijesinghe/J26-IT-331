@@ -1,0 +1,398 @@
+
+from __future__ import annotations
+
+from io import BytesIO
+from typing import Any
+
+import numpy as np
+import pandas as pd
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+
+from apps.c4_frontend.ml_explorer import (
+    C4ModelExplorer,
+    MODEL_CATALOG,
+    available_catalog_entries,
+    catalog_by_key,
+)
+
+app = FastAPI(
+    title="GeoNex C4 Model Explorer API",
+    version="1.2.0",
+)
+
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+
+
+def json_safe(value: Any) -> Any:
+    if hasattr(value, "item"):
+        return json_safe(value.item())
+
+    if isinstance(value, dict):
+        return {
+            str(key): json_safe(item)
+            for key, item in value.items()
+        }
+
+    if isinstance(value, (list, tuple)):
+        return [json_safe(item) for item in value]
+
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+
+    return str(value)
+
+
+def get_model_entry(model_key: str) -> Any:
+    entry = catalog_by_key().get(model_key)
+
+    if entry is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Unknown C4 model: {model_key}",
+        )
+
+    return entry
+
+
+def get_model_schema(model_key: str) -> tuple[Any, list[str]]:
+    try:
+        explorer = C4ModelExplorer.from_catalog(model_key)
+        schema = explorer.schema_table()
+
+        if "feature" not in schema.columns:
+            raise ValueError(
+                "The model schema does not contain a feature column."
+            )
+
+        required_columns = (
+            schema["feature"]
+            .dropna()
+            .astype(str)
+            .tolist()
+        )
+
+        if not required_columns:
+            raise ValueError(
+                "The selected model has no feature columns in its schema."
+            )
+
+        return explorer, required_columns
+
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Model artifact not found: {exc}",
+        ) from exc
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not read model feature schema: {exc}",
+        ) from exc
+
+
+@app.get("/api/c4/models")
+def list_models() -> dict[str, Any]:
+    available = available_catalog_entries()
+
+    return {
+        "default_model": next(
+            (
+                entry.key
+                for entry in MODEL_CATALOG
+                if entry.runtime_default
+            ),
+            None,
+        ),
+        "models": [
+            {
+                "key": entry.key,
+                "label": entry.label,
+                "artifact": entry.filename,
+                "runtime_default": entry.runtime_default,
+                "notes": entry.notes,
+            }
+            for entry in available
+        ],
+    }
+
+
+@app.get("/api/c4/models/{model_key}")
+def get_model_profile(model_key: str) -> dict[str, Any]:
+    get_model_entry(model_key)
+
+    try:
+        explorer = C4ModelExplorer.from_catalog(model_key)
+        profile = explorer.profile()
+        schema = explorer.schema_table()
+
+        return {
+            "key": model_key,
+            "profile": json_safe(profile),
+            "features": json_safe(
+                schema.to_dict(orient="records")
+            ),
+        }
+
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Model artifact not found: {exc}",
+        ) from exc
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unable to inspect model artifact: {exc}",
+        ) from exc
+
+
+@app.post("/api/c4/models/{model_key}/validate-csv")
+async def validate_csv(
+    model_key: str,
+    file: UploadFile = File(...),
+) -> dict[str, Any]:
+    entry = get_model_entry(model_key)
+    filename = file.filename or ""
+
+    if not filename.lower().endswith(".csv"):
+        await file.close()
+        raise HTTPException(
+            status_code=400,
+            detail="Please upload a file with a .csv extension.",
+        )
+
+    try:
+        content = await file.read(MAX_UPLOAD_SIZE + 1)
+
+        if not content:
+            raise HTTPException(
+                status_code=400,
+                detail="The uploaded CSV file is empty.",
+            )
+
+        if len(content) > MAX_UPLOAD_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail="CSV file exceeds the 10 MB upload limit.",
+            )
+
+        try:
+            df = pd.read_csv(BytesIO(content))
+        except (
+            ValueError,
+            UnicodeDecodeError,
+            pd.errors.ParserError,
+        ) as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unable to read CSV: {exc}",
+            ) from exc
+
+    finally:
+        await file.close()
+
+    if len(df.columns) == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="The CSV does not contain any columns.",
+        )
+
+    if df.empty:
+        raise HTTPException(
+            status_code=400,
+            detail="The CSV does not contain any data rows.",
+        )
+
+    _, required_columns = get_model_schema(model_key)
+
+    preprocessing_errors: list[str] = []
+
+    # Derive the encoded freshness feature when the raw status is available.
+    if (
+        "freshness_status_encoded" in required_columns
+        and "freshness_status_encoded" not in df.columns
+        and "freshness_status" in df.columns
+    ):
+        freshness_mapping = {
+            "fresh": 0,
+            "delayed": 1,
+            "stale": 2,
+        }
+
+        raw_status = (
+            df["freshness_status"]
+            .astype("string")
+            .str.strip()
+            .str.lower()
+        )
+
+        encoded_status = raw_status.map(freshness_mapping)
+        unknown_mask = raw_status.notna() & encoded_status.isna()
+
+        if unknown_mask.any():
+            unknown_values = (
+                raw_status[unknown_mask]
+                .drop_duplicates()
+                .tolist()
+            )
+
+            preprocessing_errors.append(
+                "Unknown freshness_status value(s): "
+                + ", ".join(
+                    str(value) for value in unknown_values
+                )
+            )
+
+        df["freshness_status_encoded"] = encoded_status
+
+    uploaded_columns = [str(column) for column in df.columns]
+
+    duplicate_column_names = (
+        df.columns[df.columns.duplicated()]
+        .astype(str)
+        .tolist()
+    )
+
+    missing_columns = [
+        column
+        for column in required_columns
+        if column not in uploaded_columns
+    ]
+
+    extra_columns = [
+        column
+        for column in uploaded_columns
+        if column not in required_columns
+    ]
+
+    missing_values: dict[str, int] = {}
+    non_numeric_values: dict[str, int] = {}
+    non_finite_values: dict[str, int] = {}
+
+    for column in required_columns:
+        if column not in df.columns:
+            continue
+
+        series = df[column]
+        missing_count = int(series.isna().sum())
+
+        if missing_count:
+            missing_values[column] = missing_count
+
+        numeric = pd.to_numeric(series, errors="coerce")
+
+        invalid_mask = series.notna() & numeric.isna()
+        invalid_count = int(invalid_mask.sum())
+
+        if invalid_count:
+            non_numeric_values[column] = invalid_count
+
+        # Check infinity and other non-finite values only for values
+        # that can be converted to numbers.
+        numeric_values = numeric.dropna()
+
+        if not numeric_values.empty:
+            finite_mask = pd.Series(
+                np.isfinite(
+                    numeric_values.to_numpy(dtype=float)
+                ),
+                index=numeric_values.index,
+            )
+
+            non_finite_count = int((~finite_mask).sum())
+
+            if non_finite_count:
+                non_finite_values[column] = non_finite_count
+
+    duplicate_rows = int(df.duplicated().sum())
+
+    errors: list[str] = list(preprocessing_errors)
+    warnings: list[str] = []
+
+    if duplicate_column_names:
+        errors.append(
+            "Duplicate column names were found in the CSV."
+        )
+
+    if missing_columns:
+        errors.append(
+            f"{len(missing_columns)} required feature column(s) are missing."
+        )
+
+    if missing_values:
+        errors.append(
+            "Missing values were found in required feature columns."
+        )
+
+    if non_numeric_values:
+        errors.append(
+            "Non-numeric values were found in required feature columns."
+        )
+
+    if non_finite_values:
+        errors.append(
+            "Infinite or non-finite numeric values were found."
+        )
+
+    if extra_columns:
+        warnings.append(
+            f"{len(extra_columns)} extra column(s) are not required by this model."
+        )
+
+    if duplicate_rows:
+        warnings.append(
+            f"{duplicate_rows} duplicate row(s) were detected."
+        )
+
+    present_feature_count = sum(
+        column in uploaded_columns
+        for column in required_columns
+    )
+
+    is_valid = not errors
+
+    if is_valid and warnings:
+        status = "valid_with_warnings"
+    elif is_valid:
+        status = "valid"
+    else:
+        status = "invalid"
+
+    return {
+        "filename": filename,
+        "model_key": model_key,
+        "model_label": entry.label,
+        "status": status,
+        "valid": is_valid,
+        "rows": int(len(df)),
+        "columns": int(len(df.columns)),
+        "required_feature_count": len(required_columns),
+        "present_feature_count": present_feature_count,
+        "missing_columns": missing_columns,
+        "extra_columns": extra_columns,
+        "duplicate_column_names": duplicate_column_names,
+        "missing_values": missing_values,
+        "non_numeric_values": non_numeric_values,
+        "non_finite_values": non_finite_values,
+        "duplicate_rows": duplicate_rows,
+        "errors": errors,
+        "warnings": warnings,
+        "message": (
+            "CSV passed structural and basic data-quality validation."
+            if is_valid
+            else "CSV validation failed. Fix the reported errors and upload again."
+        ),
+    }
