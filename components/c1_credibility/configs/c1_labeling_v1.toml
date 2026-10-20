@@ -1,0 +1,93 @@
+# C1 labeling and dataset-generation parameters (spec v1.1).
+# Every value is PROVISIONAL until justified from the C1_Validation.csv audit,
+# calibration records, simulator physics or literature (Doc 05 section 28, 101).
+
+[meta]
+config_version = "c1_labeling_v1"
+labeling_spec_version = "1.1"
+parameter_status = "PROVISIONAL"   # must be APPROVED before a dataset is frozen
+calibration_version = "SYN-CAL-V0"
+
+[valid_range]
+min = 0.0
+max = 100.0
+
+[clean]
+max_normal_rate_pct_per_min = 1.0
+unexplained_rise_pct = 2.0
+unexplained_rise_window_min = 30
+neighbour_tolerance_k = 3.0
+
+[neighbour]
+min_count = 2
+agreement_fraction_min = 0.5
+max_age_multiplier = 2        # max age = multiplier x sampling interval
+
+[rain]
+lag_min_min = 0
+lag_max_min = 120
+support_min_mm = 1.0
+
+[event]
+min_duration_obs = 3
+min_duration_min = 10
+min_effect_sigma = 3.0
+response_epsilon_sigma = 0.5
+borderline_factor = 1.5
+
+[fault]
+spike_min_sigma = 5.0
+drift_floor_sigma = 3.0
+bias_min_sigma = 3.0
+floor_sigma = 3.0
+stuck_min_variation_sigma = 2.0
+noise_factor_min = 4.0
+quant_step_pct = 3.0
+
+[context]
+min_history_obs = 5
+rain_window_steps_required = 12
+
+[health]
+read_failures_min = 3
+voltage_min_v = 3.3
+
+[features]
+window_steps = 12
+rise_detect_pct = 1.5
+
+# Rainfall regime thresholds on the 1-hour accumulation (mm/h). Used ONLY by the
+# feature builder, never by the generator or the labels (spec section 7.5).
+[regimes]
+dry_below = 0.2
+light_below = 2.5
+moderate_below = 7.6
+heavy_below = 50.0
+
+[sim]
+mode = "IDLE"
+sample_interval_s = 300
+steps_per_scenario = 288
+noise_sigma_pct = 0.4
+n_neighbours = 3
+
+[split]
+train = 0.6
+val = 0.2
+test = 0.2
+device_holdout_count = 2
+max_attempts = 50
+
+[justification]
+valid_range = "TBD - from calibration record"
+clean = "TBD - from audit and simulator physics"
+neighbour = "TBD - from zone topology and Doc 04 mode intervals"
+rain = "TBD - from soil response literature or audit"
+event = "TBD - from audit"
+fault = "TBD - from audit and calibration sigma"
+context = "TBD"
+health = "TBD - from hardware spec"
+features = "TBD"
+regimes = "TBD - literature rain-intensity classes"
+sim = "TBD - calibration sigma, Doc 04 sampling"
+split = "TBD"

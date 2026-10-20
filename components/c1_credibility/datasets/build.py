@@ -1,4 +1,4 @@
-"""Process the raw C1 CSV into the final training dataset (Parquet)."""
+"""Build the synthetic C1 credibility dataset from the generator."""
 
 from __future__ import annotations
 
@@ -7,259 +7,276 @@ import hashlib
 import json
 import sys
 from collections import Counter
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 import pandas as pd
 import yaml
 
 from components.c1_credibility.datasets import splits
-from components.c1_credibility.datasets.schemas import DATASET_CODE, TARGET_COLUMN as LABEL_COLUMN
-
-BUILDER_VERSION = "c1_build_1.0.0"
-CLASSES = ("CLEAN", "ANOMALY", "VALID_EVENT")
-SPLITS = ("train", "val", "test")
-
-RAW_INPUT_DIR = Path("data/synthetic/c1")
-DEFAULT_OUTPUT_DIR = Path("data/processed/c1")
-DEFAULT_MANIFEST_DIR = Path("data/manifests")
-CONFIG_CANDIDATES = (
-    Path("configs/components/c1_labeling_v1.yaml"),
-    Path("components/c1_credibility/configs/c1_labeling_v1.yaml"),
+from components.c1_credibility.datasets.config import load_config
+from components.c1_credibility.datasets.features import build_features
+from components.c1_credibility.datasets.generator import Scenario, generate_scenario
+from components.c1_credibility.datasets.labels import (
+    LABEL_SOURCE,
+    is_train_eligible,
+    label_observation,
+    precompute_activity,
 )
+from components.c1_credibility.datasets.schemas import (
+    DATASET_CODE,
+    DATASET_COLUMNS,
+    EXCLUSION_COLUMNS,
+    SCHEMA_VERSION,
+    TRUTH_COLUMNS,
+)
+from components.c1_credibility.datasets.splits import (
+    assign_device_holdout,
+    assign_scenario_splits,
+    assign_temporal_splits,
+)
+from components.c1_credibility.datasets.validate import (
+    ValidationError,
+    check_classes_per_split,
+    check_freeze,
+    validate_dataset,
+)
+from shared.enums import C1ContextStatus, SourceOrigin
 
-# These are C2's job (missing data). C1 should not use them. Drop them.
-LEAKAGE_FEATURES = ["value_present", "obs_gap_steps", "recent_read_failures"]
+BUILDER_VERSION = "c1_builder_0.1.0"
+Row = dict[str, Any]
 
-# Required columns from the leader's CSV file
-REQUIRED_COLUMNS = [
-    "record_id", "observed_at", "device_id", "sensor_instance_id", 
-    "zone_id", "value", "credibility_label", "scenario_id"
-]
 
-class BuildError(RuntimeError):
-    pass
+def _build_rows(
+    scenarios: list[Scenario], cfg: Any, seed: int, dataset_version: str
+) -> tuple[list[Row], list[Row], list[Row]]:
+    """Return (labeled rows, excluded rows, truth rows). Splits are added later."""
+    rows: list[Row] = []
+    excluded: list[Row] = []
+    truth: list[Row] = []
+    test_run_id = f"SYN-RUN-{seed}"
 
-def _to_ns(d: Any) -> Any:
-    """Recursively convert dict to SimpleNamespace."""
-    if isinstance(d, dict):
-        return SimpleNamespace(**{k: _to_ns(v) for k, v in d.items()})
-    return d
+    for sc in scenarios:
+        activities = [precompute_activity(sc, s, cfg) for s in sc.sensors]
+        for t in range(sc.steps):
+            for idx, sensor in enumerate(sc.sensors):
+                if not sensor.avail[t]:
+                    continue  # reading never delivered: nothing to label
+                features, status = build_features(sc, idx, t, cfg)
+                label = label_observation(sc, idx, t, activities, cfg)
+                context_ok = status != C1ContextStatus.INSUFFICIENT_CONTEXT
+                record_id = f"{sc.scenario_id}:{sensor.sensor_instance_id}:{t:04d}"
+                observed_at = (sc.start_time + timedelta(seconds=t * sc.dt_s)).isoformat()
 
-def find_input(path: Path | None) -> Path:
-    """Find the CSV file."""
-    if path is not None and path.is_file():
-        return path
-    folder = path if path is not None else RAW_INPUT_DIR
-    candidates = sorted(folder.glob("*.csv"), key=lambda p: p.stat().st_mtime)
-    if not candidates:
-        raise BuildError(f"No CSV files in {folder}")
-    return candidates[-1]
+                base: Row = {
+                    "record_id": record_id,
+                    "observation_id": f"OBS-{sc.scenario_id}-{idx}-{t:04d}",
+                    "scenario_id": sc.scenario_id,
+                    "zone_id": sc.zone_id,
+                    "device_id": sensor.device_id,
+                    "sensor_instance_id": sensor.sensor_instance_id,
+                    "observed_at": observed_at,
+                    "source_origin": SourceOrigin.SYNTHETIC.value,
+                    "test_run_id": test_run_id,
+                    "dataset_version": dataset_version,
+                    "label_source": LABEL_SOURCE,
+                    "event_id": label.event_id or "",
+                    "calibration_version": cfg.meta.calibration_version,
+                    "context_status": status.value,
+                    "ambiguous": label.ambiguous,
+                    "ambiguity_reason": label.ambiguity_reason,
+                    "borderline_extreme": label.borderline_extreme,
+                    "_step": t,
+                    "_prev_faulty": t > 0 and sensor.fault_type[t - 1] is not None,
+                    "fault_type_truth": label.fault_type or "",
+                }
+                truth.append(
+                    {
+                        "record_id": record_id,
+                        "truth_label": label.truth_label,
+                        "fault_id": label.fault_id or "",
+                        "fault_type": label.fault_type or "",
+                        "fault_effect": label.fault_effect,
+                        "event_id": label.event_id or "",
+                        "event_component": round(label.event_component, 4),
+                        "true_value": sensor.true[t],
+                    }
+                )
+                if not context_ok:
+                    excluded.append(
+                        {
+                            **base,
+                            **features,
+                            "credibility_label": "",
+                            "train_eligible": False,
+                        }
+                    )
+                    continue
+                rows.append(
+                    {
+                        **base,
+                        **features,
+                        "credibility_label": label.truth_label,
+                        "train_eligible": is_train_eligible(
+                            True, label.ambiguous, label.ambiguity_reason
+                        ),
+                    }
+                )
+    return rows, excluded, truth
 
-def load_config(path: Path | None) -> SimpleNamespace:
-    """Load the YAML config file and convert to SimpleNamespace."""
-    candidates = [path] if path else list(CONFIG_CANDIDATES)
-    for candidate in candidates:
-        if candidate and candidate.is_file():
-            with candidate.open(encoding="utf-8") as handle:
-                cfg = yaml.safe_load(handle)
-            cfg["_path"] = str(candidate)
-            return _to_ns(cfg)
-    raise BuildError(f"Labeling config not found.")
 
-def sha256(path: Path) -> str:
-    """Calculate the file hash."""
+def _attach_splits(
+    scenarios: list[Scenario],
+    rows: list[Row],
+    excluded: list[Row],
+    cfg: Any,
+    seed: int,
+) -> tuple[int, set[str]]:
+    meta = [(sc.scenario_id, sc.scenario_type, sc.index) for sc in scenarios]
+    temporal = assign_temporal_splits(meta, cfg)
+    devices = [s.device_id for sc in scenarios for s in sc.sensors]
+    holdout = assign_device_holdout(devices, cfg, seed)
+
+    last_error: Exception | None = None
+    for attempt in range(cfg.split.max_attempts):
+        split_seed = seed + attempt
+        main = assign_scenario_splits(meta, cfg, split_seed)
+        for row in rows + excluded:
+            row["split"] = main[row["scenario_id"]]
+            row["split_temporal"] = temporal[row["scenario_id"]]
+            if holdout:
+                row["split_device"] = "test" if row["device_id"] in holdout else "train"
+            else:
+                row["split_device"] = "not_run"
+        try:
+            check_classes_per_split(rows)
+            return split_seed, holdout
+        except ValidationError as error:
+            last_error = error
+    raise ValidationError(f"No split with all classes found: {last_error}")
+
+
+def _format(value: Any) -> Any:
+    if isinstance(value, bool):
+        return int(value)
+    if value is None:
+        return ""
+    return value
+
+
+def _write_csv(path: Path, columns: list[str], rows: list[Row]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        import csv
+        writer = csv.writer(handle, lineterminator="\n")
+        writer.writerow(columns)
+        for row in rows:
+            writer.writerow([_format(row.get(c)) for c in columns])
+
+
+def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1 << 20), b""):
             digest.update(chunk)
     return digest.hexdigest()
 
-def map_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """Standardize column names and check for required columns."""
-    df.columns = [c.strip().lower() for c in df.columns]
-    missing = [c for c in REQUIRED_COLUMNS if c not in df.columns]
-    if missing:
-        raise BuildError(f"Raw file is missing required columns: {missing}")
-    return df.copy()
 
-def _blank(series: pd.Series) -> pd.Series:
-    """Find empty or nan values."""
-    return series.isna() | series.astype(str).str.strip().isin(["", "nan", "None"])
-
-def drop_duplicates(df: pd.DataFrame) -> pd.DataFrame:
-    """Remove duplicate rows based on record_id."""
-    n_before = len(df)
-    df = df.drop_duplicates(subset=["record_id"], keep="first")
-    n_after = len(df)
-    if n_before != n_after:
-        print(f"Dropped {n_before - n_after} duplicate record_id rows")
-    return df
-
-def drop_leakage_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Drop leakage features that belong to C2."""
-    cols_to_drop = [c for c in LEAKAGE_FEATURES if c in df.columns]
-    if cols_to_drop:
-        print(f"Dropping leakage features: {cols_to_drop}")
-        df = df.drop(columns=cols_to_drop)
-    return df
-
-def infer_scenario_type(df: pd.DataFrame) -> pd.DataFrame:
-    """Infer scenario_type from labels if missing."""
-    if "scenario_type" in df.columns and df["scenario_type"].notna().all():
-        return df
-    present = (
-        pd.crosstab(df["scenario_id"], df[LABEL_COLUMN]).reindex(
-            columns=list(CLASSES), fill_value=0
-        ) > 0
-    )
-    kind = pd.Series("CLEAN_ONLY", index=present.index)
-    kind[present["ANOMALY"] & ~present["VALID_EVENT"]] = "FAULT_ONLY"
-    kind[~present["ANOMALY"] & present["VALID_EVENT"]] = "EVENT_ONLY"
-    kind[present["ANOMALY"] & present["VALID_EVENT"]] = "EVENT_AND_FAULT"
-    print("scenario_type missing, inferred from labels:", dict(Counter(kind)))
-    return df.assign(scenario_type=df["scenario_id"].map(kind))
-
-def attach_splits(df: pd.DataFrame, cfg: SimpleNamespace, seed: int) -> pd.DataFrame:
-    """Split into train/val/test using the splits module."""
-    meta = df[["scenario_id", "scenario_type"]].drop_duplicates().values.tolist()
-    meta = [(row[0], row[1], i) for i, row in enumerate(meta)]
-    result = splits.assign_scenario_splits(meta, cfg, seed)
-    df["split"] = df["scenario_id"].map(result)
-    
-    if "split" not in df.columns:
-        raise BuildError("Could not generate 'split' column")
-    return df
-
-def validate(df: pd.DataFrame, cfg: SimpleNamespace, freeze: bool) -> None:
-    """Final validation of the dataset."""
-    if freeze and cfg.meta.status != "APPROVED":
-        raise BuildError("Cannot freeze: config status is PROVISIONAL")
-
-    bad_split = sorted(set(df["split"]) - set(SPLITS))
-    if bad_split:
-        raise BuildError(f"Unexpected split values: {bad_split}")
-
-    crossing = df.groupby("scenario_id")["split"].nunique()
-    crossing = crossing[crossing > 1]
-    if len(crossing):
-        raise BuildError(f"Scenarios appear in more than one split: {list(crossing.index[:5])}")
-
-    eligible = df[df["train_eligible"] == True] if "train_eligible" in df.columns else df
-    for split in SPLITS:
-        present = set(eligible.loc[eligible["split"] == split, LABEL_COLUMN])
-        missing = sorted(set(CLASSES) - present)
-        if missing:
-            print(f"WARNING: Split '{split}' has no rows for: {missing}")
-
-def write_outputs(
-    df: pd.DataFrame, cfg: SimpleNamespace, args: argparse.Namespace, input_path: Path, seed: int,
+def build_dataset(
+    version: str,
+    seed: int,
+    n_scenarios: int,
+    out_dir: Path,
+    manifest_dir: Path,
+    config_path: Path | None = None,
+    freeze: bool = False,
+    steps_override: int | None = None,
 ) -> dict[str, Any]:
-    """Save the Parquet file and the Manifest."""
-    dataset_version = f"{DATASET_CODE}_{args.version}"
-    df = df.assign(dataset_version=dataset_version)
-    
-    if "source_origin" not in df.columns:
-        df["source_origin"] = "SYNTHETIC"
+    cfg = load_config(config_path)
+    check_freeze(cfg, freeze)
+    if steps_override:
+        cfg.sim.steps_per_scenario = steps_override
+    if n_scenarios < 18:
+        raise ValueError("Use at least 18 scenarios so every split can hold all classes")
 
-    df["observed_at"] = pd.to_datetime(df["observed_at"], utc=True, errors="coerce")
-    
-    args.output_dir.mkdir(parents=True, exist_ok=True)
-    args.manifest_dir.mkdir(parents=True, exist_ok=True)
-    
-    dataset_path = args.output_dir / f"{dataset_version}.parquet"
-    df.to_parquet(dataset_path, engine="pyarrow", index=False)
+    dataset_version = f"{DATASET_CODE}_{version}"
+    scenarios = [generate_scenario(i, seed, cfg) for i in range(n_scenarios)]
+    rows, excluded, truth = _build_rows(scenarios, cfg, seed, dataset_version)
+    split_seed, holdout = _attach_splits(scenarios, rows, excluded, cfg, seed)
+    report = validate_dataset(scenarios, rows, cfg, freeze)
 
-    label_counts = {
-        s: {
-            k: int(v)
-            for k, v in df[df["split"] == s][LABEL_COLUMN].value_counts().sort_index().items()
-        }
-        for s in SPLITS
-    }
-    
+    target = out_dir / dataset_version
+    dataset_path = target / "dataset.csv"
+    _write_csv(dataset_path, DATASET_COLUMNS, rows)
+    _write_csv(target / "truth.csv", TRUTH_COLUMNS, truth)
+    _write_csv(target / "exclusions.csv", EXCLUSION_COLUMNS, excluded)
+
+    labelled = [r for r in rows if r["credibility_label"]]
+    label_counts: dict[str, dict[str, int]] = {}
+    for split in ("train", "val", "test"):
+        counts = Counter(r["credibility_label"] for r in labelled if r["split"] == split)
+        label_counts[split] = dict(sorted(counts.items()))
+    ambiguous = Counter(r["ambiguity_reason"] for r in rows if r["ambiguous"])
+
     manifest = {
         "dataset_code": DATASET_CODE,
-        "version": args.version,
+        "version": version,
         "dataset_version": dataset_version,
-        "row_count": int(len(df)),
-        "file_hash": sha256(dataset_path),
+        "schema_version": SCHEMA_VERSION,
+        "label_schema_version": cfg.meta.labeling_spec_version,
+        "labeling_spec_version": cfg.meta.labeling_spec_version,
+        "labeling_config_version": cfg.meta.config_version,
+        "parameter_status": cfg.meta.parameter_status,
+        "frozen": freeze,
+        "source_types": [SourceOrigin.SYNTHETIC.value],
+        "sensor_family": "soil_moisture",
+        "builder_version": BUILDER_VERSION,
+        "random_seed": seed,
+        "split_strategy": "scenario_grouped",
+        "split_seed_used": split_seed,
+        "device_holdout_devices": sorted(holdout),
+        "device_holdout_run": bool(holdout),
+        "n_scenarios": n_scenarios,
+        "row_count": len(rows),
+        "file_hash": _sha256(dataset_path),
         "label_counts": label_counts,
+        "label_source_counts": dict(Counter(r["label_source"] for r in rows)),
+        "ambiguous_count": sum(ambiguous.values()),
+        "ambiguous_by_reason": dict(sorted(ambiguous.items())),
+        "insufficient_context_count": len(excluded),
+        "calibration_versions": [cfg.meta.calibration_version],
+        "validation_report": report,
         "created_at": datetime.now(UTC).isoformat(),
     }
-    
-    (args.manifest_dir / f"{dataset_version}.json").write_text(
-        json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
-    )
-    manifest["_dataset_path"] = str(dataset_path)
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = manifest_dir / f"{dataset_version}.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
     return manifest
 
-def run(args: argparse.Namespace) -> int:
-    """Main run function."""
-    cfg = load_config(args.config)
-    seed = args.seed if args.seed is not None else 42
 
-    input_path = find_input(args.input)
-    print(f"Reading {input_path}")
-    raw = pd.read_csv(input_path, low_memory=False)
-    n_input = len(raw)
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Build the synthetic C1 credibility dataset")
+    parser.add_argument("--version", default="V0.1.0-draft")
+    parser.add_argument("--seed", type=int, default=20261016)
+    parser.add_argument("--scenarios", type=int, default=60)
+    parser.add_argument("--out-dir", type=Path, default=Path("data/synthetic/c1"))
+    parser.add_argument("--manifest-dir", type=Path, default=Path("data/manifests"))
+    parser.add_argument("--config", type=Path, default=None)
+    parser.add_argument("--freeze", action="store_true")
+    args = parser.parse_args()
 
-    # 1. Standardize column names
-    df = map_columns(raw)
-    
-    # 2. Remove duplicate rows
-    df = drop_duplicates(df)
-    
-    # 3. Remove rows without labels
-    df = df[~_blank(df[LABEL_COLUMN])]
-    
-    # 4. Drop leakage features
-    df = drop_leakage_features(df)
-    
-    # 5. Infer scenario_type
-    df = infer_scenario_type(df)
-    
-    # 6. Assign splits
-    df = attach_splits(df, cfg, seed)
-    
-    # 7. Validate
-    validate(df, cfg, args.freeze)
-
-    # 8. Save outputs
-    manifest = write_outputs(df, cfg, args, input_path, seed)
-    
-    print("\n=== C1 dataset summary ===")
-    print(f"input rows: {n_input}")
-    print(f"final rows: {manifest['row_count']}")
-    print("\nrows per split and class:")
-    table = pd.crosstab(df["split"], df[LABEL_COLUMN]).reindex(
-        index=list(SPLITS), columns=list(CLASSES), fill_value=0
+    manifest = build_dataset(
+        version=args.version,
+        seed=args.seed,
+        n_scenarios=args.scenarios,
+        out_dir=args.out_dir,
+        manifest_dir=args.manifest_dir,
+        config_path=args.config,
+        freeze=args.freeze,
     )
-    print(table.to_string())
-    print(f"\nwritten: {manifest['_dataset_path']}")
-    return 0
+    print(json.dumps({k: manifest[k] for k in ("dataset_version", "row_count", "label_counts")}))
 
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Parse command line arguments."""
-    p = argparse.ArgumentParser()
-    p.add_argument("--input", type=Path, default=None)
-    p.add_argument("--config", type=Path, default=None)
-    p.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
-    p.add_argument("--manifest-dir", type=Path, default=DEFAULT_MANIFEST_DIR)
-    p.add_argument("--version", default="V0.1.0-draft")
-    p.add_argument("--seed", type=int, default=None)
-    p.add_argument("--freeze", action="store_true")
-    return p.parse_args(argv)
-
-def main(argv: list[str] | None = None) -> None:
-    """Program entry point."""
-    try:
-        sys.exit(run(parse_args(argv)))
-    except BuildError as error:
-        print(f"ERROR: {error}", file=sys.stderr)
-        sys.exit(1)
 
 if __name__ == "__main__":
     main()
