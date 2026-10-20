@@ -70,6 +70,7 @@ packages = [
 
     "apps",
     "apps.api",
+    "apps.c2_diagnostics",
     "apps.decision_engine",
     "apps.ingestion",
     "apps.runtime_orchestrator",
