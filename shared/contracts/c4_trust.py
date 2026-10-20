@@ -52,7 +52,35 @@ class C4TrustAssessment(TimeAwareContractModel):
 
     @model_validator(mode="after")
     def enforce_mandatory_security_override(self) -> "C4TrustAssessment":
-        if not self.mandatory_security_pass and self.trust_label is C4TrustLabel.TRUSTED:
-            raise ValueError("A packet cannot be TRUSTED when mandatory security fails")
+        if not self.mandatory_security_pass and self.trust_label in {
+            C4TrustLabel.TRUSTED,
+            C4TrustLabel.SUSPICIOUS,
+        }:
+            raise ValueError(
+                "A packet cannot be TRUSTED or SUSPICIOUS when mandatory security fails"
+            )
+        if self.trust_label is C4TrustLabel.TRUSTED and self.routing_outcome not in {
+            None,
+            C4RoutingOutcome.ACCEPT,
+        }:
+            raise ValueError("A TRUSTED packet must use the ACCEPT routing outcome")
+        if self.trust_label is C4TrustLabel.UNKNOWN and self.routing_outcome not in {
+            None,
+            C4RoutingOutcome.SECURITY_REVIEW,
+        }:
+            raise ValueError(
+                "An UNKNOWN packet must use the SECURITY_REVIEW routing outcome"
+            )
+        if (
+            self.trust_label is C4TrustLabel.UNTRUSTED
+            and self.routing_outcome is C4RoutingOutcome.ACCEPT
+        ):
+            raise ValueError("An UNTRUSTED packet cannot use the ACCEPT routing outcome")
+        if self.trust_label is C4TrustLabel.SUSPICIOUS and self.routing_outcome not in {
+            None,
+            C4RoutingOutcome.QUARANTINE,
+            C4RoutingOutcome.SECURITY_REVIEW,
+        }:
+            raise ValueError("A SUSPICIOUS packet must be quarantined or sent for review")
 
         return self

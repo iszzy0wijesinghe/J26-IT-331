@@ -64,6 +64,8 @@ class C4TrustLabel(StrEnum):
     TRUSTED = "TRUSTED"
     SUSPICIOUS = "SUSPICIOUS"
     UNTRUSTED = "UNTRUSTED"
+    
+    UNKNOWN = "UNKNOWN"
 
 
 # ---------------------------------------------------------------------------
@@ -110,6 +112,7 @@ class C4RoutingOutcome(StrEnum):
     ACCEPT = "ACCEPT"
     QUARANTINE = "QUARANTINE"
     REJECT = "REJECT"
+    SECURITY_REVIEW = "SECURITY_REVIEW"
 
 
 class SilenceState(StrEnum):
@@ -192,3 +195,12 @@ class AlertStatus(StrEnum):
 
     ACTIVE = "ACTIVE"
     RESOLVED = "RESOLVED"
+
+class DeviceLifecycleState(StrEnum):
+    """Device lifecycle states for C4 device registry."""
+
+    PROVISIONED = "PROVISIONED"
+    ACTIVE = "ACTIVE"
+    SUSPENDED = "SUSPENDED"
+    REVOKED = "REVOKED"
+    RETIRED = "RETIRED"

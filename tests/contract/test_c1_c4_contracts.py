@@ -67,6 +67,36 @@ def test_c4_allows_untrusted_security_failure():
     assert assessment.mandatory_security_pass is False
 
 
+def test_c4_unknown_requires_security_review_routing():
+    assessment = C4TrustAssessment(
+        schema_version="1.0",
+        assessment_id="C4A_UNKNOWN",
+        packet_id="PKT_UNKNOWN",
+        device_id="PIPE_A1",
+        trust_label=C4TrustLabel.UNKNOWN,
+        mandatory_security_pass=False,
+        routing_outcome=C4RoutingOutcome.SECURITY_REVIEW,
+        reason_codes=["ATTESTATION_UNVERIFIED"],
+        generated_at=utc_now(),
+    )
+
+    assert assessment.routing_outcome is C4RoutingOutcome.SECURITY_REVIEW
+
+
+def test_c4_rejects_unknown_telemetry_marked_accepted():
+    with pytest.raises(ValidationError):
+        C4TrustAssessment(
+            schema_version="1.0",
+            assessment_id="C4A_UNKNOWN_ACCEPTED",
+            packet_id="PKT_UNKNOWN_ACCEPTED",
+            device_id="PIPE_A1",
+            trust_label=C4TrustLabel.UNKNOWN,
+            mandatory_security_pass=False,
+            routing_outcome=C4RoutingOutcome.ACCEPT,
+            generated_at=utc_now(),
+        )
+
+
 def test_c1_accepts_valid_event():
     assessment = C1CredibilityAssessment(
         schema_version="1.0",

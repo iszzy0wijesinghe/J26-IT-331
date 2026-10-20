@@ -1,5 +1,6 @@
 """Integration tests for loading GeoNex simulated telemetry."""
 
+
 from dataclasses import replace
 
 import pytest
@@ -10,12 +11,18 @@ from apps.ingestion.persistence import PacketConflictError
 from apps.ingestion.simulation_loader import (
     SimulationLoadStatus,
     load_simulated_telemetry,
+    load_simulated_telemetry_with_c4,
 )
+from components.c4_trust import C4TrustService
 from database.models import SensorObservationRecord, TelemetryPacketRecord
 from database.session import create_database_engine
 from shared.simulation.scheduled_telemetry import (
     ScheduledTelemetryConfig,
     generate_scheduled_demo_telemetry,
+)
+from tests.integration.test_c4_simulation_gate import (
+    build_test_gate,
+    prepare_packet,
 )
 
 
@@ -171,3 +178,71 @@ def test_simulation_loader_handles_empty_batch(db_session):
     assert result.created_packets == 0
     assert result.existing_packets == 0
     assert result.created_observations == 0
+<<<<<<< HEAD
+=======
+def test_c4_gated_loader_persists_only_trusted_packets(db_session, tmp_path):
+    items = generate_test_items()
+    gate, _, credentials = build_test_gate(tmp_path / "quarantine")
+
+    def prepare_and_sign(item):
+        credential = credentials[item.packet.device_id]
+        packet = prepare_packet(item, credential)
+        signature = C4TrustService.sign_packet(packet, credential.secret)
+        return packet, signature
+
+    result = load_simulated_telemetry_with_c4(
+        session=db_session,
+        items=items,
+        gate=gate,
+        prepare_and_sign=prepare_and_sign,
+        now_provider=lambda packet: packet.observed_at,
+    )
+
+    packet_ids = [item.packet.packet_id for item in items]
+
+    assert result.status == SimulationLoadStatus.COMPLETED
+    assert result.total_packets == 60
+    assert result.accepted_packets == 60
+    assert result.created_packets == 60
+    assert result.existing_packets == 0
+    assert result.quarantined_packets == 0
+    assert count_test_packets(db_session, packet_ids) == 60
+    assert count_test_observations(db_session, packet_ids) == 180
+
+
+def test_c4_gated_loader_never_persists_rejected_packets(
+    db_session,
+    tmp_path,
+):
+    items = generate_test_items()[:1]
+    gate, _, credentials = build_test_gate(tmp_path / "quarantine")
+
+    def prepare_and_sign(item):
+        credential = credentials[item.packet.device_id]
+        packet = prepare_packet(item, credential)
+        signature = C4TrustService.sign_packet(packet, credential.secret)
+
+        tampered_packet = packet.model_copy(
+            update={"message_type": "TAMPERED_TELEMETRY"}
+        )
+
+        return tampered_packet, signature
+
+    result = load_simulated_telemetry_with_c4(
+        session=db_session,
+        items=items,
+        gate=gate,
+        prepare_and_sign=prepare_and_sign,
+        now_provider=lambda packet: packet.observed_at,
+    )
+
+    packet_ids = [item.packet.packet_id for item in items]
+
+    assert result.total_packets == 1
+    assert result.accepted_packets == 0
+    assert result.created_packets == 0
+    assert result.existing_packets == 0
+    assert result.quarantined_packets == 1
+    assert count_test_packets(db_session, packet_ids) == 0
+    assert count_test_observations(db_session, packet_ids) == 0
+>>>>>>> a3a0e76f7d4d51298b0cf715c59230d82010503a

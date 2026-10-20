@@ -1,0 +1,1922 @@
+[
+  {
+    "scenario_id": "SIM_EP_00000",
+    "scenario_family": "backup_verification",
+    "split": "train",
+    "packets": 158,
+    "start_time": "2026-01-01T22:00:00+00:00",
+    "seed": 20261077783051
+  },
+  {
+    "scenario_id": "SIM_EP_00001",
+    "scenario_family": "post_rain_drying",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-01-03T06:00:00+00:00",
+    "seed": 20261077790970
+  },
+  {
+    "scenario_id": "SIM_EP_00002",
+    "scenario_family": "isolated_vibration",
+    "split": "train",
+    "packets": 122,
+    "start_time": "2026-01-05T11:00:00+00:00",
+    "seed": 20261077798889
+  },
+  {
+    "scenario_id": "SIM_EP_00003",
+    "scenario_family": "sensor_drift",
+    "split": "train",
+    "packets": 131,
+    "start_time": "2026-01-07T21:00:00+00:00",
+    "seed": 20261077806808
+  },
+  {
+    "scenario_id": "SIM_EP_00004",
+    "scenario_family": "disagreement",
+    "split": "train",
+    "packets": 159,
+    "start_time": "2026-01-09T12:00:00+00:00",
+    "seed": 20261077814727
+  },
+  {
+    "scenario_id": "SIM_EP_00005",
+    "scenario_family": "fast_motion",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-01-11T19:00:00+00:00",
+    "seed": 20261077822646
+  },
+  {
+    "scenario_id": "SIM_EP_00006",
+    "scenario_family": "creep",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-01-13T05:00:00+00:00",
+    "seed": 20261077830565
+  },
+  {
+    "scenario_id": "SIM_EP_00007",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-01-15T05:00:00+00:00",
+    "seed": 20261077838484
+  },
+  {
+    "scenario_id": "SIM_EP_00008",
+    "scenario_family": "daily_cycle",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-01-17T12:00:00+00:00",
+    "seed": 20261077846403
+  },
+  {
+    "scenario_id": "SIM_EP_00009",
+    "scenario_family": "packet_loss",
+    "split": "train",
+    "packets": 110,
+    "start_time": "2026-01-19T20:00:00+00:00",
+    "seed": 20261077854322
+  },
+  {
+    "scenario_id": "SIM_EP_00010",
+    "scenario_family": "backup_verification",
+    "split": "train",
+    "packets": 160,
+    "start_time": "2026-01-21T03:00:00+00:00",
+    "seed": 20261077862241
+  },
+  {
+    "scenario_id": "SIM_EP_00011",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-01-23T05:00:00+00:00",
+    "seed": 20261077870160
+  },
+  {
+    "scenario_id": "SIM_EP_00012",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-01-25T22:00:00+00:00",
+    "seed": 20261077878079
+  },
+  {
+    "scenario_id": "SIM_EP_00013",
+    "scenario_family": "rain_pulses",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-01-27T10:00:00+00:00",
+    "seed": 20261077885998
+  },
+  {
+    "scenario_id": "SIM_EP_00014",
+    "scenario_family": "backup_verification",
+    "split": "validation",
+    "packets": 160,
+    "start_time": "2026-01-29T02:00:00+00:00",
+    "seed": 20261077893917
+  },
+  {
+    "scenario_id": "SIM_EP_00015",
+    "scenario_family": "dry_motion",
+    "split": "validation",
+    "packets": 137,
+    "start_time": "2026-01-31T08:00:00+00:00",
+    "seed": 20261077901836
+  },
+  {
+    "scenario_id": "SIM_EP_00016",
+    "scenario_family": "dry_motion",
+    "split": "validation",
+    "packets": 123,
+    "start_time": "2026-02-02T12:00:00+00:00",
+    "seed": 20261077909755
+  },
+  {
+    "scenario_id": "SIM_EP_00017",
+    "scenario_family": "post_rain_drying",
+    "split": "test",
+    "packets": 124,
+    "start_time": "2026-02-04T04:00:00+00:00",
+    "seed": 20261077917674
+  },
+  {
+    "scenario_id": "SIM_EP_00018",
+    "scenario_family": "long_rain",
+    "split": "test",
+    "packets": 124,
+    "start_time": "2026-02-06T10:00:00+00:00",
+    "seed": 20261077925593
+  },
+  {
+    "scenario_id": "SIM_EP_00019",
+    "scenario_family": "packet_loss",
+    "split": "test",
+    "packets": 111,
+    "start_time": "2026-02-08T19:00:00+00:00",
+    "seed": 20261077933512
+  },
+  {
+    "scenario_id": "SIM_EP_00020",
+    "scenario_family": "fast_motion",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-02-10T16:00:00+00:00",
+    "seed": 20261077941431
+  },
+  {
+    "scenario_id": "SIM_EP_00021",
+    "scenario_family": "daily_cycle",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-02-12T15:00:00+00:00",
+    "seed": 20261077949350
+  },
+  {
+    "scenario_id": "SIM_EP_00022",
+    "scenario_family": "long_rain",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-02-14T11:00:00+00:00",
+    "seed": 20261077957269
+  },
+  {
+    "scenario_id": "SIM_EP_00023",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-02-16T07:00:00+00:00",
+    "seed": 20261077965188
+  },
+  {
+    "scenario_id": "SIM_EP_00024",
+    "scenario_family": "isolated_vibration",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-02-18T00:00:00+00:00",
+    "seed": 20261077973107
+  },
+  {
+    "scenario_id": "SIM_EP_00025",
+    "scenario_family": "backup_verification",
+    "split": "train",
+    "packets": 160,
+    "start_time": "2026-02-20T17:00:00+00:00",
+    "seed": 20261077981026
+  },
+  {
+    "scenario_id": "SIM_EP_00026",
+    "scenario_family": "fast_motion",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-02-22T21:00:00+00:00",
+    "seed": 20261077988945
+  },
+  {
+    "scenario_id": "SIM_EP_00027",
+    "scenario_family": "long_rain",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-02-24T22:00:00+00:00",
+    "seed": 20261077996864
+  },
+  {
+    "scenario_id": "SIM_EP_00028",
+    "scenario_family": "disagreement",
+    "split": "train",
+    "packets": 158,
+    "start_time": "2026-02-26T07:00:00+00:00",
+    "seed": 20261078004783
+  },
+  {
+    "scenario_id": "SIM_EP_00029",
+    "scenario_family": "wet_no_motion",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-02-28T18:00:00+00:00",
+    "seed": 20261078012702
+  },
+  {
+    "scenario_id": "SIM_EP_00030",
+    "scenario_family": "creep",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-03-02T20:00:00+00:00",
+    "seed": 20261078020621
+  },
+  {
+    "scenario_id": "SIM_EP_00031",
+    "scenario_family": "dry_stable",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-03-04T22:00:00+00:00",
+    "seed": 20261078028540
+  },
+  {
+    "scenario_id": "SIM_EP_00032",
+    "scenario_family": "backup_verification",
+    "split": "train",
+    "packets": 160,
+    "start_time": "2026-03-06T09:00:00+00:00",
+    "seed": 20261078036459
+  },
+  {
+    "scenario_id": "SIM_EP_00033",
+    "scenario_family": "rain_pulses",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-03-08T03:00:00+00:00",
+    "seed": 20261078044378
+  },
+  {
+    "scenario_id": "SIM_EP_00034",
+    "scenario_family": "disagreement",
+    "split": "validation",
+    "packets": 159,
+    "start_time": "2026-03-10T21:00:00+00:00",
+    "seed": 20261078052297
+  },
+  {
+    "scenario_id": "SIM_EP_00035",
+    "scenario_family": "antecedent_wet",
+    "split": "validation",
+    "packets": 124,
+    "start_time": "2026-03-12T16:00:00+00:00",
+    "seed": 20261078060216
+  },
+  {
+    "scenario_id": "SIM_EP_00036",
+    "scenario_family": "fast_motion",
+    "split": "validation",
+    "packets": 123,
+    "start_time": "2026-03-14T18:00:00+00:00",
+    "seed": 20261078068135
+  },
+  {
+    "scenario_id": "SIM_EP_00037",
+    "scenario_family": "long_rain",
+    "split": "test",
+    "packets": 123,
+    "start_time": "2026-03-16T16:00:00+00:00",
+    "seed": 20261078076054
+  },
+  {
+    "scenario_id": "SIM_EP_00038",
+    "scenario_family": "rain_pulses",
+    "split": "test",
+    "packets": 122,
+    "start_time": "2026-03-18T22:00:00+00:00",
+    "seed": 20261078083973
+  },
+  {
+    "scenario_id": "SIM_EP_00039",
+    "scenario_family": "packet_loss",
+    "split": "test",
+    "packets": 113,
+    "start_time": "2026-03-20T19:00:00+00:00",
+    "seed": 20261078091892
+  },
+  {
+    "scenario_id": "SIM_EP_00040",
+    "scenario_family": "fast_motion",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-03-22T12:00:00+00:00",
+    "seed": 20261078099811
+  },
+  {
+    "scenario_id": "SIM_EP_00041",
+    "scenario_family": "backup_verification",
+    "split": "train",
+    "packets": 160,
+    "start_time": "2026-03-24T15:00:00+00:00",
+    "seed": 20261078107730
+  },
+  {
+    "scenario_id": "SIM_EP_00042",
+    "scenario_family": "wet_no_motion",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-03-26T21:00:00+00:00",
+    "seed": 20261078115649
+  },
+  {
+    "scenario_id": "SIM_EP_00043",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-03-28T02:00:00+00:00",
+    "seed": 20261078123568
+  },
+  {
+    "scenario_id": "SIM_EP_00044",
+    "scenario_family": "creep",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-03-30T00:00:00+00:00",
+    "seed": 20261078131487
+  },
+  {
+    "scenario_id": "SIM_EP_00045",
+    "scenario_family": "backup_verification",
+    "split": "train",
+    "packets": 157,
+    "start_time": "2026-04-01T20:00:00+00:00",
+    "seed": 20261078139406
+  },
+  {
+    "scenario_id": "SIM_EP_00046",
+    "scenario_family": "daily_cycle",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-04-03T03:00:00+00:00",
+    "seed": 20261078147325
+  },
+  {
+    "scenario_id": "SIM_EP_00047",
+    "scenario_family": "dry_motion",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-04-05T04:00:00+00:00",
+    "seed": 20261078155244
+  },
+  {
+    "scenario_id": "SIM_EP_00048",
+    "scenario_family": "daily_cycle",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-04-07T11:00:00+00:00",
+    "seed": 20261078163163
+  },
+  {
+    "scenario_id": "SIM_EP_00049",
+    "scenario_family": "disagreement",
+    "split": "train",
+    "packets": 159,
+    "start_time": "2026-04-09T07:00:00+00:00",
+    "seed": 20261078171082
+  },
+  {
+    "scenario_id": "SIM_EP_00050",
+    "scenario_family": "packet_loss",
+    "split": "train",
+    "packets": 111,
+    "start_time": "2026-04-11T17:00:00+00:00",
+    "seed": 20261078179001
+  },
+  {
+    "scenario_id": "SIM_EP_00051",
+    "scenario_family": "cloudburst",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-04-13T12:00:00+00:00",
+    "seed": 20261078186920
+  },
+  {
+    "scenario_id": "SIM_EP_00052",
+    "scenario_family": "creep",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-04-15T00:00:00+00:00",
+    "seed": 20261078194839
+  },
+  {
+    "scenario_id": "SIM_EP_00053",
+    "scenario_family": "rain_pulses",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-04-17T11:00:00+00:00",
+    "seed": 20261078202758
+  },
+  {
+    "scenario_id": "SIM_EP_00054",
+    "scenario_family": "dry_stable",
+    "split": "validation",
+    "packets": 123,
+    "start_time": "2026-04-19T07:00:00+00:00",
+    "seed": 20261078210677
+  },
+  {
+    "scenario_id": "SIM_EP_00055",
+    "scenario_family": "intermittent_rain",
+    "split": "validation",
+    "packets": 122,
+    "start_time": "2026-04-21T12:00:00+00:00",
+    "seed": 20261078218596
+  },
+  {
+    "scenario_id": "SIM_EP_00056",
+    "scenario_family": "cloudburst",
+    "split": "validation",
+    "packets": 123,
+    "start_time": "2026-04-23T17:00:00+00:00",
+    "seed": 20261078226515
+  },
+  {
+    "scenario_id": "SIM_EP_00057",
+    "scenario_family": "daily_cycle",
+    "split": "test",
+    "packets": 124,
+    "start_time": "2026-04-25T10:00:00+00:00",
+    "seed": 20261078234434
+  },
+  {
+    "scenario_id": "SIM_EP_00058",
+    "scenario_family": "long_rain",
+    "split": "test",
+    "packets": 124,
+    "start_time": "2026-04-27T22:00:00+00:00",
+    "seed": 20261078242353
+  },
+  {
+    "scenario_id": "SIM_EP_00059",
+    "scenario_family": "backup_verification",
+    "split": "test",
+    "packets": 159,
+    "start_time": "2026-04-29T02:00:00+00:00",
+    "seed": 20261078250272
+  },
+  {
+    "scenario_id": "SIM_EP_00060",
+    "scenario_family": "fast_motion",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-05-01T02:00:00+00:00",
+    "seed": 20261078258191
+  },
+  {
+    "scenario_id": "SIM_EP_00061",
+    "scenario_family": "long_rain",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-05-03T16:00:00+00:00",
+    "seed": 20261078266110
+  },
+  {
+    "scenario_id": "SIM_EP_00062",
+    "scenario_family": "daily_cycle",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-05-05T16:00:00+00:00",
+    "seed": 20261078274029
+  },
+  {
+    "scenario_id": "SIM_EP_00063",
+    "scenario_family": "fast_motion",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-05-07T22:00:00+00:00",
+    "seed": 20261078281948
+  },
+  {
+    "scenario_id": "SIM_EP_00064",
+    "scenario_family": "backup_verification",
+    "split": "train",
+    "packets": 160,
+    "start_time": "2026-05-09T06:00:00+00:00",
+    "seed": 20261078289867
+  },
+  {
+    "scenario_id": "SIM_EP_00065",
+    "scenario_family": "rain_pulses",
+    "split": "train",
+    "packets": 122,
+    "start_time": "2026-05-11T06:00:00+00:00",
+    "seed": 20261078297786
+  },
+  {
+    "scenario_id": "SIM_EP_00066",
+    "scenario_family": "antecedent_wet",
+    "split": "train",
+    "packets": 159,
+    "start_time": "2026-05-13T10:00:00+00:00",
+    "seed": 20261078305705
+  },
+  {
+    "scenario_id": "SIM_EP_00067",
+    "scenario_family": "long_rain",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-05-15T13:00:00+00:00",
+    "seed": 20261078313624
+  },
+  {
+    "scenario_id": "SIM_EP_00068",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 159,
+    "start_time": "2026-05-17T06:00:00+00:00",
+    "seed": 20261078321543
+  },
+  {
+    "scenario_id": "SIM_EP_00069",
+    "scenario_family": "dry_stable",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-05-19T14:00:00+00:00",
+    "seed": 20261078329462
+  },
+  {
+    "scenario_id": "SIM_EP_00070",
+    "scenario_family": "long_rain",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-05-21T09:00:00+00:00",
+    "seed": 20261078337381
+  },
+  {
+    "scenario_id": "SIM_EP_00071",
+    "scenario_family": "fast_motion",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-05-23T02:00:00+00:00",
+    "seed": 20261078345300
+  },
+  {
+    "scenario_id": "SIM_EP_00072",
+    "scenario_family": "wet_no_motion",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-05-25T03:00:00+00:00",
+    "seed": 20261078353219
+  },
+  {
+    "scenario_id": "SIM_EP_00073",
+    "scenario_family": "dry_stable",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-05-27T13:00:00+00:00",
+    "seed": 20261078361138
+  },
+  {
+    "scenario_id": "SIM_EP_00074",
+    "scenario_family": "antecedent_wet",
+    "split": "validation",
+    "packets": 122,
+    "start_time": "2026-05-29T20:00:00+00:00",
+    "seed": 20261078369057
+  },
+  {
+    "scenario_id": "SIM_EP_00075",
+    "scenario_family": "rain_pulses",
+    "split": "validation",
+    "packets": 124,
+    "start_time": "2026-05-31T13:00:00+00:00",
+    "seed": 20261078376976
+  },
+  {
+    "scenario_id": "SIM_EP_00076",
+    "scenario_family": "backup_verification",
+    "split": "validation",
+    "packets": 158,
+    "start_time": "2026-06-02T15:00:00+00:00",
+    "seed": 20261078384895
+  },
+  {
+    "scenario_id": "SIM_EP_00077",
+    "scenario_family": "rain_pulses",
+    "split": "test",
+    "packets": 123,
+    "start_time": "2026-06-04T13:00:00+00:00",
+    "seed": 20261078392814
+  },
+  {
+    "scenario_id": "SIM_EP_00078",
+    "scenario_family": "rain_pulses",
+    "split": "test",
+    "packets": 124,
+    "start_time": "2026-06-06T05:00:00+00:00",
+    "seed": 20261078400733
+  },
+  {
+    "scenario_id": "SIM_EP_00079",
+    "scenario_family": "long_rain",
+    "split": "test",
+    "packets": 123,
+    "start_time": "2026-06-08T11:00:00+00:00",
+    "seed": 20261078408652
+  },
+  {
+    "scenario_id": "SIM_EP_00080",
+    "scenario_family": "backup_verification",
+    "split": "train",
+    "packets": 159,
+    "start_time": "2026-06-10T18:00:00+00:00",
+    "seed": 20261078416571
+  },
+  {
+    "scenario_id": "SIM_EP_00081",
+    "scenario_family": "wet_no_motion",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-06-12T08:00:00+00:00",
+    "seed": 20261078424490
+  },
+  {
+    "scenario_id": "SIM_EP_00082",
+    "scenario_family": "backup_verification",
+    "split": "train",
+    "packets": 160,
+    "start_time": "2026-06-14T22:00:00+00:00",
+    "seed": 20261078432409
+  },
+  {
+    "scenario_id": "SIM_EP_00083",
+    "scenario_family": "post_rain_drying",
+    "split": "train",
+    "packets": 130,
+    "start_time": "2026-06-16T00:00:00+00:00",
+    "seed": 20261078440328
+  },
+  {
+    "scenario_id": "SIM_EP_00084",
+    "scenario_family": "wet_motion",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-06-18T07:00:00+00:00",
+    "seed": 20261078448247
+  },
+  {
+    "scenario_id": "SIM_EP_00085",
+    "scenario_family": "fast_motion",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-06-20T07:00:00+00:00",
+    "seed": 20261078456166
+  },
+  {
+    "scenario_id": "SIM_EP_00086",
+    "scenario_family": "backup_verification",
+    "split": "train",
+    "packets": 160,
+    "start_time": "2026-06-22T05:00:00+00:00",
+    "seed": 20261078464085
+  },
+  {
+    "scenario_id": "SIM_EP_00087",
+    "scenario_family": "packet_loss",
+    "split": "train",
+    "packets": 102,
+    "start_time": "2026-06-24T21:00:00+00:00",
+    "seed": 20261078472004
+  },
+  {
+    "scenario_id": "SIM_EP_00088",
+    "scenario_family": "post_rain_drying",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-06-26T09:00:00+00:00",
+    "seed": 20261078479923
+  },
+  {
+    "scenario_id": "SIM_EP_00089",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-06-28T05:00:00+00:00",
+    "seed": 20261078487842
+  },
+  {
+    "scenario_id": "SIM_EP_00090",
+    "scenario_family": "creep",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-06-30T15:00:00+00:00",
+    "seed": 20261078495761
+  },
+  {
+    "scenario_id": "SIM_EP_00091",
+    "scenario_family": "long_rain",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-07-02T13:00:00+00:00",
+    "seed": 20261078503680
+  },
+  {
+    "scenario_id": "SIM_EP_00092",
+    "scenario_family": "antecedent_wet",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-07-04T02:00:00+00:00",
+    "seed": 20261078511599
+  },
+  {
+    "scenario_id": "SIM_EP_00093",
+    "scenario_family": "rain_pulses",
+    "split": "train",
+    "packets": 122,
+    "start_time": "2026-07-06T02:00:00+00:00",
+    "seed": 20261078519518
+  },
+  {
+    "scenario_id": "SIM_EP_00094",
+    "scenario_family": "rain_pulses",
+    "split": "validation",
+    "packets": 123,
+    "start_time": "2026-07-08T16:00:00+00:00",
+    "seed": 20261078527437
+  },
+  {
+    "scenario_id": "SIM_EP_00095",
+    "scenario_family": "wet_no_motion",
+    "split": "validation",
+    "packets": 123,
+    "start_time": "2026-07-10T13:00:00+00:00",
+    "seed": 20261078535356
+  },
+  {
+    "scenario_id": "SIM_EP_00096",
+    "scenario_family": "backup_verification",
+    "split": "validation",
+    "packets": 160,
+    "start_time": "2026-07-12T06:00:00+00:00",
+    "seed": 20261078543275
+  },
+  {
+    "scenario_id": "SIM_EP_00097",
+    "scenario_family": "rain_pulses",
+    "split": "test",
+    "packets": 124,
+    "start_time": "2026-07-14T09:00:00+00:00",
+    "seed": 20261078551194
+  },
+  {
+    "scenario_id": "SIM_EP_00098",
+    "scenario_family": "cloudburst",
+    "split": "test",
+    "packets": 124,
+    "start_time": "2026-07-16T06:00:00+00:00",
+    "seed": 20261078559113
+  },
+  {
+    "scenario_id": "SIM_EP_00099",
+    "scenario_family": "daily_cycle",
+    "split": "test",
+    "packets": 124,
+    "start_time": "2026-07-18T11:00:00+00:00",
+    "seed": 20261078567032
+  },
+  {
+    "scenario_id": "SIM_EP_00100",
+    "scenario_family": "backup_verification",
+    "split": "train",
+    "packets": 160,
+    "start_time": "2026-07-20T11:00:00+00:00",
+    "seed": 20261078574951
+  },
+  {
+    "scenario_id": "SIM_EP_00101",
+    "scenario_family": "long_rain",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-07-22T23:00:00+00:00",
+    "seed": 20261078582870
+  },
+  {
+    "scenario_id": "SIM_EP_00102",
+    "scenario_family": "cloudburst",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-07-24T13:00:00+00:00",
+    "seed": 20261078590789
+  },
+  {
+    "scenario_id": "SIM_EP_00103",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 159,
+    "start_time": "2026-07-26T08:00:00+00:00",
+    "seed": 20261078598708
+  },
+  {
+    "scenario_id": "SIM_EP_00104",
+    "scenario_family": "packet_loss",
+    "split": "train",
+    "packets": 111,
+    "start_time": "2026-07-28T19:00:00+00:00",
+    "seed": 20261078606627
+  },
+  {
+    "scenario_id": "SIM_EP_00105",
+    "scenario_family": "long_rain",
+    "split": "train",
+    "packets": 122,
+    "start_time": "2026-07-30T23:00:00+00:00",
+    "seed": 20261078614546
+  },
+  {
+    "scenario_id": "SIM_EP_00106",
+    "scenario_family": "isolated_vibration",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-08-01T06:00:00+00:00",
+    "seed": 20261078622465
+  },
+  {
+    "scenario_id": "SIM_EP_00107",
+    "scenario_family": "creep",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-08-03T01:00:00+00:00",
+    "seed": 20261078630384
+  },
+  {
+    "scenario_id": "SIM_EP_00108",
+    "scenario_family": "post_rain_drying",
+    "split": "train",
+    "packets": 132,
+    "start_time": "2026-08-05T08:00:00+00:00",
+    "seed": 20261078638303
+  },
+  {
+    "scenario_id": "SIM_EP_00109",
+    "scenario_family": "fast_motion",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-08-07T02:00:00+00:00",
+    "seed": 20261078646222
+  },
+  {
+    "scenario_id": "SIM_EP_00110",
+    "scenario_family": "daily_cycle",
+    "split": "train",
+    "packets": 122,
+    "start_time": "2026-08-09T00:00:00+00:00",
+    "seed": 20261078654141
+  },
+  {
+    "scenario_id": "SIM_EP_00111",
+    "scenario_family": "dry_stable",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-08-11T09:00:00+00:00",
+    "seed": 20261078662060
+  },
+  {
+    "scenario_id": "SIM_EP_00112",
+    "scenario_family": "daily_cycle",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-08-13T14:00:00+00:00",
+    "seed": 20261078669979
+  },
+  {
+    "scenario_id": "SIM_EP_00113",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 160,
+    "start_time": "2026-08-15T23:00:00+00:00",
+    "seed": 20261078677898
+  },
+  {
+    "scenario_id": "SIM_EP_00114",
+    "scenario_family": "long_rain",
+    "split": "validation",
+    "packets": 123,
+    "start_time": "2026-08-17T10:00:00+00:00",
+    "seed": 20261078685817
+  },
+  {
+    "scenario_id": "SIM_EP_00115",
+    "scenario_family": "long_rain",
+    "split": "validation",
+    "packets": 135,
+    "start_time": "2026-08-19T05:00:00+00:00",
+    "seed": 20261078693736
+  },
+  {
+    "scenario_id": "SIM_EP_00116",
+    "scenario_family": "disagreement",
+    "split": "validation",
+    "packets": 159,
+    "start_time": "2026-08-21T12:00:00+00:00",
+    "seed": 20261078701655
+  },
+  {
+    "scenario_id": "SIM_EP_00117",
+    "scenario_family": "dry_motion",
+    "split": "test",
+    "packets": 124,
+    "start_time": "2026-08-23T21:00:00+00:00",
+    "seed": 20261078709574
+  },
+  {
+    "scenario_id": "SIM_EP_00118",
+    "scenario_family": "intermittent_rain",
+    "split": "test",
+    "packets": 124,
+    "start_time": "2026-08-25T08:00:00+00:00",
+    "seed": 20261078717493
+  },
+  {
+    "scenario_id": "SIM_EP_00119",
+    "scenario_family": "dry_stable",
+    "split": "test",
+    "packets": 122,
+    "start_time": "2026-08-27T19:00:00+00:00",
+    "seed": 20261078725412
+  },
+  {
+    "scenario_id": "SIM_EP_00120",
+    "scenario_family": "disagreement",
+    "split": "train",
+    "packets": 160,
+    "start_time": "2026-08-29T18:00:00+00:00",
+    "seed": 20261078733331
+  },
+  {
+    "scenario_id": "SIM_EP_00121",
+    "scenario_family": "daily_cycle",
+    "split": "train",
+    "packets": 122,
+    "start_time": "2026-08-31T23:00:00+00:00",
+    "seed": 20261078741250
+  },
+  {
+    "scenario_id": "SIM_EP_00122",
+    "scenario_family": "disagreement",
+    "split": "train",
+    "packets": 160,
+    "start_time": "2026-09-02T11:00:00+00:00",
+    "seed": 20261078749169
+  },
+  {
+    "scenario_id": "SIM_EP_00123",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-09-04T02:00:00+00:00",
+    "seed": 20261078757088
+  },
+  {
+    "scenario_id": "SIM_EP_00124",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-09-06T19:00:00+00:00",
+    "seed": 20261078765007
+  },
+  {
+    "scenario_id": "SIM_EP_00125",
+    "scenario_family": "dry_stable",
+    "split": "train",
+    "packets": 122,
+    "start_time": "2026-09-08T17:00:00+00:00",
+    "seed": 20261078772926
+  },
+  {
+    "scenario_id": "SIM_EP_00126",
+    "scenario_family": "backup_verification",
+    "split": "train",
+    "packets": 160,
+    "start_time": "2026-09-10T05:00:00+00:00",
+    "seed": 20261078780845
+  },
+  {
+    "scenario_id": "SIM_EP_00127",
+    "scenario_family": "backup_verification",
+    "split": "train",
+    "packets": 158,
+    "start_time": "2026-09-12T04:00:00+00:00",
+    "seed": 20261078788764
+  },
+  {
+    "scenario_id": "SIM_EP_00128",
+    "scenario_family": "rain_pulses",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-09-14T02:00:00+00:00",
+    "seed": 20261078796683
+  },
+  {
+    "scenario_id": "SIM_EP_00129",
+    "scenario_family": "fast_motion",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-09-16T14:00:00+00:00",
+    "seed": 20261078804602
+  },
+  {
+    "scenario_id": "SIM_EP_00130",
+    "scenario_family": "post_rain_drying",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-09-18T22:00:00+00:00",
+    "seed": 20261078812521
+  },
+  {
+    "scenario_id": "SIM_EP_00131",
+    "scenario_family": "creep",
+    "split": "train",
+    "packets": 160,
+    "start_time": "2026-09-20T03:00:00+00:00",
+    "seed": 20261078820440
+  },
+  {
+    "scenario_id": "SIM_EP_00132",
+    "scenario_family": "backup_verification",
+    "split": "train",
+    "packets": 158,
+    "start_time": "2026-09-22T02:00:00+00:00",
+    "seed": 20261078828359
+  },
+  {
+    "scenario_id": "SIM_EP_00133",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 122,
+    "start_time": "2026-09-24T13:00:00+00:00",
+    "seed": 20261078836278
+  },
+  {
+    "scenario_id": "SIM_EP_00134",
+    "scenario_family": "wet_no_motion",
+    "split": "validation",
+    "packets": 124,
+    "start_time": "2026-09-26T03:00:00+00:00",
+    "seed": 20261078844197
+  },
+  {
+    "scenario_id": "SIM_EP_00135",
+    "scenario_family": "intermittent_rain",
+    "split": "validation",
+    "packets": 148,
+    "start_time": "2026-09-28T16:00:00+00:00",
+    "seed": 20261078852116
+  },
+  {
+    "scenario_id": "SIM_EP_00136",
+    "scenario_family": "backup_verification",
+    "split": "validation",
+    "packets": 160,
+    "start_time": "2026-09-30T18:00:00+00:00",
+    "seed": 20261078860035
+  },
+  {
+    "scenario_id": "SIM_EP_00137",
+    "scenario_family": "intermittent_rain",
+    "split": "test",
+    "packets": 123,
+    "start_time": "2026-10-02T13:00:00+00:00",
+    "seed": 20261078867954
+  },
+  {
+    "scenario_id": "SIM_EP_00138",
+    "scenario_family": "wet_motion",
+    "split": "test",
+    "packets": 123,
+    "start_time": "2026-10-04T11:00:00+00:00",
+    "seed": 20261078875873
+  },
+  {
+    "scenario_id": "SIM_EP_00139",
+    "scenario_family": "daily_cycle",
+    "split": "test",
+    "packets": 122,
+    "start_time": "2026-10-06T02:00:00+00:00",
+    "seed": 20261078883792
+  },
+  {
+    "scenario_id": "SIM_EP_00140",
+    "scenario_family": "daily_cycle",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-10-08T05:00:00+00:00",
+    "seed": 20261078891711
+  },
+  {
+    "scenario_id": "SIM_EP_00141",
+    "scenario_family": "antecedent_wet",
+    "split": "train",
+    "packets": 121,
+    "start_time": "2026-10-10T04:00:00+00:00",
+    "seed": 20261078899630
+  },
+  {
+    "scenario_id": "SIM_EP_00142",
+    "scenario_family": "dry_motion",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-10-12T07:00:00+00:00",
+    "seed": 20261078907549
+  },
+  {
+    "scenario_id": "SIM_EP_00143",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-10-14T15:00:00+00:00",
+    "seed": 20261078915468
+  },
+  {
+    "scenario_id": "SIM_EP_00144",
+    "scenario_family": "backup_verification",
+    "split": "train",
+    "packets": 159,
+    "start_time": "2026-10-16T09:00:00+00:00",
+    "seed": 20261078923387
+  },
+  {
+    "scenario_id": "SIM_EP_00145",
+    "scenario_family": "post_rain_drying",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-10-18T15:00:00+00:00",
+    "seed": 20261078931306
+  },
+  {
+    "scenario_id": "SIM_EP_00146",
+    "scenario_family": "wet_motion",
+    "split": "train",
+    "packets": 127,
+    "start_time": "2026-10-20T04:00:00+00:00",
+    "seed": 20261078939225
+  },
+  {
+    "scenario_id": "SIM_EP_00147",
+    "scenario_family": "post_rain_drying",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-10-22T16:00:00+00:00",
+    "seed": 20261078947144
+  },
+  {
+    "scenario_id": "SIM_EP_00148",
+    "scenario_family": "creep",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-10-24T13:00:00+00:00",
+    "seed": 20261078955063
+  },
+  {
+    "scenario_id": "SIM_EP_00149",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-10-26T00:00:00+00:00",
+    "seed": 20261078962982
+  },
+  {
+    "scenario_id": "SIM_EP_00150",
+    "scenario_family": "packet_loss",
+    "split": "train",
+    "packets": 101,
+    "start_time": "2026-10-28T00:00:00+00:00",
+    "seed": 20261078970901
+  },
+  {
+    "scenario_id": "SIM_EP_00151",
+    "scenario_family": "long_rain",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-10-30T05:00:00+00:00",
+    "seed": 20261078978820
+  },
+  {
+    "scenario_id": "SIM_EP_00152",
+    "scenario_family": "dry_motion",
+    "split": "train",
+    "packets": 122,
+    "start_time": "2026-11-01T23:00:00+00:00",
+    "seed": 20261078986739
+  },
+  {
+    "scenario_id": "SIM_EP_00153",
+    "scenario_family": "rain_pulses",
+    "split": "train",
+    "packets": 122,
+    "start_time": "2026-11-03T00:00:00+00:00",
+    "seed": 20261078994658
+  },
+  {
+    "scenario_id": "SIM_EP_00154",
+    "scenario_family": "disagreement",
+    "split": "validation",
+    "packets": 158,
+    "start_time": "2026-11-05T22:00:00+00:00",
+    "seed": 20261079002577
+  },
+  {
+    "scenario_id": "SIM_EP_00155",
+    "scenario_family": "fast_motion",
+    "split": "validation",
+    "packets": 124,
+    "start_time": "2026-11-07T10:00:00+00:00",
+    "seed": 20261079010496
+  },
+  {
+    "scenario_id": "SIM_EP_00156",
+    "scenario_family": "rain_pulses",
+    "split": "validation",
+    "packets": 123,
+    "start_time": "2026-11-09T16:00:00+00:00",
+    "seed": 20261079018415
+  },
+  {
+    "scenario_id": "SIM_EP_00157",
+    "scenario_family": "post_rain_drying",
+    "split": "test",
+    "packets": 123,
+    "start_time": "2026-11-11T20:00:00+00:00",
+    "seed": 20261079026334
+  },
+  {
+    "scenario_id": "SIM_EP_00158",
+    "scenario_family": "isolated_vibration",
+    "split": "test",
+    "packets": 120,
+    "start_time": "2026-11-13T01:00:00+00:00",
+    "seed": 20261079034253
+  },
+  {
+    "scenario_id": "SIM_EP_00159",
+    "scenario_family": "fast_motion",
+    "split": "test",
+    "packets": 124,
+    "start_time": "2026-11-15T15:00:00+00:00",
+    "seed": 20261079042172
+  },
+  {
+    "scenario_id": "SIM_EP_00160",
+    "scenario_family": "long_rain",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-11-17T07:00:00+00:00",
+    "seed": 20261079050091
+  },
+  {
+    "scenario_id": "SIM_EP_00161",
+    "scenario_family": "long_rain",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-11-19T08:00:00+00:00",
+    "seed": 20261079058010
+  },
+  {
+    "scenario_id": "SIM_EP_00162",
+    "scenario_family": "backup_verification",
+    "split": "train",
+    "packets": 160,
+    "start_time": "2026-11-21T16:00:00+00:00",
+    "seed": 20261079065929
+  },
+  {
+    "scenario_id": "SIM_EP_00163",
+    "scenario_family": "isolated_vibration",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-11-23T17:00:00+00:00",
+    "seed": 20261079073848
+  },
+  {
+    "scenario_id": "SIM_EP_00164",
+    "scenario_family": "fast_motion",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-11-25T04:00:00+00:00",
+    "seed": 20261079081767
+  },
+  {
+    "scenario_id": "SIM_EP_00165",
+    "scenario_family": "rain_pulses",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-11-27T05:00:00+00:00",
+    "seed": 20261079089686
+  },
+  {
+    "scenario_id": "SIM_EP_00166",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 160,
+    "start_time": "2026-11-29T10:00:00+00:00",
+    "seed": 20261079097605
+  },
+  {
+    "scenario_id": "SIM_EP_00167",
+    "scenario_family": "disagreement",
+    "split": "train",
+    "packets": 160,
+    "start_time": "2026-12-01T16:00:00+00:00",
+    "seed": 20261079105524
+  },
+  {
+    "scenario_id": "SIM_EP_00168",
+    "scenario_family": "disagreement",
+    "split": "train",
+    "packets": 160,
+    "start_time": "2026-12-03T06:00:00+00:00",
+    "seed": 20261079113443
+  },
+  {
+    "scenario_id": "SIM_EP_00169",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-12-05T21:00:00+00:00",
+    "seed": 20261079121362
+  },
+  {
+    "scenario_id": "SIM_EP_00170",
+    "scenario_family": "isolated_vibration",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-12-07T10:00:00+00:00",
+    "seed": 20261079129281
+  },
+  {
+    "scenario_id": "SIM_EP_00171",
+    "scenario_family": "packet_loss",
+    "split": "train",
+    "packets": 107,
+    "start_time": "2026-12-09T17:00:00+00:00",
+    "seed": 20261079137200
+  },
+  {
+    "scenario_id": "SIM_EP_00172",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-12-11T23:00:00+00:00",
+    "seed": 20261079145119
+  },
+  {
+    "scenario_id": "SIM_EP_00173",
+    "scenario_family": "rain_pulses",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2026-12-13T19:00:00+00:00",
+    "seed": 20261079153038
+  },
+  {
+    "scenario_id": "SIM_EP_00174",
+    "scenario_family": "creep",
+    "split": "validation",
+    "packets": 122,
+    "start_time": "2026-12-15T10:00:00+00:00",
+    "seed": 20261079160957
+  },
+  {
+    "scenario_id": "SIM_EP_00175",
+    "scenario_family": "wet_no_motion",
+    "split": "validation",
+    "packets": 142,
+    "start_time": "2026-12-17T22:00:00+00:00",
+    "seed": 20261079168876
+  },
+  {
+    "scenario_id": "SIM_EP_00176",
+    "scenario_family": "daily_cycle",
+    "split": "validation",
+    "packets": 123,
+    "start_time": "2026-12-19T06:00:00+00:00",
+    "seed": 20261079176795
+  },
+  {
+    "scenario_id": "SIM_EP_00177",
+    "scenario_family": "intermittent_rain",
+    "split": "test",
+    "packets": 124,
+    "start_time": "2026-12-21T18:00:00+00:00",
+    "seed": 20261079184714
+  },
+  {
+    "scenario_id": "SIM_EP_00178",
+    "scenario_family": "fast_motion",
+    "split": "test",
+    "packets": 123,
+    "start_time": "2026-12-23T09:00:00+00:00",
+    "seed": 20261079192633
+  },
+  {
+    "scenario_id": "SIM_EP_00179",
+    "scenario_family": "post_rain_drying",
+    "split": "test",
+    "packets": 124,
+    "start_time": "2026-12-25T13:00:00+00:00",
+    "seed": 20261079200552
+  },
+  {
+    "scenario_id": "SIM_EP_00180",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-12-27T10:00:00+00:00",
+    "seed": 20261079208471
+  },
+  {
+    "scenario_id": "SIM_EP_00181",
+    "scenario_family": "rain_pulses",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-12-29T08:00:00+00:00",
+    "seed": 20261079216390
+  },
+  {
+    "scenario_id": "SIM_EP_00182",
+    "scenario_family": "dry_stable",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2026-12-31T21:00:00+00:00",
+    "seed": 20261079224309
+  },
+  {
+    "scenario_id": "SIM_EP_00183",
+    "scenario_family": "post_rain_drying",
+    "split": "train",
+    "packets": 158,
+    "start_time": "2027-01-02T16:00:00+00:00",
+    "seed": 20261079232228
+  },
+  {
+    "scenario_id": "SIM_EP_00184",
+    "scenario_family": "packet_loss",
+    "split": "train",
+    "packets": 110,
+    "start_time": "2027-01-04T04:00:00+00:00",
+    "seed": 20261079240147
+  },
+  {
+    "scenario_id": "SIM_EP_00185",
+    "scenario_family": "long_rain",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2027-01-06T20:00:00+00:00",
+    "seed": 20261079248066
+  },
+  {
+    "scenario_id": "SIM_EP_00186",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2027-01-08T06:00:00+00:00",
+    "seed": 20261079255985
+  },
+  {
+    "scenario_id": "SIM_EP_00187",
+    "scenario_family": "disagreement",
+    "split": "train",
+    "packets": 159,
+    "start_time": "2027-01-10T09:00:00+00:00",
+    "seed": 20261079263904
+  },
+  {
+    "scenario_id": "SIM_EP_00188",
+    "scenario_family": "disagreement",
+    "split": "train",
+    "packets": 158,
+    "start_time": "2027-01-12T19:00:00+00:00",
+    "seed": 20261079271823
+  },
+  {
+    "scenario_id": "SIM_EP_00189",
+    "scenario_family": "isolated_vibration",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2027-01-14T11:00:00+00:00",
+    "seed": 20261079279742
+  },
+  {
+    "scenario_id": "SIM_EP_00190",
+    "scenario_family": "dry_motion",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2027-01-16T21:00:00+00:00",
+    "seed": 20261079287661
+  },
+  {
+    "scenario_id": "SIM_EP_00191",
+    "scenario_family": "dry_motion",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2027-01-18T06:00:00+00:00",
+    "seed": 20261079295580
+  },
+  {
+    "scenario_id": "SIM_EP_00192",
+    "scenario_family": "long_rain",
+    "split": "train",
+    "packets": 121,
+    "start_time": "2027-01-20T03:00:00+00:00",
+    "seed": 20261079303499
+  },
+  {
+    "scenario_id": "SIM_EP_00193",
+    "scenario_family": "packet_loss",
+    "split": "train",
+    "packets": 113,
+    "start_time": "2027-01-22T12:00:00+00:00",
+    "seed": 20261079311418
+  },
+  {
+    "scenario_id": "SIM_EP_00194",
+    "scenario_family": "wet_no_motion",
+    "split": "validation",
+    "packets": 141,
+    "start_time": "2027-01-24T04:00:00+00:00",
+    "seed": 20261079319337
+  },
+  {
+    "scenario_id": "SIM_EP_00195",
+    "scenario_family": "isolated_vibration",
+    "split": "validation",
+    "packets": 124,
+    "start_time": "2027-01-26T15:00:00+00:00",
+    "seed": 20261079327256
+  },
+  {
+    "scenario_id": "SIM_EP_00196",
+    "scenario_family": "long_rain",
+    "split": "validation",
+    "packets": 122,
+    "start_time": "2027-01-28T19:00:00+00:00",
+    "seed": 20261079335175
+  },
+  {
+    "scenario_id": "SIM_EP_00197",
+    "scenario_family": "disagreement",
+    "split": "test",
+    "packets": 159,
+    "start_time": "2027-01-30T15:00:00+00:00",
+    "seed": 20261079343094
+  },
+  {
+    "scenario_id": "SIM_EP_00198",
+    "scenario_family": "long_rain",
+    "split": "test",
+    "packets": 124,
+    "start_time": "2027-02-01T01:00:00+00:00",
+    "seed": 20261079351013
+  },
+  {
+    "scenario_id": "SIM_EP_00199",
+    "scenario_family": "post_rain_drying",
+    "split": "test",
+    "packets": 122,
+    "start_time": "2027-02-03T02:00:00+00:00",
+    "seed": 20261079358932
+  },
+  {
+    "scenario_id": "SIM_EP_00200",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2027-02-05T14:00:00+00:00",
+    "seed": 20261079366851
+  },
+  {
+    "scenario_id": "SIM_EP_00201",
+    "scenario_family": "creep",
+    "split": "train",
+    "packets": 122,
+    "start_time": "2027-02-07T21:00:00+00:00",
+    "seed": 20261079374770
+  },
+  {
+    "scenario_id": "SIM_EP_00202",
+    "scenario_family": "isolated_vibration",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2027-02-09T04:00:00+00:00",
+    "seed": 20261079382689
+  },
+  {
+    "scenario_id": "SIM_EP_00203",
+    "scenario_family": "creep",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2027-02-11T13:00:00+00:00",
+    "seed": 20261079390608
+  },
+  {
+    "scenario_id": "SIM_EP_00204",
+    "scenario_family": "backup_verification",
+    "split": "train",
+    "packets": 160,
+    "start_time": "2027-02-13T08:00:00+00:00",
+    "seed": 20261079398527
+  },
+  {
+    "scenario_id": "SIM_EP_00205",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 156,
+    "start_time": "2027-02-15T15:00:00+00:00",
+    "seed": 20261079406446
+  },
+  {
+    "scenario_id": "SIM_EP_00206",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2027-02-17T23:00:00+00:00",
+    "seed": 20261079414365
+  },
+  {
+    "scenario_id": "SIM_EP_00207",
+    "scenario_family": "rain_pulses",
+    "split": "train",
+    "packets": 141,
+    "start_time": "2027-02-19T00:00:00+00:00",
+    "seed": 20261079422284
+  },
+  {
+    "scenario_id": "SIM_EP_00208",
+    "scenario_family": "long_rain",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2027-02-21T12:00:00+00:00",
+    "seed": 20261079430203
+  },
+  {
+    "scenario_id": "SIM_EP_00209",
+    "scenario_family": "backup_verification",
+    "split": "train",
+    "packets": 160,
+    "start_time": "2027-02-23T03:00:00+00:00",
+    "seed": 20261079438122
+  },
+  {
+    "scenario_id": "SIM_EP_00210",
+    "scenario_family": "wet_motion",
+    "split": "train",
+    "packets": 122,
+    "start_time": "2027-02-25T08:00:00+00:00",
+    "seed": 20261079446041
+  },
+  {
+    "scenario_id": "SIM_EP_00211",
+    "scenario_family": "dry_stable",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2027-02-27T05:00:00+00:00",
+    "seed": 20261079453960
+  },
+  {
+    "scenario_id": "SIM_EP_00212",
+    "scenario_family": "packet_loss",
+    "split": "train",
+    "packets": 144,
+    "start_time": "2027-03-01T00:00:00+00:00",
+    "seed": 20261079461879
+  },
+  {
+    "scenario_id": "SIM_EP_00213",
+    "scenario_family": "long_rain",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2027-03-03T15:00:00+00:00",
+    "seed": 20261079469798
+  },
+  {
+    "scenario_id": "SIM_EP_00214",
+    "scenario_family": "isolated_vibration",
+    "split": "validation",
+    "packets": 159,
+    "start_time": "2027-03-05T06:00:00+00:00",
+    "seed": 20261079477717
+  },
+  {
+    "scenario_id": "SIM_EP_00215",
+    "scenario_family": "intermittent_rain",
+    "split": "validation",
+    "packets": 124,
+    "start_time": "2027-03-07T23:00:00+00:00",
+    "seed": 20261079485636
+  },
+  {
+    "scenario_id": "SIM_EP_00216",
+    "scenario_family": "long_rain",
+    "split": "validation",
+    "packets": 124,
+    "start_time": "2027-03-09T19:00:00+00:00",
+    "seed": 20261079493555
+  },
+  {
+    "scenario_id": "SIM_EP_00217",
+    "scenario_family": "rain_pulses",
+    "split": "test",
+    "packets": 123,
+    "start_time": "2027-03-11T06:00:00+00:00",
+    "seed": 20261079501474
+  },
+  {
+    "scenario_id": "SIM_EP_00218",
+    "scenario_family": "disagreement",
+    "split": "test",
+    "packets": 160,
+    "start_time": "2027-03-13T20:00:00+00:00",
+    "seed": 20261079509393
+  },
+  {
+    "scenario_id": "SIM_EP_00219",
+    "scenario_family": "daily_cycle",
+    "split": "test",
+    "packets": 124,
+    "start_time": "2027-03-15T16:00:00+00:00",
+    "seed": 20261079517312
+  },
+  {
+    "scenario_id": "SIM_EP_00220",
+    "scenario_family": "backup_verification",
+    "split": "train",
+    "packets": 158,
+    "start_time": "2027-03-17T17:00:00+00:00",
+    "seed": 20261079525231
+  },
+  {
+    "scenario_id": "SIM_EP_00221",
+    "scenario_family": "disagreement",
+    "split": "train",
+    "packets": 158,
+    "start_time": "2027-03-19T06:00:00+00:00",
+    "seed": 20261079533150
+  },
+  {
+    "scenario_id": "SIM_EP_00222",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2027-03-21T19:00:00+00:00",
+    "seed": 20261079541069
+  },
+  {
+    "scenario_id": "SIM_EP_00223",
+    "scenario_family": "intermittent_rain",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2027-03-23T04:00:00+00:00",
+    "seed": 20261079548988
+  },
+  {
+    "scenario_id": "SIM_EP_00224",
+    "scenario_family": "long_rain",
+    "split": "train",
+    "packets": 123,
+    "start_time": "2027-03-25T18:00:00+00:00",
+    "seed": 20261079556907
+  },
+  {
+    "scenario_id": "SIM_EP_00225",
+    "scenario_family": "antecedent_wet",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2027-03-27T11:00:00+00:00",
+    "seed": 20261079564826
+  },
+  {
+    "scenario_id": "SIM_EP_00226",
+    "scenario_family": "backup_verification",
+    "split": "train",
+    "packets": 160,
+    "start_time": "2027-03-29T17:00:00+00:00",
+    "seed": 20261079572745
+  },
+  {
+    "scenario_id": "SIM_EP_00227",
+    "scenario_family": "creep",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2027-03-31T23:00:00+00:00",
+    "seed": 20261079580664
+  },
+  {
+    "scenario_id": "SIM_EP_00228",
+    "scenario_family": "dry_stable",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2027-04-02T11:00:00+00:00",
+    "seed": 20261079588583
+  },
+  {
+    "scenario_id": "SIM_EP_00229",
+    "scenario_family": "disagreement",
+    "split": "train",
+    "packets": 159,
+    "start_time": "2027-04-04T03:00:00+00:00",
+    "seed": 20261079596502
+  },
+  {
+    "scenario_id": "SIM_EP_00230",
+    "scenario_family": "cloudburst",
+    "split": "train",
+    "packets": 122,
+    "start_time": "2027-04-06T21:00:00+00:00",
+    "seed": 20261079604421
+  },
+  {
+    "scenario_id": "SIM_EP_00231",
+    "scenario_family": "sensor_drift",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2027-04-08T13:00:00+00:00",
+    "seed": 20261079612340
+  },
+  {
+    "scenario_id": "SIM_EP_00232",
+    "scenario_family": "disagreement",
+    "split": "train",
+    "packets": 159,
+    "start_time": "2027-04-10T05:00:00+00:00",
+    "seed": 20261079620259
+  },
+  {
+    "scenario_id": "SIM_EP_00233",
+    "scenario_family": "creep",
+    "split": "train",
+    "packets": 124,
+    "start_time": "2027-04-12T00:00:00+00:00",
+    "seed": 20261079628178
+  },
+  {
+    "scenario_id": "SIM_EP_00234",
+    "scenario_family": "cloudburst",
+    "split": "validation",
+    "packets": 123,
+    "start_time": "2027-04-14T20:00:00+00:00",
+    "seed": 20261079636097
+  },
+  {
+    "scenario_id": "SIM_EP_00235",
+    "scenario_family": "daily_cycle",
+    "split": "validation",
+    "packets": 124,
+    "start_time": "2027-04-16T06:00:00+00:00",
+    "seed": 20261079644016
+  },
+  {
+    "scenario_id": "SIM_EP_00236",
+    "scenario_family": "intermittent_rain",
+    "split": "validation",
+    "packets": 123,
+    "start_time": "2027-04-18T12:00:00+00:00",
+    "seed": 20261079651935
+  },
+  {
+    "scenario_id": "SIM_EP_00237",
+    "scenario_family": "rain_pulses",
+    "split": "test",
+    "packets": 160,
+    "start_time": "2027-04-20T11:00:00+00:00",
+    "seed": 20261079659854
+  },
+  {
+    "scenario_id": "SIM_EP_00238",
+    "scenario_family": "rain_pulses",
+    "split": "test",
+    "packets": 123,
+    "start_time": "2027-04-22T09:00:00+00:00",
+    "seed": 20261079667773
+  },
+  {
+    "scenario_id": "SIM_EP_00239",
+    "scenario_family": "wet_no_motion",
+    "split": "test",
+    "packets": 123,
+    "start_time": "2027-04-24T12:00:00+00:00",
+    "seed": 20261079675692
+  }
+]
