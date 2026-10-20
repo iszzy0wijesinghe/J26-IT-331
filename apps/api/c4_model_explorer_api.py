@@ -37,6 +37,10 @@ from database.session import create_database_engine
 from shared.config.settings import get_settings
 from shared.contracts.telemetry import TelemetryPacket
 
+# Get the repository root (3 levels up from apps/api/)
+REPO_ROOT = Path(__file__).resolve().parents[2]
+QUARANTINE_DIR = REPO_ROOT / "quarantine" / "c4"
+
 app = FastAPI(
     title="GeoNex C4 Model Explorer API",
     version="1.3.0",
@@ -982,4 +986,92 @@ async def persist_trusted_packets(request: PersistTrustedRequest) -> dict[str, A
         raise HTTPException(
             status_code=500,
             detail=f"Failed to persist trusted packets: {error_detail}"
+        ) from exc
+
+
+@app.get("/api/c4/quarantine")
+def get_quarantine_files() -> dict[str, Any]:
+    """Get all quarantine records from the quarantine/c4/ directory.
+
+    Returns:
+        Summary and detailed list of quarantine records
+    """
+    try:
+        print(f"DEBUG: REPO_ROOT = {REPO_ROOT}")
+        print(f"DEBUG: QUARANTINE_DIR = {QUARANTINE_DIR}")
+        print(f"DEBUG: QUARANTINE_DIR.exists() = {QUARANTINE_DIR.exists()}")
+
+        if not QUARANTINE_DIR.exists():
+            return {
+                "count": 0,
+                "records": [],
+                "statistics": {
+                    "total": 0,
+                    "released": 0,
+                    "unreleased": 0,
+                    "by_reason": {},
+                },
+                "message": f"Quarantine directory not found: {QUARANTINE_DIR}"
+            }
+
+        quarantine_files = list(QUARANTINE_DIR.glob("*.json"))
+        print(f"DEBUG: Found {len(quarantine_files)} quarantine files")
+
+        if not quarantine_files:
+            return {
+                "count": 0,
+                "records": [],
+                "statistics": {
+                    "total": 0,
+                    "released": 0,
+                    "unreleased": 0,
+                    "by_reason": {},
+                },
+                "message": "No quarantine files found"
+            }
+
+        records = []
+        reason_counts: dict[str, int] = {}
+        released_count = 0
+
+        for file_path in sorted(quarantine_files):
+            try:
+                with file_path.open(encoding="utf-8") as f:
+                    record = json.load(f)
+                    records.append(record)
+
+                    # Count by reason
+                    reason = record.get("quarantine_reason", "UNKNOWN")
+                    reason_counts[reason] = reason_counts.get(reason, 0) + 1
+
+                    # Count released
+                    if record.get("released"):
+                        released_count += 1
+
+            except Exception as exc:
+                # Skip files that can't be read
+                print(f"DEBUG: Error reading {file_path.name}: {exc}")
+                continue
+
+        statistics = {
+            "total": len(records),
+            "released": released_count,
+            "unreleased": len(records) - released_count,
+            "by_reason": reason_counts,
+        }
+
+        print(f"DEBUG: Loaded {len(records)} records successfully")
+
+        return {
+            "count": len(records),
+            "records": json_safe(records),
+            "statistics": statistics,
+            "message": f"Found {len(records)} quarantine record(s)"
+        }
+
+    except Exception as exc:
+        print(f"DEBUG: Exception in get_quarantine_files: {exc}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to read quarantine files: {exc}"
         ) from exc

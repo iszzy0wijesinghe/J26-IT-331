@@ -419,24 +419,24 @@ class C4DemoBackend:
         rows: list[dict[str, Any]] = []
 
         if scenario in {"valid", "valid_hmac"}:
-            for item in items:
-                hmac_cred = self._credentials[item.packet.device_id]
-                self._registry.update_credential(item.packet.device_id, hmac_cred)
-                packet = self._prepare_packet(item, hmac_cred)
-                signature = C4TrustService.sign_packet(packet, hmac_cred.secret)
-                result = self._gate.process(
+            item = items[0]
+            hmac_cred = self._credentials[item.packet.device_id]
+            self._registry.update_credential(item.packet.device_id, hmac_cred)
+            packet = self._prepare_packet(item, hmac_cred)
+            signature = C4TrustService.sign_packet(packet, hmac_cred.secret)
+            result = self._gate.process(
+                packet,
+                signature,
+                now=packet.observed_at,
+            )
+            rows.append(
+                self._result_row(
+                    result,
+                    "Valid Telemetry (HMAC)",
+                    "hmac-sha256",
                     packet,
-                    signature,
-                    now=packet.observed_at,
                 )
-                rows.append(
-                    self._result_row(
-                        result,
-                        "Valid Telemetry (HMAC)",
-                        "hmac-sha256",
-                        packet,
-                    )
-                )
+            )
 
         elif scenario in {"tampered", "tampered_hmac"}:
             item = items[0]
