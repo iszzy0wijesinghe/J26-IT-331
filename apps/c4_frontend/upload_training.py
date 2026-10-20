@@ -247,9 +247,13 @@ def prepare_uploaded_dataset(
     return df.reset_index(drop=True)
 
 
+
 def predict_uploaded_dataset(uploaded_df: pd.DataFrame) -> pd.DataFrame:
+    original = uploaded_df.copy()
+    original.columns = [str(column).strip() for column in original.columns]
+
     prepared = prepare_uploaded_dataset(
-        uploaded_df,
+        original,
         require_labels=False,
     )
 
@@ -273,38 +277,26 @@ def predict_uploaded_dataset(uploaded_df: pd.DataFrame) -> pd.DataFrame:
             "The model returned an unexpected number of predictions."
         )
 
-    results = prepared[
-        ["device_id", "device_timestamp"]
-    ].copy()
-
+    results = prepared[original.columns].copy()
     results["predicted_label"] = predictions
 
-    try:
-        probabilities = np.asarray(model.predict_proba(X))
-    except (AttributeError, NotImplementedError):
-        probabilities = None
+    probabilities = np.asarray(model.predict_proba(X))
 
-    if probabilities is not None:
-        expected_shape = (
-            len(prepared),
-            len(model.label_encoder.classes_),
+    expected_shape = (
+        len(prepared),
+        len(model.label_encoder.classes_),
+    )
+
+    if probabilities.shape != expected_shape:
+        raise ValueError(
+            "The model returned an invalid prediction probability matrix."
         )
 
-        if probabilities.shape != expected_shape:
-            raise ValueError("The model returned an invalid probability matrix.")
-
-        if (
-            not np.isfinite(probabilities).all()
-            or (probabilities < 0).any()
-            or (probabilities > 1).any()
-            or not np.allclose(probabilities.sum(axis=1), 1.0, atol=1e-5)
-        ):
-            raise ValueError("The model returned invalid prediction probabilities.")
-
-        for index, label in enumerate(model.label_encoder.classes_):
-            results[f"probability_{str(label).lower()}"] = probabilities[:, index]
+    for index, label in enumerate(model.label_encoder.classes_):
+        results[f"probability_{str(label).lower()}"] = probabilities[:, index]
 
     return results.reset_index(drop=True)
+
 
 
 def create_device_aware_splits(

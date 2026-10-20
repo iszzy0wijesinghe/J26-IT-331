@@ -196,7 +196,7 @@ class C4DemoBackend:
             cert_str = cert_pem.decode("utf-8") if isinstance(cert_pem, bytes) else cert_pem
 
         transport = packet.transport.model_copy(
-            update={"gateway_id": hub_id}
+            update={"gateway_id": hub_id, "packet_size_bytes": 256}
         )
         security = SecurityMetadata(
             credential_id=credential.credential_id,
@@ -288,8 +288,11 @@ class C4DemoBackend:
             "rssi_dbm": packet.transport.rssi_dbm,
             "snr_db": packet.transport.snr_db,
             "retry_count": packet.transport.retry_count,
+            "packet_size_bytes": packet.transport.packet_size_bytes,
             "battery_pct": packet.device_health.battery_pct,
             "battery_voltage": packet.device_health.battery_voltage,
+            "supply_current": packet.device_health.supply_current,
+            "reboot_count_24h": packet.device_health.reboot_count_24h,
             "sensor_fault_flag": packet.device_health.sensor_fault_flag,
             "measurements": C4DemoBackend._measurement_rows(packet),
             "credential_id": packet.security.credential_id,

@@ -9,8 +9,9 @@ from typing import Any
 from pathlib import Path
 import numpy as np
 import pandas as pd
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile, Body
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 from apps.c4_frontend.ml_explorer import (
     C4ModelExplorer,
@@ -18,6 +19,7 @@ from apps.c4_frontend.ml_explorer import (
     available_catalog_entries,
     catalog_by_key,
 )
+from apps.c4_frontend.c4_backend import C4DemoBackend, SUPPORTED_SCENARIOS
 
 from apps.c4_frontend.upload_training import (
     FEATURES,
@@ -59,6 +61,10 @@ app.add_middleware(
 _TRAINING_SESSIONS: dict[str, dict[str, Any]] = {}
 _TRAINING_JOBS: dict[str, dict[str, Any]] = {}
 _TRAINING_LOCK = Lock()
+
+
+class ScenarioRequest(BaseModel):
+    scenario: str
 
 
 def json_safe(value: Any) -> Any:
@@ -779,3 +785,118 @@ def save_trained_candidate(training_id: str) -> dict[str, Any]:
         "candidate_path": existing_path,
         **verification,
     }
+
+
+@app.post("/api/c4/scenarios/run")
+def run_c4_scenario(request: ScenarioRequest) -> dict[str, Any]:
+    """Run a C4 security scenario and return assessment results.
+
+    This endpoint enforces the security gate before ML:
+    - Security checks run first (authentication, integrity, freshness, replay, certificates)
+    - ML inference only runs if mandatory_security_pass = True
+    - Failed packets skip ML and record the security failure reason
+
+    Args:
+        request: Request body containing scenario name (e.g., "valid_hmac", "tampered_hmac", "valid_ecdsa")
+
+    Returns:
+        Assessment results including security status, ML status, and routing outcome
+    """
+    scenario = request.scenario
+
+    if scenario not in SUPPORTED_SCENARIOS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported scenario: {scenario}. "
+            f"Supported scenarios: {', '.join(sorted(SUPPORTED_SCENARIOS))}"
+        )
+
+    backend = None
+    try:
+        backend = C4DemoBackend()
+        results = backend.run_simulation(scenario)
+
+        if not results:
+            raise HTTPException(
+                status_code=500,
+                detail="Scenario returned no results"
+            )
+
+        # Add security status and ML status to each result
+        for result in results:
+            mandatory_pass = result.get("mandatory_security_pass", False)
+            ml_ran = result.get("ml_ran", False)
+
+            # Determine security status
+            if mandatory_pass:
+                security_status = "PASS"
+            else:
+                security_status = "FAIL"
+
+            # Determine ML status
+            if ml_ran:
+                ml_status = "COMPLETED"
+            elif not mandatory_pass:
+                ml_status = "SKIPPED - SECURITY FAILURE"
+            else:
+                ml_status = "UNAVAILABLE - MISSING FEATURES"
+
+            # Add status fields
+            result["security_status"] = security_status
+            result["ml_status"] = ml_status
+
+        return {
+            "scenario": scenario,
+            "results": json_safe(results),
+            "count": len(results),
+            "message": f"Scenario '{scenario}' completed successfully. "
+            f"{len(results)} assessment(s) generated."
+        }
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Scenario execution failed: {type(exc).__name__}: {exc}"
+        ) from exc
+    finally:
+        if backend is not None:
+            backend.close()
+
+
+@app.get("/api/c4/scenarios")
+def list_scenarios() -> dict[str, Any]:
+    """List all available C4 security scenarios.
+
+    Returns:
+        Dictionary with scenario names and descriptions
+    """
+    scenario_descriptions = {
+        "valid_hmac": "Valid telemetry with HMAC-SHA256 signature",
+        "tampered_hmac": "Tampered packet with valid HMAC signature (FAIL)",
+        "replay_hmac": "Replay attack with duplicate packet (FAIL)",
+        "valid_ecdsa": "Valid telemetry with X.509 certificate and ECDSA signature",
+        "tampered_ecdsa": "Tampered packet with valid ECDSA signature (FAIL)",
+        "expired_x509": "Packet with expired X.509 certificate (FAIL)",
+        "untrusted_ca_x509": "Packet signed by untrusted CA (FAIL)",
+        "mismatched_identity_x509": "Certificate identity mismatch (FAIL)",
+        "revoked_x509": "Packet with revoked certificate (FAIL)",
+        "fallback_rejection": "Algorithm fallback rejection (FAIL)",
+    }
+
+    return {
+        "scenarios": [
+            {
+                "key": scenario,
+                "description": scenario_descriptions.get(scenario, ""),
+            }
+            for scenario in sorted(SUPPORTED_SCENARIOS)
+        ]
+    }
+
+
+@app.get("/api/c4/health")
+def health_check() -> dict[str, str]:
+    """Health check endpoint to verify API is running."""
+    return {"status": "ok", "service": "C4 Model Explorer API"}

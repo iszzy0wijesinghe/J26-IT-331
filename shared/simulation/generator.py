@@ -130,6 +130,7 @@ def generate_baseline_packets(
                 "rssi_dbm": rssi_dbm,
                 "snr_db": snr_db,
                 "retry_count": retry_count,
+                "packet_size_bytes": 256,
             },
             source_origin=SourceOrigin.SIMULATED,
             test_run_id=f"SIM_RUN_{config.seed}",
