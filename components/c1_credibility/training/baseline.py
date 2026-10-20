@@ -10,7 +10,6 @@ from sklearn.metrics import classification_report, confusion_matrix, f1_score
 DATASET_PATH = Path("data/synthetic/c1/C1_CREDIBILITY_V0.2.0/dataset.csv")
 CLASSES = ["CLEAN", "ANOMALY", "VALID_EVENT"]
 
-# fixed before looking at the test set. max rate matches clean.max_normal_rate_pct_per_min
 MAX_RATE_PCT_PER_MIN = 1.0
 RAIN_MM = 2.5
 EVENT_RISE_PCT = 1.5
@@ -24,7 +23,8 @@ def rule_based_predict(row: pd.Series) -> str:
     rate = row["delta_prev_pct_per_min"]
     if pd.notna(rate) and abs(rate) > MAX_RATE_PCT_PER_MIN:
         return "ANOMALY"
-    rain = max(row["rain_1h_mm"], row["rain_3h_mm"])  # NaN-safe below
+    # NaN-safe max using pd.Series
+    rain = pd.Series([row["rain_1h_mm"], row["rain_3h_mm"]]).max()
     if (
         pd.notna(rain)
         and rain >= RAIN_MM
@@ -37,7 +37,6 @@ def rule_based_predict(row: pd.Series) -> str:
 
 def report(name: str, y_true: pd.Series, y_pred: pd.Series) -> None:
     print(f"\n=== {name} ===")
-    # labels= fixes the order, sklearn would sort them alphabetically otherwise
     print(classification_report(y_true, y_pred, labels=CLASSES, target_names=CLASSES, zero_division=0))
     cm = confusion_matrix(y_true, y_pred, labels=CLASSES)
     print(pd.DataFrame(cm, index=CLASSES, columns=CLASSES).to_string())
