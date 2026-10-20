@@ -46,198 +46,134 @@ export const C4Page: React.FC = () => {
     setError(null);
 
     try {
-      const normalizedScenario = scenario.toLowerCase().replace(/-/g, '_');
-      const timestamp = Date.now();
-      const packetId = `packet-${timestamp}`;
-      const deviceId = 'PIPE_A1';
-      const generatedAt = new Date().toISOString();
+      // Map frontend button labels to backend scenario keys
+      const scenarioMapping: Record<string, string> = {
+        'Run Valid Telemetry (HMAC)': 'valid_hmac',
+        'Test Tampered': 'tampered_hmac',
+        'Test Replay Attack': 'replay_hmac',
+        'Run Valid X.509 + ECDSA': 'valid_ecdsa',
+        'Test Tampered ECDSA': 'tampered_ecdsa',
+        'Test Alg Fallback Rejection': 'fallback_rejection',
+        'Test Expired': 'expired_x509',
+        'Test Untrusted CA': 'untrusted_ca_x509',
+        'Test Identity Mismatch Cert': 'mismatched_identity_x509',
+        'Test Revoked': 'revoked_x509',
+      };
 
-      const isTampered = normalizedScenario.includes('tampered');
-      const isReplay = normalizedScenario.includes('replay');
-      const isExpired = normalizedScenario.includes('expired');
-      const isUntrustedCA =
-        normalizedScenario.includes('untrusted_ca') ||
-        normalizedScenario.includes('untrusted ca');
-      const isIdentityMismatch =
-        normalizedScenario.includes('mismatched') ||
-        normalizedScenario.includes('identity_mismatch') ||
-        normalizedScenario.includes('identity mismatch');
-      const isRevoked = normalizedScenario.includes('revoked');
-      const isFallback = normalizedScenario.includes('fallback');
-      const isEcdsa = normalizedScenario.includes('ecdsa');
-      const isHmac = normalizedScenario.includes('hmac');
+      const normalizedScenario = scenarioMapping[scenario] || scenario.toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
 
-      let trustLabel: 'TRUSTED' | 'UNTRUSTED' | 'SUSPICIOUS' | 'UNKNOWN' =
-        'TRUSTED';
+      // Call the backend API
+      const response = await fetch('http://localhost:8000/api/c4/scenarios/run', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ scenario: normalizedScenario }),
+      });
 
-      let routingOutcome:
-        | 'ACCEPT'
-        | 'REJECT'
-        | 'QUARANTINE'
-        | 'SECURITY_REVIEW' = 'ACCEPT';
-
-      let mandatorySecurityPass = true;
-      let reasonCodes = [
-        'ZONE_VALID',
-        'IDENTITY_VALID',
-        'INTEGRITY_VALID',
-      ];
-      let behaviouralScore: number | null = Math.random() * 0.5;
-      let quarantined = false;
-
-      if (isTampered || isFallback) {
-        trustLabel = 'UNTRUSTED';
-        routingOutcome = 'REJECT';
-        mandatorySecurityPass = false;
-        reasonCodes = [
-          isFallback ? 'ALGORITHM_FALLBACK_REJECTED' : 'INTEGRITY_INVALID',
-        ];
-        behaviouralScore = null;
-        quarantined = true;
-      } else if (isReplay) {
-        trustLabel = 'UNTRUSTED';
-        routingOutcome = 'REJECT';
-        mandatorySecurityPass = false;
-        reasonCodes = ['REPLAY_DETECTED'];
-        behaviouralScore = null;
-        quarantined = true;
-      } else if (isExpired) {
-        trustLabel = 'UNTRUSTED';
-        routingOutcome = 'REJECT';
-        mandatorySecurityPass = false;
-        reasonCodes = ['CERTIFICATE_EXPIRED'];
-        behaviouralScore = null;
-        quarantined = true;
-      } else if (isUntrustedCA) {
-        trustLabel = 'UNTRUSTED';
-        routingOutcome = 'REJECT';
-        mandatorySecurityPass = false;
-        reasonCodes = ['CERTIFICATE_UNTRUSTED_ISSUER'];
-        behaviouralScore = null;
-        quarantined = true;
-      } else if (isIdentityMismatch) {
-        trustLabel = 'UNTRUSTED';
-        routingOutcome = 'REJECT';
-        mandatorySecurityPass = false;
-        reasonCodes = ['CERTIFICATE_IDENTITY_MISMATCH'];
-        behaviouralScore = null;
-        quarantined = true;
-      } else if (isRevoked) {
-        trustLabel = 'UNTRUSTED';
-        routingOutcome = 'REJECT';
-        mandatorySecurityPass = false;
-        reasonCodes = ['CERTIFICATE_REVOKED'];
-        behaviouralScore = null;
-        quarantined = true;
-      } else {
-        reasonCodes = [
-          'ZONE_VALID',
-          'IDENTITY_VALID',
-          'INTEGRITY_VALID',
-          'FRESHNESS_VALID',
-          'REPLAY_CHECK_VALID',
-        ];
-
-        if (isEcdsa) {
-          reasonCodes.push('CERTIFICATE_VALID');
-        }
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.detail || `HTTP ${response.status}: ${response.statusText}`
+        );
       }
 
-      const credentialId = isEcdsa
-        ? `ecdsa-${normalizedScenario.replace(/\s+/g, '-')}`
-        : isHmac
-          ? `hmac-${normalizedScenario.replace(/\s+/g, '-')}`
-          : `demo-${normalizedScenario.replace(/\s+/g, '-')}`;
+      const data = await response.json();
 
-      const mockResult: C4AssessmentResult = {
-        scenario,
+      // Convert backend results to frontend format
+      const apiResults = data.results.map((apiResult: any) => ({
+        scenario: apiResult.scenario,
         assessment: {
           schema_version: '1.0',
-          assessment_id: `assessment-${timestamp}`,
-          packet_id: packetId,
-          device_id: deviceId,
-          trust_label: trustLabel,
-          trust_score: trustLabel === 'TRUSTED' ? 0.95 : 0,
-          mandatory_security_pass: mandatorySecurityPass,
-          reason_codes: reasonCodes,
-          behavioural_score: behaviouralScore,
-          routing_outcome: routingOutcome,
+          assessment_id: apiResult.assessment_id,
+          packet_id: apiResult.packet_id,
+          device_id: apiResult.device_id,
+          trust_label: apiResult.trust_label,
+          trust_score: apiResult.trust_score,
+          mandatory_security_pass: apiResult.mandatory_security_pass,
+          reason_codes: apiResult.reason_codes,
+          behavioural_score: apiResult.behavioural_score,
+          routing_outcome: apiResult.routing_outcome,
           model_version: 'C4_RULE_BASELINE_001',
           security_policy_version: 'C4_POLICY_1.1',
           processing_status: 'OK',
           assessment_context: 'RUNTIME',
-          generated_at: generatedAt,
+          generated_at: new Date().toISOString(),
           correlation_id: null,
           test_run_id: null,
         },
         packet: {
           schema_version: '1.0',
-          packet_id: packetId,
-          device_id: deviceId,
-          zone_id: 'ZONE_01',
-          boot_id: 'BOOT-001',
-          sequence_no: Math.floor(Math.random() * 1000),
-          observed_at: generatedAt,
-          received_at: generatedAt,
-          message_type: 'TELEMETRY',
-          tx_interval_s: 10,
-          freshness_status: 'fresh',
-          measurements: [],
+          packet_id: apiResult.packet_id,
+          device_id: apiResult.device_id,
+          zone_id: apiResult.zone_id,
+          boot_id: apiResult.boot_id,
+          sequence_no: apiResult.sequence_no,
+          observed_at: apiResult.observed_at,
+          received_at: apiResult.received_at,
+          message_type: apiResult.message_type,
+          tx_interval_s: apiResult.tx_interval_s,
+          freshness_status: apiResult.freshness_status,
+          measurements: apiResult.measurements || [],
           device_health: {
-            battery_voltage: 3.7,
-            supply_current: 150,
+            battery_voltage: apiResult.battery_voltage,
+            supply_current: apiResult.supply_current ?? 150,
             restart_count: 0,
-            battery_pct: 85,
-            reboot_count_24h: 0,
-            sensor_fault_flag: false,
+            battery_pct: apiResult.battery_pct,
+            reboot_count_24h: apiResult.reboot_count_24h ?? 0,
+            sensor_fault_flag: apiResult.sensor_fault_flag,
             sensor_read_error: false,
             sd_status: 'OK',
             extra_metrics: {},
           },
           transport: {
-            rssi_dbm: -65,
-            snr_db: 12,
-            retry_count: 0,
+            rssi_dbm: apiResult.rssi_dbm,
+            snr_db: apiResult.snr_db,
+            retry_count: apiResult.retry_count,
             rssi_deviation_db: 0,
-            packet_size_bytes: 256,
-            gateway_id: 'H001',
+            packet_size_bytes: apiResult.packet_size_bytes ?? 256,
+            gateway_id: apiResult.hub_id,
             extra_metadata: {},
           },
           security: {
-            credential_id: credentialId,
+            credential_id: apiResult.credential_id,
             integrity_present: true,
-            freshness_counter: Math.floor(Math.random() * 1000),
-            session_id: `SESSION-${timestamp}`,
+            freshness_counter: apiResult.sequence_no,
+            session_id: 'DEMO-SESSION',
             firmware_hash: null,
             config_hash: null,
-            certificate_pem: isEcdsa ? 'mock-cert-pem' : null,
-            attestation_evidence: { demo_attestation: deviceId },
-            provenance_evidence: { demo_provenance: packetId },
+            certificate_pem: apiResult.certificate_present ? 'cert-present' : null,
+            attestation_evidence: { demo_attestation: apiResult.device_id },
+            provenance_evidence: { demo_provenance: apiResult.packet_id },
             extra_metadata: {},
           },
-          source_origin: 'SIMULATED',
+          source_origin: apiResult.source_origin,
           test_run_id: null,
           correlation_id: null,
         },
-        eligible_for_c1: trustLabel === 'TRUSTED' && mandatorySecurityPass,
-        quarantined,
-        quarantine_id: quarantined ? `Q_${timestamp.toString(36)}` : null,
-        persisted_to_database: false,
-        storage: 'react_component_state',
-        data_origin: 'FRONTEND_SIMULATION',
-        origin_explanation:
-          'Generated by the React frontend mock; not assessed by the real C4 backend.',
-        storage_explanation:
-          'Stored in React component state and lost when the page is refreshed.',
-      };
+        eligible_for_c1: apiResult.eligible_for_c1,
+        quarantined: apiResult.quarantined,
+        quarantine_id: apiResult.quarantine_id,
+        persisted_to_database: apiResult.persisted_to_database,
+        storage: apiResult.storage,
+        data_origin: apiResult.data_origin,
+        origin_explanation: apiResult.origin_explanation,
+        storage_explanation: apiResult.storage_explanation,
+        // Add new fields from API
+        security_status: apiResult.security_status,
+        ml_status: apiResult.ml_status,
+      }));
 
-      setResults((previousResults) => [...previousResults, mockResult]);
-      setNotice(`1 simulated assessment result recorded for ${scenario}.`);
+      setResults((previousResults) => [...previousResults, ...apiResults]);
+      setNotice(
+        `${data.count} assessment result(s) recorded for ${scenario}. ` +
+          `Security gate enforced ML-only-if-PASS rule.`
+      );
     } catch (err) {
       setError(
         `Error running scenario: ${
           err instanceof Error ? err.message : 'Unknown error'
-        }`,
+        }`
       );
     }
   };

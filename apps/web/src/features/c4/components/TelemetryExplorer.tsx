@@ -11,19 +11,14 @@ export const TelemetryExplorer: React.FC<TelemetryExplorerProps> = ({
   results,
 }) => {
   const [selectedDevices, setSelectedDevices] = useState<string[]>([]);
-  const [selectedTrust, setSelectedTrust] = useState<string[]>([]);
   const [selectedScenarios, setSelectedScenarios] = useState<string[]>([]);
+  const [selectedSecurityStatus, setSelectedSecurityStatus] = useState<string[]>([]);
+  const [selectedMLStatus, setSelectedMLStatus] = useState<string[]>([]);
   const [selectedPacketId, setSelectedPacketId] = useState<string | null>(null);
 
   const allDevices = useMemo(
     () =>
       [...new Set(results.map((r) => r.assessment.device_id))].sort(),
-    [results],
-  );
-
-  const allTrustLabels = useMemo(
-    () =>
-      [...new Set(results.map((r) => r.assessment.trust_label))].sort(),
     [results],
   );
 
@@ -34,6 +29,30 @@ export const TelemetryExplorer: React.FC<TelemetryExplorerProps> = ({
           results
             .map((r) => r.scenario)
             .filter((s): s is string => s !== undefined),
+        ),
+      ].sort(),
+    [results],
+  );
+
+  const allSecurityStatuses = useMemo(
+    () =>
+      [
+        ...new Set(
+          results
+            .map((r) => r.security_status)
+            .filter((s): s is 'PASS' | 'FAIL' | 'REVIEW' => s !== undefined),
+        ),
+      ].sort(),
+    [results],
+  );
+
+  const allMLStatuses = useMemo(
+    () =>
+      [
+        ...new Set(
+          results
+            .map((r) => r.ml_status)
+            .filter((s): s is 'COMPLETED' | 'SKIPPED - SECURITY FAILURE' | 'SKIPPED - REVIEW' | 'UNAVAILABLE - MISSING FEATURES' => s !== undefined),
         ),
       ].sort(),
     [results],
@@ -50,22 +69,29 @@ export const TelemetryExplorer: React.FC<TelemetryExplorerProps> = ({
         }
 
         if (
-          selectedTrust.length > 0 &&
-          !selectedTrust.includes(result.assessment.trust_label)
-        ) {
-          return false;
-        }
-
-        if (
           selectedScenarios.length > 0 &&
           !selectedScenarios.includes(result.scenario ?? '')
         ) {
           return false;
         }
 
+        if (
+          selectedSecurityStatus.length > 0 &&
+          !selectedSecurityStatus.includes(result.security_status ?? '')
+        ) {
+          return false;
+        }
+
+        if (
+          selectedMLStatus.length > 0 &&
+          !selectedMLStatus.includes(result.ml_status ?? '')
+        ) {
+          return false;
+        }
+
         return true;
       }),
-    [results, selectedDevices, selectedTrust, selectedScenarios],
+    [results, selectedDevices, selectedScenarios, selectedSecurityStatus, selectedMLStatus],
   );
 
   const selectedPacket = useMemo(
@@ -90,8 +116,9 @@ export const TelemetryExplorer: React.FC<TelemetryExplorerProps> = ({
 
   const clearFilters = () => {
     setSelectedDevices([]);
-    setSelectedTrust([]);
     setSelectedScenarios([]);
+    setSelectedSecurityStatus([]);
+    setSelectedMLStatus([]);
   };
 
   if (results.length === 0) {
@@ -133,20 +160,29 @@ export const TelemetryExplorer: React.FC<TelemetryExplorerProps> = ({
         />
 
         <FilterGroup
-          title="Trust label"
-          options={allTrustLabels}
-          selected={selectedTrust}
-          onToggle={(value) =>
-            toggleSelection(value, selectedTrust, setSelectedTrust)
-          }
-        />
-
-        <FilterGroup
           title="Scenario"
           options={allScenarios}
           selected={selectedScenarios}
           onToggle={(value) =>
             toggleSelection(value, selectedScenarios, setSelectedScenarios)
+          }
+        />
+
+        <FilterGroup
+          title="Security Status"
+          options={allSecurityStatuses as string[]}
+          selected={selectedSecurityStatus}
+          onToggle={(value) =>
+            toggleSelection(value, selectedSecurityStatus, setSelectedSecurityStatus)
+          }
+        />
+
+        <FilterGroup
+          title="ML Status"
+          options={allMLStatuses as string[]}
+          selected={selectedMLStatus}
+          onToggle={(value) =>
+            toggleSelection(value, selectedMLStatus, setSelectedMLStatus)
           }
         />
       </div>
@@ -159,8 +195,9 @@ export const TelemetryExplorer: React.FC<TelemetryExplorerProps> = ({
         </span>
 
         {(selectedDevices.length > 0 ||
-          selectedTrust.length > 0 ||
-          selectedScenarios.length > 0) && (
+          selectedScenarios.length > 0 ||
+          selectedSecurityStatus.length > 0 ||
+          selectedMLStatus.length > 0) && (
           <button
             type="button"
             className="c4-telemetry-view-button"
@@ -170,6 +207,148 @@ export const TelemetryExplorer: React.FC<TelemetryExplorerProps> = ({
           </button>
         )}
       </div>
+
+      <button
+  type="button"
+  className="c4-telemetry-view-button"
+  onClick={() => {
+    const headers = [
+      'Scenario',
+      'Packet ID',
+      'Device',
+      'Security Status',
+      'Routing',
+      'ML Status',
+      'Score',
+      'Mandatory Security',
+      'Eligible for C1',
+      'Quarantined',
+      'Persisted to Database',
+      'Reason Codes',
+    ];
+
+    const escapeCsv = (value: unknown) => {
+      const text = String(value ?? '');
+      return `"${text.replace(/"/g, '""')}"`;
+    };
+
+    const rows = filteredResults.map((result) => {
+      const assessment = result.assessment;
+
+      return [
+        result.scenario ?? '',
+        assessment.packet_id,
+        assessment.device_id,
+        result.security_status ?? '',
+        assessment.routing_outcome ?? 'N/A',
+        result.ml_status ?? '',
+        assessment.behavioural_score ?? '',
+        assessment.mandatory_security_pass,
+        result.eligible_for_c1,
+        result.quarantined,
+        result.persisted_to_database,
+        assessment.reason_codes.join(', '),
+      ];
+    });
+
+    const csv = [headers, ...rows]
+      .map((row) => row.map(escapeCsv).join(','))
+      .join('\r\n');
+
+    const blob = new Blob(['\uFEFF', csv], {
+      type: 'text/csv;charset=utf-8;',
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = url;
+    link.download = 'geonex_c4_telemetry_assessments.csv';
+    link.click();
+
+    URL.revokeObjectURL(url);
+  }}
+  disabled={filteredResults.length === 0}
+>
+  Download Assessment CSV
+</button>
+
+      <button
+  type="button"
+  className="c4-telemetry-view-button"
+  onClick={() => {
+    // Filter only PASS results for ML prediction
+    const passResults = filteredResults.filter(r => r.security_status === 'PASS');
+
+    if (passResults.length === 0) {
+      alert('No PASS results available for ML prediction. Filter for Security Status = PASS first.');
+      return;
+    }
+
+    const headers = [
+      'device_id',
+      'device_timestamp',
+      'received_timestamp',
+      'tx_interval_s',
+      'rssi_dbm',
+      'freshness_status',
+      'snr_db',
+      'retry_count',
+      'packet_size_bytes',
+      'battery_pct',
+      'battery_voltage_v',
+      'current_ma',
+      'reboot_count_24h',
+      'sensor_fault_flag',
+    ];
+
+    const escapeCsv = (value: unknown) => {
+      const text = String(value ?? '');
+      return `"${text.replace(/"/g, '""')}"`;
+    };
+
+    const rows = passResults.map((result) => {
+      const packet = result.packet;
+
+      return [
+        packet.device_id,
+        packet.observed_at,
+        packet.received_at,
+        packet.tx_interval_s ?? 0,
+        packet.transport.rssi_dbm ?? 0,
+        packet.freshness_status ?? 'fresh',
+        packet.transport.snr_db ?? 0,
+        packet.transport.retry_count ?? 0,
+        packet.transport.packet_size_bytes ?? 256,
+        packet.device_health.battery_pct ?? 0,
+        packet.device_health.battery_voltage ?? 0,
+        packet.device_health.supply_current ?? 0,
+        packet.device_health.reboot_count_24h ?? 0,
+        packet.device_health.sensor_fault_flag ? 1 : 0,
+      ];
+    });
+
+    const csv = [headers, ...rows]
+      .map((row) => row.map(escapeCsv).join(','))
+      .join('\r\n');
+
+    const blob = new Blob(['\uFEFF', csv], {
+      type: 'text/csv;charset=utf-8;',
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = url;
+    link.download = 'geonex_c4_ml_prediction_ready.csv';
+    link.click();
+
+    URL.revokeObjectURL(url);
+  }}
+  disabled={filteredResults.length === 0}
+>
+  Download ML-Ready CSV (PASS only)
+</button>
 
       <div className="c4-telemetry-table-card">
         <h3 className="c4-telemetry-section-title">Assessment results</h3>
@@ -241,19 +420,6 @@ interface ResultsTableProps {
   onSelect: (assessmentId: string) => void;
 }
 
-const getTrustBadgeClass = (trust: string): string => {
-  switch (trust) {
-    case 'TRUSTED':
-      return 'c4-telemetry-badge c4-telemetry-badge-trusted';
-    case 'UNTRUSTED':
-      return 'c4-telemetry-badge c4-telemetry-badge-untrusted';
-    case 'SUSPICIOUS':
-      return 'c4-telemetry-badge c4-telemetry-badge-suspicious';
-    default:
-      return 'c4-telemetry-badge c4-telemetry-badge-unknown';
-  }
-};
-
 const ResultsTable: React.FC<ResultsTableProps> = ({
   results,
   selectedPacketId,
@@ -266,8 +432,9 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
           <th>Scenario</th>
           <th>Packet ID</th>
           <th>Device</th>
-          <th>Trust</th>
+          <th>Security</th>
           <th>Routing</th>
+          <th>ML</th>
           <th>Score</th>
           <th>Action</th>
         </tr>
@@ -276,7 +443,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
       <tbody>
         {results.length === 0 ? (
           <tr>
-            <td colSpan={7} className="c4-telemetry-no-results">
+            <td colSpan={8} className="c4-telemetry-no-results">
               No assessments match the selected filters.
             </td>
           </tr>
@@ -296,15 +463,12 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
                 </td>
                 <td>{result.assessment.device_id}</td>
                 <td>
-                  <span
-                    className={getTrustBadgeClass(
-                      result.assessment.trust_label,
-                    )}
-                  >
-                    {result.assessment.trust_label}
+                  <span className={`c4-telemetry-badge ${result.security_status === 'PASS' ? 'c4-telemetry-badge-trusted' : 'c4-telemetry-badge-untrusted'}`}>
+                    {result.security_status || '-'}
                   </span>
                 </td>
                 <td>{result.assessment.routing_outcome || 'N/A'}</td>
+                <td>{result.ml_status || '-'}</td>
                 <td className="c4-telemetry-score">
                   {result.assessment.behavioural_score !== null &&
                   result.assessment.behavioural_score !== undefined

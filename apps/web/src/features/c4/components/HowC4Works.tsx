@@ -1,6 +1,5 @@
 
 import React from 'react';
-import '../../../styles/c4/c4-HowC4Works.css';
 
 export const HowC4Works: React.FC = () => {
   return (
