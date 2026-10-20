@@ -20,10 +20,45 @@ interface Diagnostics {
   database: DatabaseInfo;
 }
 
+interface QuarantineRecord {
+  quarantine_id: string;
+  packet_id: string;
+  device_id: string;
+  trust_label: string;
+  routing_outcome: string;
+  reason_codes: string[];
+  quarantine_reason: string;
+  quarantined_at: string;
+  packet_data: Record<string, any>;
+  assessment: any;
+  released: boolean;
+  released_at: string | null;
+  release_reason: string | null;
+  reviewed_by: string | null;
+  metadata: Record<string, any>;
+}
+
+interface QuarantineData {
+  count: number;
+  records: QuarantineRecord[];
+  statistics: {
+    total: number;
+    released: number;
+    unreleased: number;
+    by_reason: Record<string, number>;
+  };
+  message: string;
+}
+
 export const Storage: React.FC = () => {
   const [diagnostics, setDiagnostics] = useState<Diagnostics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error] = useState<string | null>(null);
+  const [quarantineData, setQuarantineData] = useState<QuarantineData | null>(null);
+  const [quarantineLoading, setQuarantineLoading] = useState(true);
+  const [selectedRecord, setSelectedRecord] = useState<QuarantineRecord | null>(null);
+
+  const API_BASE = "http://127.0.0.1:8000";
 
   useEffect(() => {
     let cancelled = false;
@@ -54,6 +89,41 @@ export const Storage: React.FC = () => {
     };
 
     void loadDiagnostics();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadQuarantineData = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/api/c4/quarantine`);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        if (!cancelled) {
+          setQuarantineData(data);
+          setQuarantineLoading(false);
+        }
+      } catch (err) {
+        console.error('Failed to load quarantine data:', err);
+        if (!cancelled) {
+          setQuarantineData({
+            count: 0,
+            records: [],
+            statistics: { total: 0, released: 0, unreleased: 0, by_reason: {} },
+            message: 'Failed to load quarantine data',
+          });
+          setQuarantineLoading(false);
+        }
+      }
+    };
+
+    void loadQuarantineData();
 
     return () => {
       cancelled = true;
@@ -392,6 +462,256 @@ export const Storage: React.FC = () => {
             </p>
           </div>
         </div>
+      </section>
+
+      <section className="c4-storage-panel c4-storage-inventory-panel">
+        <div className="c4-storage-panel-heading">
+          <div className="c4-storage-section-icon">Q</div>
+          <div>
+            <h4>Quarantine File Viewer</h4>
+            <p>
+              View detailed information about quarantined telemetry packets
+              stored in quarantine/c4/
+            </p>
+          </div>
+        </div>
+
+        {quarantineLoading ? (
+          <div className="c4-storage-state">
+            <div className="c4-storage-spinner" />
+            <p>Loading quarantine files...</p>
+          </div>
+        ) : (
+          <>
+            <div className="c4-storage-metrics">
+              <MetricCard
+                label="Total Records"
+                value={quarantineData?.statistics.total?.toString() || '0'}
+                status="neutral"
+                description="Total quarantine records"
+              />
+              <MetricCard
+                label="Released"
+                value={quarantineData?.statistics.released?.toString() || '0'}
+                status="success"
+                description="Released records"
+              />
+              <MetricCard
+                label="Unreleased"
+                value={quarantineData?.statistics.unreleased?.toString() || '0'}
+                status="danger"
+                description="Unreleased records"
+              />
+            </div>
+
+            {quarantineData && quarantineData.records.length > 0 && (
+              <>
+                <div className="c4-storage-table-wrapper">
+                  <table className="c4-storage-table">
+                    <thead>
+                      <tr>
+                        <th>Quarantine ID</th>
+                        <th>Packet ID</th>
+                        <th>Device ID</th>
+                        <th>Trust Label</th>
+                        <th>Routing Outcome</th>
+                        <th>Quarantine Reason</th>
+                        <th>Released</th>
+                        <th>Quarantined At</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {quarantineData.records.map((record) => (
+                        <tr
+                          key={record.quarantine_id}
+                          onClick={() => setSelectedRecord(record)}
+                          style={{ cursor: 'pointer' }}
+                          className={
+                            selectedRecord?.quarantine_id === record.quarantine_id
+                              ? 'c4-storage-table-row-selected'
+                              : ''
+                          }
+                        >
+                          <td>
+                            <code>{record.quarantine_id}</code>
+                          </td>
+                          <td>{record.packet_id}</td>
+                          <td>{record.device_id}</td>
+                          <td>
+                            <span
+                              className={`c4-storage-badge ${
+                                record.trust_label === 'TRUSTED'
+                                  ? 'c4-storage-badge-success'
+                                  : record.trust_label === 'UNTRUSTED'
+                                  ? 'c4-storage-badge-danger'
+                                  : 'c4-storage-badge-warning'
+                              }`}
+                            >
+                              {record.trust_label}
+                            </span>
+                          </td>
+                          <td>{record.routing_outcome}</td>
+                          <td>{record.quarantine_reason}</td>
+                          <td>
+                            <PersistenceBadge persistent={record.released} />
+                          </td>
+                          <td>
+                            {new Date(record.quarantined_at).toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {selectedRecord && (
+                  <div className="c4-storage-detail-panel">
+                    <h5>Quarantine Record Details</h5>
+                    <div className="c4-storage-details-grid">
+                      <DetailRow
+                        label="Quarantine ID"
+                        value={selectedRecord.quarantine_id}
+                      />
+                      <DetailRow
+                        label="Packet ID"
+                        value={selectedRecord.packet_id}
+                      />
+                      <DetailRow
+                        label="Device ID"
+                        value={selectedRecord.device_id}
+                      />
+                      <DetailRow
+                        label="Trust Label"
+                        value={selectedRecord.trust_label}
+                      />
+                      <DetailRow
+                        label="Routing Outcome"
+                        value={selectedRecord.routing_outcome}
+                      />
+                      <DetailRow
+                        label="Released"
+                        value={selectedRecord.released ? 'Yes' : 'No'}
+                      />
+                    </div>
+
+                    <div className="c4-storage-secondary-path">
+                      <span>Quarantined At</span>
+                      <code>
+                        {new Date(selectedRecord.quarantined_at).toLocaleString()}
+                      </code>
+                    </div>
+
+                    {selectedRecord.reason_codes.length > 0 && (
+                      <>
+                        <div className="c4-storage-path-label">
+                          Reason Codes
+                        </div>
+                        <div className="c4-storage-reason-codes">
+                          {selectedRecord.reason_codes.map((code, idx) => (
+                            <code key={idx}>{code}</code>
+                          ))}
+                        </div>
+                      </>
+                    )}
+
+                    <div className="c4-storage-path-label">
+                      Quarantine Reason
+                    </div>
+                    <code className="c4-storage-path">
+                      {selectedRecord.quarantine_reason}
+                    </code>
+
+                    {Object.keys(selectedRecord.packet_data).length > 0 && (
+                      <>
+                        <div className="c4-storage-path-label">
+                          Packet Data
+                        </div>
+                        <pre className="c4-storage-json">
+                          {JSON.stringify(
+                            selectedRecord.packet_data,
+                            null,
+                            2
+                          )}
+                        </pre>
+                      </>
+                    )}
+
+                    {selectedRecord.released && (
+                      <>
+                        <div className="c4-storage-path-label">
+                          Release Information
+                        </div>
+                        <div className="c4-storage-details-grid">
+                          <DetailRow
+                            label="Released At"
+                            value={
+                              selectedRecord.released_at
+                                ? new Date(
+                                    selectedRecord.released_at
+                                  ).toLocaleString()
+                                : 'N/A'
+                            }
+                          />
+                          <DetailRow
+                            label="Release Reason"
+                            value={selectedRecord.release_reason || 'N/A'}
+                          />
+                          <DetailRow
+                            label="Reviewed By"
+                            value={selectedRecord.reviewed_by || 'N/A'}
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    {selectedRecord.assessment && (
+                      <>
+                        <div className="c4-storage-path-label">
+                          Assessment Data
+                        </div>
+                        <pre className="c4-storage-json">
+                          {JSON.stringify(selectedRecord.assessment, null, 2)}
+                        </pre>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {Object.keys(quarantineData.statistics.by_reason).length >
+                  0 && (
+                    <>
+                      <h5>Quarantine Reason Distribution</h5>
+                      <div className="c4-storage-reason-distribution">
+                        {Object.entries(
+                          quarantineData.statistics.by_reason
+                        ).map(([reason, count]) => (
+                          <div
+                            key={reason}
+                            className="c4-storage-reason-bar"
+                          >
+                            <span className="c4-storage-reason-label">
+                              {reason}
+                            </span>
+                            <div className="c4-storage-reason-bar-fill">
+                              <div
+                                className="c4-storage-reason-bar-progress"
+                                style={{
+                                  width: `${(count / quarantineData.statistics.total) * 100}%`,
+                                }}
+                              />
+                              <span className="c4-storage-reason-count">
+                                {count}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+              </>
+            )}
+          </>
+        )}
       </section>
 
       <footer className="c4-storage-footer">
