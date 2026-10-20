@@ -103,6 +103,9 @@ export interface C4AssessmentResult {
   data_origin?: string | null;
   origin_explanation?: string;
   storage_explanation?: string;
+  // Security gate status and ML status fields
+  security_status?: 'PASS' | 'FAIL' | 'REVIEW';
+  ml_status?: 'COMPLETED' | 'SKIPPED - SECURITY FAILURE' | 'SKIPPED - REVIEW' | 'UNAVAILABLE - MISSING FEATURES';
 }
 
 export interface SecurityAudit {
