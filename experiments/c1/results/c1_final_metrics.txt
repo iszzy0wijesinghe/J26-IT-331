@@ -1,0 +1,159 @@
+Loading data...
+Train: 115831 rows
+Val: 41652 rows
+Test: 41489 rows
+
+Preparing features...
+
+Feature columns: ['dt_s', 'value', 'delta_prev_pct_per_min', 'baseline_mean', 'baseline_std', 'value_minus_baseline', 'stuck_run_len', 'rain_15m_mm', 'rain_1h_mm', 'rain_3h_mm', 'steps_since_rain', 'n_neighbours_fresh', 'neighbour_consensus_change', 'target_minus_consensus', 'neighbour_change_spread', 'neighbour_rise_agree_frac', 'device_voltage', 'history_obs']
+Number of features: 18
+
+Training model...
+Class weights: {0: 1.0, 1: 10.0, 2: 2.0}
+[0]	validation_0-mlogloss:0.46616
+[1]	validation_0-mlogloss:0.43617
+[2]	validation_0-mlogloss:0.40996
+[3]	validation_0-mlogloss:0.38878
+[4]	validation_0-mlogloss:0.36911
+[5]	validation_0-mlogloss:0.35178
+[6]	validation_0-mlogloss:0.33629
+[7]	validation_0-mlogloss:0.32240
+[8]	validation_0-mlogloss:0.31033
+[9]	validation_0-mlogloss:0.29970
+[10]	validation_0-mlogloss:0.28984
+[11]	validation_0-mlogloss:0.28075
+[12]	validation_0-mlogloss:0.27275
+[13]	validation_0-mlogloss:0.26508
+[14]	validation_0-mlogloss:0.25839
+[15]	validation_0-mlogloss:0.25326
+[16]	validation_0-mlogloss:0.24819
+[17]	validation_0-mlogloss:0.24331
+[18]	validation_0-mlogloss:0.23855
+[19]	validation_0-mlogloss:0.23426
+[20]	validation_0-mlogloss:0.23014
+[21]	validation_0-mlogloss:0.22678
+[22]	validation_0-mlogloss:0.22377
+[23]	validation_0-mlogloss:0.22095
+[24]	validation_0-mlogloss:0.21836
+[25]	validation_0-mlogloss:0.21590
+[26]	validation_0-mlogloss:0.21345
+[27]	validation_0-mlogloss:0.21180
+[28]	validation_0-mlogloss:0.20983
+[29]	validation_0-mlogloss:0.20749
+[30]	validation_0-mlogloss:0.20594
+[31]	validation_0-mlogloss:0.20437
+[32]	validation_0-mlogloss:0.20312
+[33]	validation_0-mlogloss:0.20183
+[34]	validation_0-mlogloss:0.20057
+[35]	validation_0-mlogloss:0.19946
+[36]	validation_0-mlogloss:0.19857
+[37]	validation_0-mlogloss:0.19761
+[38]	validation_0-mlogloss:0.19701
+[39]	validation_0-mlogloss:0.19606
+[40]	validation_0-mlogloss:0.19499
+[41]	validation_0-mlogloss:0.19414
+[42]	validation_0-mlogloss:0.19295
+[43]	validation_0-mlogloss:0.19227
+[44]	validation_0-mlogloss:0.19148
+[45]	validation_0-mlogloss:0.19090
+[46]	validation_0-mlogloss:0.18996
+[47]	validation_0-mlogloss:0.18955
+[48]	validation_0-mlogloss:0.18932
+[49]	validation_0-mlogloss:0.18848
+[50]	validation_0-mlogloss:0.18821
+[51]	validation_0-mlogloss:0.18757
+[52]	validation_0-mlogloss:0.18709
+[53]	validation_0-mlogloss:0.18662
+[54]	validation_0-mlogloss:0.18586
+[55]	validation_0-mlogloss:0.18543
+[56]	validation_0-mlogloss:0.18474
+[57]	validation_0-mlogloss:0.18437
+[58]	validation_0-mlogloss:0.18415
+[59]	validation_0-mlogloss:0.18397
+[60]	validation_0-mlogloss:0.18344
+[61]	validation_0-mlogloss:0.18262
+[62]	validation_0-mlogloss:0.18222
+[63]	validation_0-mlogloss:0.18202
+[64]	validation_0-mlogloss:0.18173
+[65]	validation_0-mlogloss:0.18158
+[66]	validation_0-mlogloss:0.18109
+[67]	validation_0-mlogloss:0.18077
+[68]	validation_0-mlogloss:0.18029
+[69]	validation_0-mlogloss:0.17995
+[70]	validation_0-mlogloss:0.17960
+[71]	validation_0-mlogloss:0.17937
+[72]	validation_0-mlogloss:0.17898
+[73]	validation_0-mlogloss:0.17880
+[74]	validation_0-mlogloss:0.17856
+[75]	validation_0-mlogloss:0.17856
+[76]	validation_0-mlogloss:0.17827
+[77]	validation_0-mlogloss:0.17797
+[78]	validation_0-mlogloss:0.17779
+[79]	validation_0-mlogloss:0.17773
+[80]	validation_0-mlogloss:0.17751
+[81]	validation_0-mlogloss:0.17731
+[82]	validation_0-mlogloss:0.17732
+[83]	validation_0-mlogloss:0.17730
+[84]	validation_0-mlogloss:0.17693
+[85]	validation_0-mlogloss:0.17672
+[86]	validation_0-mlogloss:0.17668
+[87]	validation_0-mlogloss:0.17638
+[88]	validation_0-mlogloss:0.17616
+[89]	validation_0-mlogloss:0.17596
+[90]	validation_0-mlogloss:0.17575
+[91]	validation_0-mlogloss:0.17548
+[92]	validation_0-mlogloss:0.17546
+[93]	validation_0-mlogloss:0.17518
+[94]	validation_0-mlogloss:0.17520
+[95]	validation_0-mlogloss:0.17510
+[96]	validation_0-mlogloss:0.17497
+[97]	validation_0-mlogloss:0.17487
+[98]	validation_0-mlogloss:0.17461
+[99]	validation_0-mlogloss:0.17435
+
+Evaluating on validation set...
+
+=== Validation Evaluation ===
+
+Classification Report:
+              precision    recall  f1-score   support
+
+       CLEAN       0.97      0.97      0.97     36868
+     ANOMALY       0.53      0.56      0.54       560
+ VALID_EVENT       0.79      0.76      0.78      4224
+
+    accuracy                           0.95     41652
+   macro avg       0.76      0.77      0.76     41652
+weighted avg       0.95      0.95      0.95     41652
+
+
+Confusion Matrix:
+             CLEAN  ANOMALY  VALID_EVENT
+CLEAN        35933      179          756
+ANOMALY        167      313           80
+VALID_EVENT    905       99         3220
+
+Evaluating on test set...
+
+=== Test Evaluation ===
+
+Classification Report:
+              precision    recall  f1-score   support
+
+       CLEAN       0.97      0.98      0.97     36901
+     ANOMALY       0.56      0.50      0.53       775
+ VALID_EVENT       0.78      0.76      0.77      3813
+
+    accuracy                           0.95     41489
+   macro avg       0.77      0.74      0.75     41489
+weighted avg       0.94      0.95      0.95     41489
+
+
+Confusion Matrix:
+             CLEAN  ANOMALY  VALID_EVENT
+CLEAN        35995      254          652
+ANOMALY        215      386          174
+VALID_EVENT    881       53         2879
+
+Saving model to models\c1\c1_xgboost_v1.json...
+Model saved successfully!
