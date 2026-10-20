@@ -2,6 +2,7 @@
 
 
 from dataclasses import replace
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import func, select
@@ -52,12 +53,12 @@ def db_session():
         engine.dispose()
 
 
-def generate_test_items():
+def generate_test_items(seed: int | None = None):
     """Generate a reproducible six-pipe simulation batch."""
 
     return generate_scheduled_demo_telemetry(
         ScheduledTelemetryConfig(
-            seed=20261010,
+            seed=seed or 20261010,
         )
     )
 
@@ -83,7 +84,7 @@ def count_test_observations(session, packet_ids):
 
 
 def test_simulation_loader_creates_packets_and_observations(db_session):
-    items = generate_test_items()
+    items = generate_test_items(seed=uuid4().int)
 
     assert len(items) == 60
 
@@ -104,7 +105,7 @@ def test_simulation_loader_creates_packets_and_observations(db_session):
 
 
 def test_simulation_loader_is_idempotent(db_session):
-    items = generate_test_items()
+    items = generate_test_items(seed=uuid4().int)
 
     first = load_simulated_telemetry(db_session, items)
     second = load_simulated_telemetry(db_session, items)
@@ -124,7 +125,7 @@ def test_simulation_loader_is_idempotent(db_session):
 
 
 def test_simulation_loader_rejects_conflicting_packet(db_session):
-    items = generate_test_items()
+    items = generate_test_items(seed=uuid4().int)
 
     load_simulated_telemetry(db_session, items)
 
@@ -149,7 +150,7 @@ def test_simulation_loader_rejects_conflicting_packet(db_session):
 
 
 def test_simulation_loader_rollback(db_session):
-    items = generate_test_items()
+    items = generate_test_items(seed=uuid4().int)
 
     packet_ids = [item.packet.packet_id for item in items]
 
@@ -179,7 +180,7 @@ def test_simulation_loader_handles_empty_batch(db_session):
     assert result.existing_packets == 0
     assert result.created_observations == 0
 def test_c4_gated_loader_persists_only_trusted_packets(db_session, tmp_path):
-    items = generate_test_items()
+    items = generate_test_items(seed=uuid4().int)
     gate, _, credentials = build_test_gate(tmp_path / "quarantine")
 
     def prepare_and_sign(item):
@@ -212,7 +213,7 @@ def test_c4_gated_loader_never_persists_rejected_packets(
     db_session,
     tmp_path,
 ):
-    items = generate_test_items()[:1]
+    items = generate_test_items(seed=uuid4().int)[:1]
     gate, _, credentials = build_test_gate(tmp_path / "quarantine")
 
     def prepare_and_sign(item):
