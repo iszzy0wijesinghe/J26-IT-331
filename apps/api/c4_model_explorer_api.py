@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import uuid
 from io import BytesIO
 from threading import Lock
@@ -24,21 +25,17 @@ from apps.c4_frontend.c4_backend import C4DemoBackend, SUPPORTED_SCENARIOS
 from apps.c4_frontend.upload_training import (
     FEATURES,
     LABELS,
-    prepare_uploaded_dataset,
-    save_candidate_model,
-    train_uploaded_random_forest,
-    verify_candidate_runtime_compatibility,
-)
-
-from apps.c4_frontend.upload_training import (
-    FEATURES,
-    LABELS,
     predict_uploaded_dataset,
     prepare_uploaded_dataset,
     save_candidate_model,
     train_uploaded_random_forest,
     verify_candidate_runtime_compatibility,
 )
+
+from apps.ingestion.persistence import persist_telemetry_packet
+from database.session import create_database_engine
+from shared.config.settings import get_settings
+from shared.contracts.telemetry import TelemetryPacket
 
 app = FastAPI(
     title="GeoNex C4 Model Explorer API",
@@ -65,6 +62,11 @@ _TRAINING_LOCK = Lock()
 
 class ScenarioRequest(BaseModel):
     scenario: str
+
+
+class PersistTrustedRequest(BaseModel):
+    predictions: list[dict[str, Any]]
+    filename: str
 
 
 def json_safe(value: Any) -> Any:
@@ -900,3 +902,84 @@ def list_scenarios() -> dict[str, Any]:
 def health_check() -> dict[str, str]:
     """Health check endpoint to verify API is running."""
     return {"status": "ok", "service": "C4 Model Explorer API"}
+
+
+@app.post("/api/c4/persist-trusted")
+async def persist_trusted_packets(request: PersistTrustedRequest) -> dict[str, Any]:
+    """Persist TRUSTED packets from ML prediction to Component 1 database.
+
+    This endpoint receives ML prediction results, filters for TRUSTED packets,
+    reconstructs the full telemetry packets, and persists them to the database
+    for downstream Component 1 processing.
+
+    Args:
+        request: Contains predictions list and original filename
+
+    Returns:
+        Summary of persisted packets and any errors
+    """
+    try:
+        import traceback
+
+        settings = get_settings()
+        engine = create_database_engine(settings)
+
+        persisted_count = 0
+        failed_count = 0
+        errors: list[str] = []
+
+        from sqlalchemy.orm import Session
+
+        with Session(engine) as session:
+            for idx, prediction in enumerate(request.predictions):
+                try:
+                    # Extract full packet JSON from prediction
+                    full_packet_json = prediction.get("full_packet_json")
+                    if not full_packet_json:
+                        errors.append(f"Row {idx}: Missing full_packet_json for device {prediction.get('device_id')}")
+                        failed_count += 1
+                        continue
+
+                    # Reconstruct TelemetryPacket from JSON
+                    try:
+                        packet_data = json.loads(full_packet_json) if isinstance(full_packet_json, str) else full_packet_json
+                        packet = TelemetryPacket.model_validate(packet_data)
+                    except Exception as validation_exc:
+                        errors.append(f"Row {idx}: Failed to validate packet for device {prediction.get('device_id')}: {validation_exc}")
+                        failed_count += 1
+                        continue
+
+                    # Persist to database
+                    try:
+                        result = persist_telemetry_packet(session, packet)
+                        persisted_count += 1
+                    except Exception as persist_exc:
+                        errors.append(f"Row {idx}: Failed to persist packet {packet.packet_id}: {persist_exc}")
+                        failed_count += 1
+                        continue
+
+                except Exception as exc:
+                    errors.append(f"Row {idx}: Unexpected error processing prediction: {exc}\n{traceback.format_exc()}")
+                    failed_count += 1
+
+            # Commit all successful persist operations
+            session.commit()
+
+        engine.dispose()
+
+        return {
+            "status": "completed",
+            "persisted_count": persisted_count,
+            "failed_count": failed_count,
+            "total_predictions": len(request.predictions),
+            "errors": errors[:20],  # Limit to first 20 errors
+            "message": f"Persisted {persisted_count} TRUSTED packets to database for Component 1 processing."
+        }
+
+    except Exception as exc:
+        import traceback
+        error_detail = f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}"
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to persist trusted packets: {error_detail}"
+        ) from exc

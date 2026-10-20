@@ -39,7 +39,7 @@ RAW_COLUMNS = [
 
 PREDICTION_RAW_COLUMNS = [
     column for column in RAW_COLUMNS if column != "trust_label"
-]
+] + ["full_packet_json"]
 
 
 def get_repo_root() -> Path:
@@ -78,6 +78,11 @@ def prepare_uploaded_dataset(
 
     if len(set(df.columns)) != len(df.columns):
         raise ValueError("The CSV contains duplicate column names.")
+
+    # Preserve full_packet_json if it exists
+    full_packet_json_data = None
+    if "full_packet_json" in df.columns:
+        full_packet_json_data = df["full_packet_json"].tolist()
 
     required_columns = RAW_COLUMNS if require_labels else PREDICTION_RAW_COLUMNS
     missing = [column for column in required_columns if column not in df.columns]
@@ -244,13 +249,22 @@ def prepare_uploaded_dataset(
             "At least 10 unique devices are required for device-aware splitting."
         )
 
-    return df.reset_index(drop=True)
+    # Restore full_packet_json if it was preserved
+    if full_packet_json_data is not None:
+        df["full_packet_json"] = full_packet_json_data
 
+    return df.reset_index(drop=True)
 
 
 def predict_uploaded_dataset(uploaded_df: pd.DataFrame) -> pd.DataFrame:
     original = uploaded_df.copy()
     original.columns = [str(column).strip() for column in original.columns]
+
+    full_packet_json = (
+        original["full_packet_json"].copy()
+        if "full_packet_json" in original.columns
+        else None
+    )
 
     prepared = prepare_uploaded_dataset(
         original,
@@ -279,6 +293,10 @@ def predict_uploaded_dataset(uploaded_df: pd.DataFrame) -> pd.DataFrame:
 
     results = prepared[original.columns].copy()
     results["predicted_label"] = predictions
+
+    # Restore full_packet_json if it was preserved
+    if full_packet_json is not None:
+        results["full_packet_json"] = full_packet_json
 
     probabilities = np.asarray(model.predict_proba(X))
 
