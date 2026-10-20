@@ -585,6 +585,66 @@
   line-height: 1.8;
 }
 
+/* Manual input grid for ML demo */
+
+.c4-ml-manual-input-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  padding: 20px;
+  background: #f8fafc;
+  border: 1px solid var(--ml-border);
+  border-radius: 10px;
+}
+
+.c4-ml-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.c4-ml-input-group label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ml-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.c4-ml-input-group input,
+.c4-ml-input-group select {
+  padding: 10px 12px;
+  border: 1px solid var(--ml-border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ml-text);
+  font: inherit;
+  font-size: 13px;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.c4-ml-input-group input:focus,
+.c4-ml-input-group select:focus {
+  outline: none;
+  border-color: var(--ml-teal);
+  box-shadow: 0 0 0 3px rgba(15, 139, 130, 0.1);
+}
+
+.c4-ml-manual-result {
+  animation: c4-ml-fade-in 300ms ease;
+}
+
+@keyframes c4-ml-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Training section */
 
 .c4-ml-csv-panel {

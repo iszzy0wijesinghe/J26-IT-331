@@ -54,6 +54,19 @@ interface PredictionRow {
   [key: string]: string | number | undefined;
 }
 
+interface FeatureInput {
+  tx_interval_s: number;
+  rssi_dbm: number;
+  snr_db: number;
+  retry_count: number;
+  battery_pct: number;
+  battery_voltage_v: number;
+  current_ma: number;
+  reboot_count_24h: number;
+  sensor_fault_flag: boolean;
+  freshness_status: string;
+}
+
 interface PredictionResult {
   filename: string;
   rows: number;
@@ -132,6 +145,23 @@ const [sendingToDatabase, setSendingToDatabase] = useState(false);
 const [databaseMessage, setDatabaseMessage] = useState("");
 const [selectedPrediction, setSelectedPrediction] = useState<PredictionRow | null>(null);
 
+// Manual prediction demo
+const [manualFeatures, setManualFeatures] = useState<FeatureInput>({
+  tx_interval_s: 300,
+  rssi_dbm: -75,
+  snr_db: 10,
+  retry_count: 0,
+  battery_pct: 85,
+  battery_voltage_v: 3.7,
+  current_ma: 15,
+  reboot_count_24h: 0,
+  sensor_fault_flag: false,
+  freshness_status: "fresh",
+});
+const [manualPrediction, setManualPrediction] = useState<{ label: string; score: number; debugInfo?: any } | null>(null);
+const [manualPredictionLoading, setManualPredictionLoading] = useState(false);
+const [manualPredictionError, setManualPredictionError] = useState("");
+
 
 async function predictUploadedFile(file: File) {
   setPredictionFile(file);
@@ -176,6 +206,39 @@ async function predictUploadedFile(file: File) {
     );
   } finally {
     setPredictionLoading(false);
+  }
+}
+
+async function predictManualFeatures() {
+  setManualPrediction(null);
+  setManualPredictionError("");
+  setManualPredictionLoading(true);
+
+  try {
+    const response = await fetch(`${API_BASE}/api/c4/predict-manual`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(manualFeatures),
+    });
+
+    if (!response.ok) {
+      throw new Error(await readApiError(response));
+    }
+
+    const result = await response.json();
+    setManualPrediction({
+      label: result.predicted_label,
+      score: result.behavioural_score,
+      debugInfo: result.debug_info,
+    });
+  } catch (err) {
+    setManualPredictionError(
+      err instanceof Error ? err.message : "Manual prediction failed.",
+    );
+  } finally {
+    setManualPredictionLoading(false);
   }
 }
 
@@ -568,6 +631,188 @@ async function predictUploadedFile(file: File) {
               </div>
             </div>
           )}
+
+          <section className="c4-ml-section">
+            <div className="c4-ml-section-heading">
+              <div>
+                <span className="c4-ml-eyebrow">QUICK ML DEMO</span>
+                <h3>Test ML Model with Manual Input</h3>
+                <p>
+                  Enter feature values manually to see the ML model's prediction in real-time.
+                  Perfect for demonstrating how the model works during presentations.
+                </p>
+              </div>
+            </div>
+
+            <div className="c4-ml-manual-input-grid">
+              <div className="c4-ml-input-group">
+                <label>TX Interval (s)</label>
+                <input
+                  type="number"
+                  step="1"
+                  value={manualFeatures.tx_interval_s}
+                  onChange={(e) => setManualFeatures({...manualFeatures, tx_interval_s: parseFloat(e.target.value) || 0})}
+                />
+              </div>
+
+              <div className="c4-ml-input-group">
+                <label>RSSI (dBm) <span style={{color: manualFeatures.rssi_dbm > -30 ? "#dc2626" : "#64748b", fontSize: "10px"}}>{manualFeatures.rssi_dbm > -30 ? "(⚠ Unusual)" : ""}</span></label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={manualFeatures.rssi_dbm}
+                  onChange={(e) => setManualFeatures({...manualFeatures, rssi_dbm: parseFloat(e.target.value) || 0})}
+                  style={{borderColor: manualFeatures.rssi_dbm > -30 ? "#dc2626" : "#e2e8f0"}}
+                />
+                <span style={{fontSize: "10px", color: "#64748b"}}>Normal: -60 to -80 dBm</span>
+              </div>
+
+              <div className="c4-ml-input-group">
+                <label>SNR (dB)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={manualFeatures.snr_db}
+                  onChange={(e) => setManualFeatures({...manualFeatures, snr_db: parseFloat(e.target.value) || 0})}
+                />
+              </div>
+
+              <div className="c4-ml-input-group">
+                <label>Retry Count</label>
+                <input
+                  type="number"
+                  step="1"
+                  value={manualFeatures.retry_count}
+                  onChange={(e) => setManualFeatures({...manualFeatures, retry_count: parseInt(e.target.value) || 0})}
+                />
+              </div>
+
+              <div className="c4-ml-input-group">
+                <label>Battery (%)</label>
+                <input
+                  type="number"
+                  step="1"
+                  min="0"
+                  max="100"
+                  value={manualFeatures.battery_pct}
+                  onChange={(e) => setManualFeatures({...manualFeatures, battery_pct: parseFloat(e.target.value) || 0})}
+                />
+              </div>
+
+              <div className="c4-ml-input-group">
+                <label>Battery Voltage (V)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={manualFeatures.battery_voltage_v}
+                  onChange={(e) => setManualFeatures({...manualFeatures, battery_voltage_v: parseFloat(e.target.value) || 0})}
+                />
+              </div>
+
+              <div className="c4-ml-input-group">
+                <label>Current (mA)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={manualFeatures.current_ma}
+                  onChange={(e) => setManualFeatures({...manualFeatures, current_ma: parseFloat(e.target.value) || 0})}
+                />
+              </div>
+
+              <div className="c4-ml-input-group">
+                <label>Reboot Count (24h)</label>
+                <input
+                  type="number"
+                  step="1"
+                  value={manualFeatures.reboot_count_24h}
+                  onChange={(e) => setManualFeatures({...manualFeatures, reboot_count_24h: parseInt(e.target.value) || 0})}
+                />
+              </div>
+
+              <div className="c4-ml-input-group">
+                <label>Sensor Fault</label>
+                <select
+                  value={manualFeatures.sensor_fault_flag ? "true" : "false"}
+                  onChange={(e) => setManualFeatures({...manualFeatures, sensor_fault_flag: e.target.value === "true"})}
+                >
+                  <option value="false">No</option>
+                  <option value="true">Yes</option>
+                </select>
+              </div>
+
+              <div className="c4-ml-input-group">
+                <label>Freshness Status</label>
+                <select
+                  value={manualFeatures.freshness_status}
+                  onChange={(e) => setManualFeatures({...manualFeatures, freshness_status: e.target.value})}
+                >
+                  <option value="fresh">Fresh</option>
+                  <option value="delayed">Delayed</option>
+                  <option value="stale">Stale</option>
+                </select>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="c4-ml-button"
+              onClick={predictManualFeatures}
+              disabled={manualPredictionLoading}
+              style={{ marginTop: "16px" }}
+            >
+              {manualPredictionLoading ? "Predicting..." : "Run ML Prediction"}
+            </button>
+
+            {manualPredictionError && (
+              <div className="c4-ml-state c4-ml-state-error" role="alert" style={{ marginTop: "16px" }}>
+                <p>{manualPredictionError}</p>
+              </div>
+            )}
+
+            {manualPrediction && (
+              <div className="c4-ml-manual-result" style={{ marginTop: "20px", padding: "20px", background: manualPrediction.label === "TRUSTED" ? "#f0fdf4" : "#fef2f2", border: `2px solid ${manualPrediction.label === "TRUSTED" ? "#22c55e" : "#dc2626"}`, borderRadius: "8px" }}>
+                <h4 style={{ margin: "0 0 12px 0", color: manualPrediction.label === "TRUSTED" ? "#166534" : "#991b1b" }}>ML Model Prediction Result</h4>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px" }}>
+                  <div>
+                    <span style={{ display: "block", fontSize: "12px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>Predicted Label</span>
+                    <strong style={{ fontSize: "24px", color: manualPrediction.label === "TRUSTED" ? "#16a34a" : "#dc2626" }}>
+                      {manualPrediction.label}
+                    </strong>
+                  </div>
+                  <div>
+                    <span style={{ display: "block", fontSize: "12px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>Behavioral Score</span>
+                    <strong style={{ fontSize: "24px", color: manualPrediction.label === "TRUSTED" ? "#16a34a" : "#dc2626" }}>
+                      {manualPrediction.score.toFixed(4)}
+                    </strong>
+                  </div>
+                </div>
+                <p style={{ margin: "12px 0 0 0", fontSize: "13px", color: "#475569" }}>
+                  {manualPrediction.label === "TRUSTED"
+                    ? "✓ The ML model predicts this packet is from a trusted device with normal behavior."
+                    : "⚠ The ML model predicts this packet shows suspicious or anomalous behavior."}
+                </p>
+                {manualPrediction.label !== "TRUSTED" && (
+                  <div style={{ marginTop: "12px", padding: "12px", background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: "6px", fontSize: "12px", color: "#9a3412" }}>
+                    <strong>Why Untrusted?</strong>
+                    <ul style={{ margin: "8px 0 0 0", paddingLeft: "20px" }}>
+                      <li>RSSI of {manualFeatures.rssi_dbm} dBm is {manualFeatures.rssi_dbm > -30 ? "extremely high" : "unusual"} (normal: -60 to -80 dBm)</li>
+                      <li>Check if your RSSI value is realistic</li>
+                      <li>Try: RSSI = -75, SNR = 10, Battery = 85% for TRUSTED</li>
+                    </ul>
+                    {manualPrediction.debugInfo && (
+                      <details style={{ marginTop: "8px" }}>
+                        <summary style={{ cursor: "pointer", fontWeight: "bold" }}>Debug Info</summary>
+                        <pre style={{ marginTop: "8px", padding: "8px", background: "#fff", border: "1px solid #fed7aa", borderRadius: "4px", fontSize: "11px", overflow: "auto" }}>
+                          {JSON.stringify(manualPrediction.debugInfo, null, 2)}
+                        </pre>
+                      </details>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+
 <section className="c4-ml-section c4-ml-csv-panel">
   <div className="c4-ml-csv-heading">
     <div>
