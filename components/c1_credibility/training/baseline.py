@@ -1,73 +1,58 @@
-"""Rule-based baseline for C1 credibility classification.
-
-This baseline uses simple rules (no ML) to classify observations:
-- If value is outside valid range [0, 100] -> ANOMALY
-- If rate of change is too high -> ANOMALY
-- If rainfall is high and neighbours agree -> VALID_EVENT
-- Otherwise -> CLEAN
-"""
+"""Rule-based and majority baselines for C1 credibility classification."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 import pandas as pd
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix, f1_score
 
 DATASET_PATH = Path("data/synthetic/c1/C1_CREDIBILITY_V0.2.0/dataset.csv")
 CLASSES = ["CLEAN", "ANOMALY", "VALID_EVENT"]
 
+# fixed before looking at the test set. max rate matches clean.max_normal_rate_pct_per_min
+MAX_RATE_PCT_PER_MIN = 1.0
+RAIN_MM = 2.5
+EVENT_RISE_PCT = 1.5
+NEIGHBOUR_AGREE = 0.5
+
 
 def rule_based_predict(row: pd.Series) -> str:
-    """Simple rule-based classifier."""
-    # Rule 1: Out of range -> ANOMALY
-    if row["value"] < 0 or row["value"] > 100:
+    value = row["value"]
+    if pd.isna(value) or value < 0 or value > 100:
         return "ANOMALY"
-    
-    # Rule 2: Extreme rate of change -> ANOMALY
-    if abs(row["delta_prev_pct_per_min"]) > 5.0:
+    rate = row["delta_prev_pct_per_min"]
+    if pd.notna(rate) and abs(rate) > MAX_RATE_PCT_PER_MIN:
         return "ANOMALY"
-    
-    # Rule 3: Rainfall + neighbour agreement -> VALID_EVENT
+    rain = max(row["rain_1h_mm"], row["rain_3h_mm"])  # NaN-safe below
     if (
-        row["rain_1h_mm"] > 2.5  # moderate rain or higher
-        and row["neighbour_rise_agree_frac"] > 0.5
-        and row["target_minus_consensus"] > 2.0
+        pd.notna(rain)
+        and rain >= RAIN_MM
+        and row["value_minus_baseline"] >= EVENT_RISE_PCT
+        and row["neighbour_rise_agree_frac"] >= NEIGHBOUR_AGREE
     ):
         return "VALID_EVENT"
-    
-    # Default: CLEAN
     return "CLEAN"
 
 
-def main():
-    """Evaluate rule-based baseline on test set."""
-    print("Loading data...")
+def report(name: str, y_true: pd.Series, y_pred: pd.Series) -> None:
+    print(f"\n=== {name} ===")
+    # labels= fixes the order, sklearn would sort them alphabetically otherwise
+    print(classification_report(y_true, y_pred, labels=CLASSES, target_names=CLASSES, zero_division=0))
+    cm = confusion_matrix(y_true, y_pred, labels=CLASSES)
+    print(pd.DataFrame(cm, index=CLASSES, columns=CLASSES).to_string())
+    print(f"Macro-F1: {f1_score(y_true, y_pred, labels=CLASSES, average='macro', zero_division=0):.3f}")
+
+
+def main() -> None:
     df = pd.read_csv(DATASET_PATH, low_memory=False)
-    df = df[df["train_eligible"] == True]
-    
+    df = df[df["train_eligible"].astype(bool)]
     test = df[df["split"] == "test"].copy()
     print(f"Test: {len(test)} rows")
-    
-    # Apply rules
-    print("\nApplying rule-based classifier...")
+
+    report("Always-CLEAN baseline", test["credibility_label"], pd.Series("CLEAN", index=test.index))
     test["baseline_pred"] = test.apply(rule_based_predict, axis=1)
-    
-    # Evaluate
-    print("\n=== Rule-Based Baseline Evaluation ===")
-    print("\nClassification Report:")
-    print(classification_report(
-        test["credibility_label"], test["baseline_pred"], target_names=CLASSES
-    ))
-    
-    print("\nConfusion Matrix:")
-    cm = confusion_matrix(test["credibility_label"], test["baseline_pred"])
-    print(pd.DataFrame(cm, index=CLASSES, columns=CLASSES).to_string())
-    
-    # Macro-F1
-    from sklearn.metrics import f1_score
-    macro_f1 = f1_score(test["credibility_label"], test["baseline_pred"], average="macro")
-    print(f"\nMacro-F1: {macro_f1:.3f}")
+    report("Rule-based baseline", test["credibility_label"], test["baseline_pred"])
 
 
 if __name__ == "__main__":
