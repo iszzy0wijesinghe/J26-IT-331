@@ -217,6 +217,7 @@ export const TelemetryExplorer: React.FC<TelemetryExplorerProps> = ({
       'Packet ID',
       'Device',
       'Security Status',
+      'Trust Label',
       'Routing',
       'ML Status',
       'Score',
@@ -240,6 +241,7 @@ export const TelemetryExplorer: React.FC<TelemetryExplorerProps> = ({
         assessment.packet_id,
         assessment.device_id,
         result.security_status ?? '',
+        assessment.trust_label ?? '',
         assessment.routing_outcome ?? 'N/A',
         result.ml_status ?? '',
         assessment.behavioural_score ?? '',
@@ -437,6 +439,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
           <th>Packet ID</th>
           <th>Device</th>
           <th>Security</th>
+          <th>Trust Label</th>
           <th>Routing</th>
           <th>ML</th>
           <th>Score</th>
@@ -447,7 +450,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
       <tbody>
         {results.length === 0 ? (
           <tr>
-            <td colSpan={8} className="c4-telemetry-no-results">
+            <td colSpan={9} className="c4-telemetry-no-results">
               No assessments match the selected filters.
             </td>
           </tr>
@@ -469,6 +472,11 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
                 <td>
                   <span className={`c4-telemetry-badge ${result.security_status === 'PASS' ? 'c4-telemetry-badge-trusted' : 'c4-telemetry-badge-untrusted'}`}>
                     {result.security_status || '-'}
+                  </span>
+                </td>
+                <td>
+                  <span className={`c4-telemetry-badge ${result.assessment.trust_label === 'TRUSTED' ? 'c4-telemetry-badge-trusted' : result.assessment.trust_label === 'UNTRUSTED' ? 'c4-telemetry-badge-untrusted' : result.assessment.trust_label === 'SUSPICIOUS' ? 'c4-telemetry-badge-suspicious' : 'c4-telemetry-badge-unknown'}`}>
+                    {result.assessment.trust_label || '-'}
                   </span>
                 </td>
                 <td>{result.assessment.routing_outcome || 'N/A'}</td>
