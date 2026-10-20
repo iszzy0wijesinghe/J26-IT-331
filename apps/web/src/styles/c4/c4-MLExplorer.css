@@ -332,7 +332,9 @@
 .c4-ml-table-wrapper {
   width: 100%;
   min-width: 0;
+  max-height: 400px;
   overflow-x: auto;
+  overflow-y: auto;
   border: 1px solid var(--ml-border);
   border-radius: 10px;
   background: #fff;
@@ -387,6 +389,64 @@
 
 .c4-ml-table tbody tr:last-child td {
   border-bottom: none;
+}
+
+.c4-ml-table-row-selected {
+  background: #e7f5f2 !important;
+}
+
+.c4-ml-json-button {
+  padding: 6px 12px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #0f766e;
+  background: #e7f5f2;
+  border: 1px solid #cbe9e3;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.c4-ml-json-button:hover {
+  background: #d1e9e4;
+  border-color: #b8e0d6;
+}
+
+.c4-ml-json-panel {
+  margin-top: 20px;
+  padding: 20px;
+  background: #f8fafc;
+  border: 1px solid var(--ml-border);
+  border-radius: 10px;
+}
+
+.c4-ml-json-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.c4-ml-json-panel-header h4 {
+  margin: 0;
+  color: var(--ml-navy);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.c4-ml-json-content {
+  overflow-x: auto;
+  padding: 16px;
+  color: #334155;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono",
+    monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .c4-ml-feature-name {
