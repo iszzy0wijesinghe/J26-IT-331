@@ -1,0 +1,25 @@
+{
+  "created_at": "2026-10-20T06:13:03.467249+00:00",
+  "dataset_code": "C1_CREDIBILITY",
+  "dataset_version": "C1_CREDIBILITY_V0.1.0",
+  "file_hash": "3024972088e88a2839424b067de4d448f6a5970c36e34a62655a2494ac8e91db",
+  "label_counts": {
+    "test": {
+      "ANOMALY": 137,
+      "CLEAN": 5227,
+      "VALID_EVENT": 836
+    },
+    "train": {
+      "ANOMALY": 557,
+      "CLEAN": 27454,
+      "VALID_EVENT": 4025
+    },
+    "val": {
+      "ANOMALY": 170,
+      "CLEAN": 5688,
+      "VALID_EVENT": 790
+    }
+  },
+  "row_count": 44884,
+  "version": "V0.1.0"
+}

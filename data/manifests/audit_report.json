@@ -1,0 +1,332 @@
+[
+  {
+    "level": "INFO",
+    "section": "schema",
+    "message": "50000 rows, 45 columns"
+  },
+  {
+    "level": "PASS",
+    "section": "schema",
+    "message": "all DATASET_COLUMNS are present"
+  },
+  {
+    "level": "PASS",
+    "section": "schema",
+    "message": "no extra columns"
+  },
+  {
+    "level": "PASS",
+    "section": "schema",
+    "message": "column order matches schemas"
+  },
+  {
+    "level": "PASS",
+    "section": "schema",
+    "message": "no feature column is forbidden"
+  },
+  {
+    "level": "PASS",
+    "section": "schema",
+    "message": "labels only hold CLEAN / ANOMALY / VALID_EVENT"
+  },
+  {
+    "level": "PASS",
+    "section": "schema",
+    "message": "split only holds train / val / test"
+  },
+  {
+    "level": "PASS",
+    "section": "schema",
+    "message": "split_temporal only holds train / val / test"
+  },
+  {
+    "level": "PASS",
+    "section": "schema",
+    "message": "split_device only holds train / val / test"
+  },
+  {
+    "level": "PASS",
+    "section": "schema",
+    "message": "ambiguity reasons are all known"
+  },
+  {
+    "level": "PASS",
+    "section": "schema",
+    "message": "context_status values are all known"
+  },
+  {
+    "level": "INFO",
+    "section": "provenance",
+    "message": "source_origin: {'SYNTHETIC': 50000}"
+  },
+  {
+    "level": "INFO",
+    "section": "provenance",
+    "message": "label_source: {'SYNTHETIC_GENERATOR_TRUTH': 50000}"
+  },
+  {
+    "level": "INFO",
+    "section": "provenance",
+    "message": "dataset_version: {'C1_CREDIBILITY_V0.1.0-draft': 50000}"
+  },
+  {
+    "level": "INFO",
+    "section": "provenance",
+    "message": "calibration_version: {'SYN-CAL-V0': 50000}"
+  },
+  {
+    "level": "INFO",
+    "section": "provenance",
+    "message": "test_run_id: {'SYN-RUN-20261016': 50000}"
+  },
+  {
+    "level": "PASS",
+    "section": "provenance",
+    "message": "source_origin uses the allowed source types"
+  },
+  {
+    "level": "PASS",
+    "section": "provenance",
+    "message": "single source type"
+  },
+  {
+    "level": "FAIL",
+    "section": "basic",
+    "message": "934 duplicated record_id"
+  },
+  {
+    "level": "INFO",
+    "section": "basic",
+    "message": "Example duplicate record_ids:\n                  record_id scenario_id sensor_instance_id               observed_at credibility_label\n41   SC0000:ZONE-A-SM1:0010      SC0000         ZONE-A-SM1 2026-01-01 00:50:03+00:00               NaN\n42   SC0000:ZONE-A-SM1:0010      SC0000         ZONE-A-SM1 2026-01-01 00:50:03+00:00               NaN\n93   SC0000:ZONE-A-SM1:0023      SC0000         ZONE-A-SM1 2026-01-01 01:55:01+00:00             CLEAN\n94   SC0000:ZONE-A-SM1:0023      SC0000         ZONE-A-SM1 2026-01-01 01:55:01+00:00             CLEAN\n145  SC0000:ZONE-A-SM1:0035      SC0000         ZONE-A-SM1 2026-01-01 02:55:02+00:00             CLEAN\n144  SC0000:ZONE-A-SM1:0035      SC0000         ZONE-A-SM1 2026-01-01 02:55:02+00:00             CLEAN\n566  SC0000:ZONE-A-SM1:0136      SC0000         ZONE-A-SM1 2026-01-01 11:20:02+00:00             CLEAN\n565  SC0000:ZONE-A-SM1:0136      SC0000         ZONE-A-SM1 2026-01-01 11:20:02+00:00             CLEAN\n681  SC0000:ZONE-A-SM1:0163      SC0000         ZONE-A-SM1 2026-01-01 13:35:03+00:00             CLEAN\n682  SC0000:ZONE-A-SM1:0163      SC0000         ZONE-A-SM1 2026-01-01 13:35:03+00:00             CLEAN"
+  },
+  {
+    "level": "WARN",
+    "section": "basic",
+    "message": "934 duplicated (device_id, observed_at) pair(s)"
+  },
+  {
+    "level": "PASS",
+    "section": "basic",
+    "message": "observed_at parsed, 2026-01-01 00:00:01+00:00 to 2026-03-24 23:55:04+00:00"
+  },
+  {
+    "level": "INFO",
+    "section": "basic",
+    "message": "null counts: credibility_label=4238, event_id=43533, ambiguity_reason=46745, value=483, delta_prev_pct_per_min=1115, obs_gap_steps=176, baseline_mean=529, baseline_std=529, value_minus_baseline=1461, rain_15m_mm=1479, rain_1h_mm=3285, rain_3h_mm=8132, neighbour_consensus_change=529, target_minus_consensus=1461, neighbour_change_spread=603, neighbour_rise_agree_frac=529"
+  },
+  {
+    "level": "INFO",
+    "section": "labels",
+    "message": "class balance: CLEAN=39121 (78.2%), VALID_EVENT=5761 (11.5%), ANOMALY=880 (1.8%)"
+  },
+  {
+    "level": "PASS",
+    "section": "labels",
+    "message": "ambiguity_reason implies ambiguous"
+  },
+  {
+    "level": "PASS",
+    "section": "labels",
+    "message": "ambiguous rows are excluded from training (except BORDERLINE_EXTREME)"
+  },
+  {
+    "level": "PASS",
+    "section": "labels",
+    "message": "insufficient-context rows are not train eligible"
+  },
+  {
+    "level": "INFO",
+    "section": "labels",
+    "message": "train_eligible rows: 43781 of 50000"
+  },
+  {
+    "level": "PASS",
+    "section": "labels",
+    "message": "every VALID_EVENT row has an event_id"
+  },
+  {
+    "level": "INFO",
+    "section": "splits",
+    "message": "42 scenarios, rows per scenario median 1195"
+  },
+  {
+    "level": "PASS",
+    "section": "splits",
+    "message": "split: no scenario is split across partitions"
+  },
+  {
+    "level": "PASS",
+    "section": "splits",
+    "message": "split: no event is split across partitions"
+  },
+  {
+    "level": "PASS",
+    "section": "splits",
+    "message": "split_temporal: no scenario is split across partitions"
+  },
+  {
+    "level": "PASS",
+    "section": "splits",
+    "message": "split_temporal: no event is split across partitions"
+  },
+  {
+    "level": "INFO",
+    "section": "splits",
+    "message": "scenario share per split: {'train': 0.714, 'val': 0.143, 'test': 0.143}"
+  },
+  {
+    "level": "PASS",
+    "section": "splits",
+    "message": "split=train: all 3 classes present (31807 eligible rows)"
+  },
+  {
+    "level": "PASS",
+    "section": "splits",
+    "message": "split=val: all 3 classes present (5830 eligible rows)"
+  },
+  {
+    "level": "PASS",
+    "section": "splits",
+    "message": "split=test: all 3 classes present (6144 eligible rows)"
+  },
+  {
+    "level": "PASS",
+    "section": "splits",
+    "message": "split_temporal=train: all 3 classes present (25763 eligible rows)"
+  },
+  {
+    "level": "PASS",
+    "section": "splits",
+    "message": "split_temporal=val: all 3 classes present (8688 eligible rows)"
+  },
+  {
+    "level": "PASS",
+    "section": "splits",
+    "message": "split_temporal=test: all 3 classes present (9330 eligible rows)"
+  },
+  {
+    "level": "PASS",
+    "section": "splits",
+    "message": "split_device=train: all 3 classes present (36692 eligible rows)"
+  },
+  {
+    "level": "PASS",
+    "section": "splits",
+    "message": "split_device=test: all 3 classes present (7089 eligible rows)"
+  },
+  {
+    "level": "INFO",
+    "section": "splits",
+    "message": "scenario start range per split_temporal: train: 2026-01-01 00:00:01+00:00 .. 2026-02-18 00:00:02+00:00; val: 2026-02-20 00:00:02+00:00 .. 2026-03-06 00:00:00+00:00; test: 2026-03-08 00:00:03+00:00 .. 2026-03-24 00:00:04+00:00"
+  },
+  {
+    "level": "PASS",
+    "section": "splits",
+    "message": "split_temporal is time ordered"
+  },
+  {
+    "level": "INFO",
+    "section": "splits",
+    "message": "devices: 12; devices with rows in more than one split_device value: 0"
+  },
+  {
+    "level": "INFO",
+    "section": "splits",
+    "message": "label mix per scenario: CLEAN+VALID_EVENT=15, CLEAN=13, ANOMALY+CLEAN=8, ANOMALY+CLEAN+VALID_EVENT=6"
+  },
+  {
+    "level": "INFO",
+    "section": "units",
+    "message": "value (min/median/max) by class: ANOMALY: -19.006/45.292/136.83; CLEAN: 36.766/46.096/57.031; VALID_EVENT: 38.698/50.768/65.818"
+  },
+  {
+    "level": "PASS",
+    "section": "units",
+    "message": "value_present matches null values"
+  },
+  {
+    "level": "PASS",
+    "section": "units",
+    "message": "rain windows are monotonic (15m <= 1h <= 3h)"
+  },
+  {
+    "level": "PASS",
+    "section": "units",
+    "message": "no negative rain"
+  },
+  {
+    "level": "INFO",
+    "section": "units",
+    "message": "median rain_1h_mm per regime: DRY=0.00, HEAVY=17.88, LIGHT=0.92, MODERATE=4.60, UNKNOWN=nan"
+  },
+  {
+    "level": "PASS",
+    "section": "units",
+    "message": "neighbour_rise_agree_frac in range"
+  },
+  {
+    "level": "PASS",
+    "section": "units",
+    "message": "n_neighbours_fresh in range"
+  },
+  {
+    "level": "PASS",
+    "section": "units",
+    "message": "stuck_run_len in range"
+  },
+  {
+    "level": "PASS",
+    "section": "units",
+    "message": "dt_s in range"
+  },
+  {
+    "level": "PASS",
+    "section": "units",
+    "message": "history_obs in range"
+  },
+  {
+    "level": "PASS",
+    "section": "units",
+    "message": "recent_read_failures in range"
+  },
+  {
+    "level": "PASS",
+    "section": "units",
+    "message": "steps_since_rain in range"
+  },
+  {
+    "level": "INFO",
+    "section": "units",
+    "message": "device_voltage min/median/max: 2.90/3.87/3.93"
+  },
+  {
+    "level": "INFO",
+    "section": "leakage",
+    "message": "rows with no reading: 483, label share {'ANOMALY': 1.0}"
+  },
+  {
+    "level": "WARN",
+    "section": "leakage",
+    "message": "every row without a reading has the same label, value_present / obs_gap_steps / recent_read_failures act as label proxies (missing readings belong to C2)"
+  },
+  {
+    "level": "WARN",
+    "section": "leakage",
+    "message": "recent_read_failures is 0 on every row that has a reading, it only counts the current dropout run, not recent failures"
+  },
+  {
+    "level": "PASS",
+    "section": "leakage",
+    "message": "mode is constant, it carries no information (safe, but useless as a feature)"
+  },
+  {
+    "level": "INFO",
+    "section": "leakage",
+    "message": "distinct dt_s per class: {'ANOMALY': 1, 'CLEAN': 1, 'VALID_EVENT': 1}"
+  },
+  {
+    "level": "INFO",
+    "section": "leakage",
+    "message": "scikit-learn not installed, skipping single-column probes"
+  }
+]
