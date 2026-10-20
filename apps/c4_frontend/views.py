@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import pandas as pd
 import streamlit as st
+from pathlib import Path
 
 from apps.c4_frontend.c4_backend import C4DemoBackend
 from shared.simulation.topology import get_all_demo_pipes
@@ -651,6 +653,142 @@ def render_registry_and_policy() -> None:
     )
 
 
+def render_quarantine_viewer() -> None:
+    """Render the quarantine file viewer section."""
+    quarantine_dir = Path(__file__).resolve().parents[3] / "quarantine" / "c4"
+
+    if not quarantine_dir.exists():
+        st.warning(f"Quarantine directory not found: {quarantine_dir}")
+        return
+
+    quarantine_files = list(quarantine_dir.glob("*.json"))
+
+    if not quarantine_files:
+        st.info("No quarantine files found in quarantine/c4/")
+        return
+
+    st.caption(f"Found {len(quarantine_files)} quarantine file(s)")
+
+    # Load all quarantine records
+    records = []
+    for file_path in sorted(quarantine_files):
+        try:
+            with file_path.open(encoding="utf-8") as f:
+                record = json.load(f)
+                records.append(record)
+        except Exception as e:
+            st.error(f"Error reading {file_path.name}: {e}")
+
+    if not records:
+        st.error("Could not load any quarantine records")
+        return
+
+    # Create summary dataframe
+    summary_data = []
+    for record in records:
+        summary_data.append({
+            "quarantine_id": record.get("quarantine_id"),
+            "packet_id": record.get("packet_id"),
+            "device_id": record.get("device_id"),
+            "trust_label": record.get("trust_label"),
+            "routing_outcome": record.get("routing_outcome"),
+            "quarantine_reason": record.get("quarantine_reason"),
+            "released": "Yes" if record.get("released") else "No",
+            "quarantined_at": record.get("quarantined_at"),
+        })
+
+    summary_df = pd.DataFrame(summary_data)
+
+    # Show summary table
+    st.subheader("Quarantine Summary")
+    st.dataframe(
+        summary_df,
+        width="stretch",
+        hide_index=True,
+        height=300,
+    )
+
+    # Detailed view
+    st.subheader("Quarantine Record Details")
+    selected_id = st.selectbox(
+        "Select quarantine record to view details",
+        summary_df["quarantine_id"].tolist(),
+        format_func=lambda qid: f"{qid} - {summary_df[summary_df['quarantine_id'] == qid]['packet_id'].iloc[0]}",
+    )
+
+    selected_record = next((r for r in records if r.get("quarantine_id") == selected_id), None)
+
+    if selected_record:
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Quarantine ID", selected_record.get("quarantine_id"))
+        col2.metric("Packet ID", selected_record.get("packet_id"))
+        col3.metric("Device ID", selected_record.get("device_id"))
+
+        col4, col5, col6 = st.columns(3)
+        col4.metric("Trust Label", selected_record.get("trust_label"))
+        col5.metric("Routing Outcome", selected_record.get("routing_outcome"))
+        col6.metric("Released", "Yes" if selected_record.get("released") else "No")
+
+        st.write("**Reason Codes**")
+        reason_codes = selected_record.get("reason_codes", [])
+        if reason_codes:
+            for code in reason_codes:
+                st.code(code, language="text")
+        else:
+            st.caption("No reason codes")
+
+        st.write("**Quarantine Reason**")
+        st.code(selected_record.get("quarantine_reason"), language="text")
+
+        st.write("**Packet Data**")
+        packet_data = selected_record.get("packet_data", {})
+        if packet_data:
+            st.json(packet_data)
+        else:
+            st.caption("No packet data")
+
+        if selected_record.get("released"):
+            st.write("**Release Information**")
+            st.write({
+                "released_at": selected_record.get("released_at"),
+                "release_reason": selected_record.get("release_reason"),
+                "reviewed_by": selected_record.get("reviewed_by"),
+            })
+
+        st.write("**Assessment**")
+        assessment = selected_record.get("assessment")
+        if assessment:
+            st.json(assessment)
+        else:
+            st.caption("No assessment data")
+
+        # Statistics
+        st.divider()
+        st.subheader("Quarantine Statistics")
+
+        total = len(records)
+        released_count = sum(1 for r in records if r.get("released"))
+        unreleased_count = total - released_count
+
+        stat1, stat2, stat3 = st.columns(3)
+        stat1.metric("Total Records", total)
+        stat2.metric("Released", released_count)
+        stat3.metric("Unreleased", unreleased_count)
+
+        # Reason distribution
+        reason_counts = {}
+        for record in records:
+            reason = record.get("quarantine_reason", "UNKNOWN")
+            reason_counts[reason] = reason_counts.get(reason, 0) + 1
+
+        if reason_counts:
+            st.write("**Quarantine Reason Distribution**")
+            reason_df = pd.DataFrame(
+                [{"Reason": k, "Count": v} for k, v in reason_counts.items()]
+            )
+            st.bar_chart(reason_df.set_index("Reason"))
+
+
 def render_storage_and_diagnostics() -> None:
     heading(
         "Data Storage and System Diagnostics",
@@ -751,6 +889,15 @@ def render_storage_and_diagnostics() -> None:
         "A packet count in PostgreSQL does not mean this dashboard is displaying those rows. "
         "The Command Center only counts session assessments."
     )
+
+    st.divider()
+    st.subheader("Quarantine File Viewer")
+    help_card(
+        "Quarantine records",
+        "These are JSON files stored in quarantine/c4/ that contain detailed information "
+        "about quarantined telemetry packets, including trust labels, reason codes, and packet data."
+    )
+    render_quarantine_viewer()
 
 
 def render_model_policy() -> None:

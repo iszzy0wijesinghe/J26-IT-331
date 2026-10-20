@@ -158,7 +158,7 @@ def _render_profile(explorer: C4ModelExplorer, profile: dict) -> None:
         "Runtime feature schema",
         "Exact 18-feature order required by C4BehavioralModelRunner.",
     )
-    st.dataframe(explorer.schema_table(), width="stretch", hide_index=True)
+    st.dataframe(explorer.schema_table(), width="stretch", hide_index=True, height=400)
 
 
 def _render_importance(explorer: C4ModelExplorer) -> None:
@@ -188,7 +188,7 @@ def _render_importance(explorer: C4ModelExplorer) -> None:
         st.caption("Importance by behavioral family")
         st.bar_chart(family.set_index("family"))
     with right:
-        st.dataframe(table, width="stretch", hide_index=True)
+        st.dataframe(table, width="stretch", hide_index=True, height=400)
 
 
 def _render_holdout(model_key: str) -> None:
@@ -215,6 +215,7 @@ def _render_holdout(model_key: str) -> None:
     st.dataframe(
         evaluation["confusion_matrix"],
         width="stretch",
+        height=300,
     )
 
     counts = pd.Series(evaluation["label_counts"], name="Packets")
@@ -290,7 +291,7 @@ def _render_inspector(model_key: str, explorer: C4ModelExplorer) -> None:
             ],
         }
     )
-    st.dataframe(feature_values, width="stretch", hide_index=True)
+    st.dataframe(feature_values, width="stretch", hide_index=True, height=400)
 
 
 def _sample_label(row: pd.Series) -> str:
@@ -445,7 +446,7 @@ def _render_upload_training() -> None:
     )
 
     with st.expander("Preview cleaned dataset", expanded=True):
-        st.dataframe(prepared.head(20), use_container_width=True)
+        st.dataframe(prepared.head(20), use_container_width=True, height=400)
 
     st.markdown("#### Trust-label distribution")
     class_counts = (
@@ -454,7 +455,7 @@ def _render_upload_training() -> None:
         .rename_axis("Trust label")
         .reset_index(name="Rows")
     )
-    st.dataframe(class_counts, use_container_width=True, hide_index=True)
+    st.dataframe(class_counts, use_container_width=True, hide_index=True, height=300)
 
     st.caption(
         "The trainer uses only the defined 18 behavioral features. "
@@ -535,6 +536,7 @@ def _render_upload_training() -> None:
             }
         ),
         use_container_width=True,
+        height=300,
     )
 
     st.markdown("#### Confusion matrix")
@@ -544,13 +546,14 @@ def _render_upload_training() -> None:
         index=[f"Actual: {label}" for label in classes],
         columns=[f"Predicted: {label}" for label in classes],
     )
-    st.dataframe(matrix_df, use_container_width=True)
+    st.dataframe(matrix_df, use_container_width=True, height=300)
 
     st.markdown("#### Test-set predictions")
     st.dataframe(
         result["predictions"].head(100),
         use_container_width=True,
         hide_index=True,
+        height=400,
     )
 
     prediction_csv = result["predictions"].to_csv(index=False).encode("utf-8")
@@ -567,6 +570,7 @@ def _render_upload_training() -> None:
         result["feature_importance"],
         use_container_width=True,
         hide_index=True,
+        height=400,
     )
 
     st.warning(
