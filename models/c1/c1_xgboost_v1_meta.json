@@ -1,0 +1,15 @@
+{
+  "version": "c1_xgboost_v1",
+  "trained_at": "2026-10-21",
+  "classes": [
+    "CLEAN",
+    "ANOMALY",
+    "VALID_EVENT"
+  ],
+  "metrics": {
+    "macro_f1": 0.765,
+    "anomaly_recall": 0.492,
+    "valid_event_recall": 0.754,
+    "evaluated_on": "test split, scenario grouped"
+  }
+}
