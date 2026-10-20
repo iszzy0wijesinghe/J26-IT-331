@@ -286,6 +286,7 @@ export const TelemetryExplorer: React.FC<TelemetryExplorerProps> = ({
     }
 
     const headers = [
+      'packet_id',
       'device_id',
       'device_timestamp',
       'received_timestamp',
@@ -300,6 +301,7 @@ export const TelemetryExplorer: React.FC<TelemetryExplorerProps> = ({
       'current_ma',
       'reboot_count_24h',
       'sensor_fault_flag',
+      'full_packet_json',
     ];
 
     const escapeCsv = (value: unknown) => {
@@ -311,6 +313,7 @@ export const TelemetryExplorer: React.FC<TelemetryExplorerProps> = ({
       const packet = result.packet;
 
       return [
+        packet.packet_id,
         packet.device_id,
         packet.observed_at,
         packet.received_at,
@@ -325,6 +328,7 @@ export const TelemetryExplorer: React.FC<TelemetryExplorerProps> = ({
         packet.device_health.supply_current ?? 0,
         packet.device_health.reboot_count_24h ?? 0,
         packet.device_health.sensor_fault_flag ? 1 : 0,
+        JSON.stringify(packet),
       ];
     });
 

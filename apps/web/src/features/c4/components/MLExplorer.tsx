@@ -193,6 +193,9 @@ const [predictionResult, setPredictionResult] =
   useState<PredictionResult | null>(null);
 const [predictionError, setPredictionError] = useState("");
 const [predictionLoading, setPredictionLoading] = useState(false);
+const [trustedFilter, setTrustedFilter] = useState<boolean>(false);
+const [sendingToDatabase, setSendingToDatabase] = useState(false);
+const [databaseMessage, setDatabaseMessage] = useState("");
 
 
 async function predictUploadedFile(file: File) {
@@ -855,6 +858,17 @@ async function predictUploadedFile(file: File) {
         </div>
       </div>
 
+      <div style={{ margin: "16px 0" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <input
+            type="checkbox"
+            checked={trustedFilter}
+            onChange={(e) => setTrustedFilter(e.target.checked)}
+          />
+          <span>Show only TRUSTED predictions</span>
+        </label>
+      </div>
+
       {predictionResult.predictions.length > 0 && (
         <>
           <div className="c4-ml-table-wrap">
@@ -869,7 +883,9 @@ async function predictUploadedFile(file: File) {
                 </tr>
               </thead>
               <tbody>
-                {predictionResult.predictions.map((row, index) => (
+                {predictionResult.predictions
+                  .filter((row) => !trustedFilter || row.predicted_label?.toUpperCase() === "TRUSTED")
+                  .map((row, index) => (
                   <tr key={`${row.device_id}-${index}`}>
                     {Object.keys(predictionResult.predictions[0]).map(
                       (column) => (
@@ -886,39 +902,105 @@ async function predictUploadedFile(file: File) {
             </table>
           </div>
 
-          <button
-            type="button"
-            className="c4-ml-button"
-            onClick={() => {
-              const columns = Object.keys(
-                predictionResult.predictions[0],
-              );
+          <div style={{ display: "flex", gap: "12px", marginTop: "16px" }}>
+            <button
+              type="button"
+              className="c4-ml-button"
+              onClick={() => {
+                const columns = Object.keys(
+                  predictionResult.predictions[0],
+                );
 
-              const escapeCsv = (value: unknown) =>
-                `"${String(value ?? "").replaceAll('"', '""')}"`;
+                const escapeCsv = (value: unknown) =>
+                  `"${String(value ?? "").replaceAll('"', '""')}"`;
 
-              const csv = [
-                columns.map(escapeCsv).join(","),
-                ...predictionResult.predictions.map((row) =>
-                  columns
-                    .map((column) => escapeCsv(row[column]))
-                    .join(","),
-                ),
-              ].join("\r\n");
+                const csv = [
+                  columns.map(escapeCsv).join(","),
+                  ...predictionResult.predictions.map((row) =>
+                    columns
+                      .map((column) => escapeCsv(row[column]))
+                      .join(","),
+                  ),
+                ].join("\r\n");
 
-              const url = URL.createObjectURL(
-                new Blob([csv], { type: "text/csv;charset=utf-8;" }),
-              );
+                const url = URL.createObjectURL(
+                  new Blob([csv], { type: "text/csv;charset=utf-8;" }),
+                );
 
-              const anchor = document.createElement("a");
-              anchor.href = url;
-              anchor.download = "c4_trust_predictions.csv";
-              anchor.click();
-              URL.revokeObjectURL(url);
-            }}
-          >
-            Download predictions CSV
-          </button>
+                const anchor = document.createElement("a");
+                anchor.href = url;
+                anchor.download = "c4_trust_predictions.csv";
+                anchor.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              Download predictions CSV
+            </button>
+
+            <button
+              type="button"
+              className="c4-ml-button"
+              disabled={sendingToDatabase}
+              onClick={async () => {
+                setSendingToDatabase(true);
+                setDatabaseMessage("");
+
+                try {
+                  const trustedPredictions = predictionResult.predictions.filter(
+                    (row) => row.predicted_label?.toUpperCase() === "TRUSTED"
+                  );
+
+                  if (trustedPredictions.length === 0) {
+                    setDatabaseMessage("No TRUSTED predictions to send to database.");
+                    setSendingToDatabase(false);
+                    return;
+                  }
+
+                  const response = await fetch(`${API_BASE}/api/c4/persist-trusted`, {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      predictions: trustedPredictions,
+                      filename: predictionResult.filename,
+                    }),
+                  });
+
+                  if (!response.ok) {
+                    throw new Error(await readApiError(response));
+                  }
+
+                  const result = await response.json();
+                  setDatabaseMessage(
+                    `Successfully sent ${trustedPredictions.length} TRUSTED packets to database. ${result.message}`
+                  );
+                } catch (err) {
+                  if (err instanceof Error) {
+                    // Try to parse the error detail from the response
+                    const errorDetail = err.message;
+                    setDatabaseMessage(
+                      `Error sending to database: ${errorDetail}`
+                    );
+                  } else {
+                    setDatabaseMessage(
+                      `Error sending to database: Unknown error`
+                    );
+                  }
+                } finally {
+                  setSendingToDatabase(false);
+                }
+              }}
+            >
+              {sendingToDatabase ? "Sending..." : "Send TRUSTED to Database"}
+            </button>
+          </div>
+
+          {databaseMessage && (
+            <div style={{ marginTop: "12px", padding: "12px", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: "4px" }}>
+              {databaseMessage}
+            </div>
+          )}
         </>
       )}
     </div>
