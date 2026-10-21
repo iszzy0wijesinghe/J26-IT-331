@@ -7,6 +7,7 @@ docs: http://127.0.0.1:8033/docs
 from __future__ import annotations
 
 import io
+import json
 import logging
 import threading
 import time
@@ -15,6 +16,7 @@ from collections import deque
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -30,6 +32,10 @@ from .schemas import (
 
 logger = logging.getLogger("c1_api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+
+# apps/c1_api/app/main.py -> the repo root is three levels above this folder
+REPO_ROOT = Path(__file__).resolve().parents[3]
+HISTORY_PATH = REPO_ROOT / "models" / "c1" / "c1_xgboost_v2_training_history.json"
 
 
 @dataclass
@@ -101,6 +107,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def metrics(request: Request) -> dict[str, Any]:
         s = state_of(request)
         return s.predictor.metrics() if s.predictor else {"available": False}
+
+    @app.get("/training-history")
+    def training_history() -> dict[str, Any]:
+        """Return the XGBoost training history for the dashboard chart."""
+        if not HISTORY_PATH.exists():
+            raise HTTPException(status_code=404, detail="Training history not found. Re-run train.py")
+
+        with HISTORY_PATH.open(encoding="utf-8") as f:
+            data = json.load(f)
+
+        train_key = "validation_0"
+        val_key = "validation_1"
+
+        if train_key not in data or val_key not in data:
+            raise HTTPException(status_code=500, detail="Unexpected history format")
+
+        return {
+            "train_loss": data[train_key]["mlogloss"],
+            "val_loss": data[val_key]["mlogloss"],
+            "metric": "mlogloss",
+        }
 
     @app.post("/predict", response_model=PredictResponse)
     def predict(request: Request, payload: Observation | list[Observation] = Body(...)) -> PredictResponse:

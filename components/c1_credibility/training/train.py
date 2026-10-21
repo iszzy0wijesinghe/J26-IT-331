@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import xgboost as xgb
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix, f1_score, recall_score
 
 # Paths
 DATASET_PATH = Path("data/synthetic/c1/C1_CREDIBILITY_V1_REALISTIC_4Y/c1_credibility_4y_V1.0.0.csv")
@@ -16,6 +16,7 @@ MODEL_DIR = Path("models/c1")
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
 MODEL_PATH = MODEL_DIR / "c1_xgboost_v2_realistic.json"
 MANIFEST_PATH = MODEL_DIR / "c1_xgboost_v2_realistic_manifest.json"
+HISTORY_PATH = MODEL_DIR / "c1_xgboost_v2_training_history.json"
 
 # Target
 TARGET = "credibility_label"
@@ -54,7 +55,6 @@ def validate_dataset(df: pd.DataFrame) -> None:
     if missing:
         raise ValueError(f"Missing columns: {sorted(missing)}")
 
-    # Drop rows with missing target or unexpected labels BEFORE validation
     df = df.dropna(subset=[TARGET])
     unexpected_labels = set(df[TARGET].unique()) - set(CLASSES)
     if unexpected_labels:
@@ -87,7 +87,6 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     df = pd.read_csv(DATASET_PATH, low_memory=False)
     print(f"Total rows: {len(df)}")
 
-    # Drop rows with missing target BEFORE validation
     df = df.dropna(subset=[TARGET])
     print(f"After dropping rows with missing labels: {len(df)}")
 
@@ -127,7 +126,6 @@ def prepare_features(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
 
     X = df[FEATURES].copy()
 
-    # Encode target
     label_map = {cls: i for i, cls in enumerate(CLASSES)}
     y = df[TARGET].map(label_map)
 
@@ -163,9 +161,14 @@ def train_model(X_train, y_train, X_val, y_val):
     model.fit(
         X_train, y_train,
         sample_weight=sample_weights,
-        eval_set=[(X_val, y_val)],
+        eval_set=[(X_train, y_train), (X_val, y_val)], # Added train set for chart
         verbose=True,
     )
+
+    # Save training history for the dashboard charts
+    history = model.evals_result()
+    HISTORY_PATH.write_text(json.dumps(history, indent=2), encoding="utf-8")
+    print(f"\nTraining history saved to {HISTORY_PATH}")
 
     print(f"\nBest iteration: {model.best_iteration}")
 
@@ -196,10 +199,16 @@ def evaluate_model(model, X, y, model_name="Test"):
     print(f"  VALID_EVENT → ANOMALY: {ve_to_anomaly:.2%}")
     print(f"  ANOMALY → VALID_EVENT: {anomaly_to_ve:.2%}")
 
-    return y_pred
+    # Return metrics for the manifest
+    return {
+        "macro_f1": f1_score(y, y_pred, average="macro", zero_division=0),
+        "anomaly_recall": recall_score(y, y_pred, labels=[1], average=None, zero_division=0)[0],
+        "valid_event_recall": recall_score(y, y_pred, labels=[2], average=None, zero_division=0)[0],
+        "evaluated_on": f"{model_name.lower()} split, realistic 4-year synthetic"
+    }
 
 
-def save_manifest(model, X_train, y_train):
+def save_manifest(model, X_train, y_train, metrics):
     """Save model manifest with feature list, mappings, and metadata."""
     manifest = {
         "model_version": "c1_xgboost_v2_realistic",
@@ -212,6 +221,7 @@ def save_manifest(model, X_train, y_train):
         "train_size": len(X_train),
         "train_class_distribution": {CLASSES[i]: int(c) for i, c in enumerate(y_train.value_counts().sort_index())},
         "class_weights": {0: 1.0, 1: 10.0, 2: 2.0},
+        "metrics": metrics
     }
     MANIFEST_PATH.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     print(f"\nManifest saved to {MANIFEST_PATH}")
@@ -236,13 +246,13 @@ def main():
     evaluate_model(model, X_val, y_val, "Validation")
 
     print("\nEvaluating on test set...")
-    evaluate_model(model, X_test, y_test, "Test")
+    test_metrics = evaluate_model(model, X_test, y_test, "Test")
 
     print(f"\nSaving model to {MODEL_PATH}...")
     model.save_model(MODEL_PATH)
     print("Model saved successfully!")
 
-    save_manifest(model, X_train, y_train)
+    save_manifest(model, X_train, y_train, test_metrics)
 
 
 if __name__ == "__main__":

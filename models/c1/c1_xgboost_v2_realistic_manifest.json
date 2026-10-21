@@ -44,9 +44,9 @@
     "2": 2.0
   },
   "metrics": {
-    "macro_f1": 0.72,
-    "anomaly_recall": 0.46,
-    "valid_event_recall": 0.80,
+    "macro_f1": 0.7239360335310724,
+    "anomaly_recall": 0.45792079207920794,
+    "valid_event_recall": 0.797843137254902,
     "evaluated_on": "test split, realistic 4-year synthetic"
   }
 }

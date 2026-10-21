@@ -5,6 +5,7 @@ import { ChartIcon, LayersIcon, PulseIcon, ShieldIcon, WarnIcon } from "../compo
 import { RecentTable } from "../components/RecentTable";
 import { ResultPanel } from "../components/ResultPanel";
 import { SignalInputs } from "../components/SignalInputs";
+import { TrainingChart } from "../components/TrainingChart";
 import { PRESETS } from "../constants";
 import { useC1 } from "../hooks/useC1";
 import { emptyForm, formFromObservation, parseForm, setField } from "../observation";
@@ -116,7 +117,7 @@ function C1Page() {
         <MetricCard icon={<ChartIcon />} tone="teal" label="Macro-F1" value={pct(metrics?.macro_f1)} note={metricNote} />
         <MetricCard icon={<ShieldIcon />} tone="red" label="ANOMALY recall" value={pct(metrics?.anomaly_recall)} note="Faults that were caught" />
         <MetricCard icon={<PulseIcon />} tone="blue" label="VALID_EVENT recall" value={pct(metrics?.valid_event_recall)} note="Real events kept as valid" />
-        <MetricCard icon={<LayersIcon />} tone="amber" label="Total features" value={String(c1.model?.n_features ?? 18)} note={c1.model ? `Model ${c1.model.version}` : "Model input columns"} />
+        <MetricCard icon={<LayersIcon />} tone="amber" label="Total features" value={String(c1.model?.n_features ?? 17)} note={c1.model ? `Model ${c1.model.version}` : "Model input columns"} />
       </div>
 
       <div className="c1-layout">
@@ -170,6 +171,9 @@ function C1Page() {
           {csvMessage && <span style={{ fontSize: "0.9rem", color: csvMessage.startsWith("Upload failed") ? "red" : "green" }}>{csvMessage}</span>}
         </div>
       </div>
+
+      {/* Added the Training Chart here */}
+      <TrainingChart />
 
       <RecentTable rows={c1.recent} offline={c1.connection === "offline"} />
     </div>
