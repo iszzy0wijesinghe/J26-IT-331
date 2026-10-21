@@ -36,9 +36,13 @@ async function request<T>(path: string, init: RequestInit = {}, timeoutMs = 8000
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
+    const headers = init.body instanceof FormData
+      ? undefined // Let the browser set the boundary for multipart/form-data
+      : { "Content-Type": "application/json" };
+
     const res = await fetch(`${C1_API_BASE}${path}`, {
       ...init,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...headers, ...(init.headers || {}) },
       signal: controller.signal,
     });
     if (!res.ok) throw new ApiError(await readError(res), res.status);
@@ -59,6 +63,15 @@ export const c1Api = {
   model: () => request<ModelInfo>("/models"),
   metrics: () => request<Metrics>("/metrics"),
   recent: (limit = 10) => request<RecentPrediction[]>(`/predictions/recent?limit=${limit}`),
+  
   predict: (body: Observation | Observation[]) =>
     request<PredictResponse>("/predict", { method: "POST", body: JSON.stringify(body) }),
+    
+  predictCsv: async (file: File): Promise<PredictResponse> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    // Uploads can take longer, so we use a 30s timeout
+    return request<PredictResponse>("/predict/csv", { method: "POST", body: formData }, 30000);
+  },
 };

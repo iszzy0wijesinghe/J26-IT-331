@@ -88,5 +88,29 @@ export function useC1() {
     [loadRecent],
   );
 
-  return { connection, health, model, metrics, recent, response, running, error, predict, refresh: checkHealth };
+  /** Upload a CSV file for batch prediction. */
+  const predictCsv = useCallback(
+    async (file: File): Promise<boolean> => {
+      setRunning(true);
+      setError(null);
+      try {
+        const res = await c1Api.predictCsv(file);
+        if (!alive.current) return false;
+        setResponse(res);
+        setConnection("online");
+        await loadRecent();
+        return true;
+      } catch (err) {
+        if (!alive.current) return false;
+        setError(err instanceof ApiError ? err.message : "CSV upload failed.");
+        if (err instanceof ApiError && err.status === null) setConnection("offline");
+        return false;
+      } finally {
+        if (alive.current) setRunning(false);
+      }
+    },
+    [loadRecent],
+  );
+
+  return { connection, health, model, metrics, recent, response, running, error, predict, predictCsv, refresh: checkHealth };
 }

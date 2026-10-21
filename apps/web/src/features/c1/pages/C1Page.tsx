@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { C1_API_BASE } from "../api/c1Client";
 import { MetricCard } from "../components/MetricCard";
 import { ChartIcon, LayersIcon, PulseIcon, ShieldIcon, WarnIcon } from "../components/icons";
@@ -26,6 +26,10 @@ function C1Page() {
   const [activePreset, setActivePreset] = useState<string | null>(PRESETS[0].id);
   const [autoDerive, setAutoDerive] = useState(true);
   const [problems, setProblems] = useState<string[]>([]);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [csvUploading, setCsvUploading] = useState(false);
+  const [csvMessage, setCsvMessage] = useState<string | null>(null);
 
   const [connLabel, connNote] = CONNECTION_TEXT[c1.connection];
   const metrics = c1.metrics;
@@ -60,6 +64,27 @@ function C1Page() {
   async function onRunBatch() {
     setProblems([]);
     await c1.predict(PRESETS.map((p) => p.values));
+  }
+
+  async function onCsvUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setCsvMessage(null);
+    setCsvUploading(true);
+    setProblems([]);
+
+    try {
+      await c1.predictCsv(file);
+      setCsvMessage(`Processed ${file.name} successfully.`);
+    } catch (err: any) {
+      setCsvMessage(`Upload failed: ${err.message}`);
+    } finally {
+      setCsvUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
   }
 
   return (
@@ -118,6 +143,31 @@ function C1Page() {
             classOrderVerified={c1.model ? c1.model.class_order_verified : null}
           />
           <div className="c1-latest">Latest label <strong>{latestLabel}</strong></div>
+        </div>
+      </div>
+
+      <div style={{ marginTop: "1.5rem" }}>
+        <h3>Batch CSV Upload</h3>
+        <p style={{ fontSize: "0.9rem", color: "#666", marginBottom: "0.5rem" }}>
+          Upload a CSV containing multiple observations (must include feature columns). The model will predict all rows in one batch.
+        </p>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <button
+            type="button"
+            className="c1-btn"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={csvUploading || apiBlocked}
+          >
+            {csvUploading ? "Processing..." : "Upload CSV"}
+          </button>
+          <input
+            type="file"
+            accept=".csv"
+            ref={fileInputRef}
+            style={{ display: "none" }}
+            onChange={onCsvUpload}
+          />
+          {csvMessage && <span style={{ fontSize: "0.9rem", color: csvMessage.startsWith("Upload failed") ? "red" : "green" }}>{csvMessage}</span>}
         </div>
       </div>
 
