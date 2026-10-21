@@ -330,7 +330,9 @@ class C4ModelExplorer:
             class_names = [str(item) for item in self.model.label_encoder.classes_]
             for index, class_name in enumerate(class_names):
                 scored[f"p_{class_name.lower()}"] = probabilities[:, index]
-            scored["anomaly_score"] = self.model.behavioural_anomaly_score(features)
+            if "Trusted" not in class_names:
+                raise ModelSchemaError("Model artifact has no Trusted class")
+            scored["anomaly_score"] = 1.0 - scored["p_trusted"]
             scored["ml_decision"] = np.where(
                 scored["anomaly_score"] >= 0.70,
                 "SUSPICIOUS",

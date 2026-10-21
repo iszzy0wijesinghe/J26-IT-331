@@ -600,6 +600,64 @@ async def predict_manual_features(request: ManualPredictionRequest) -> dict[str,
         from apps.c4_frontend.ml_explorer import C4ModelExplorer, MODEL_CATALOG
         from pathlib import Path
 
+        # Basic type and sanity checks to prevent crashes (not domain validation)
+        # These checks ensure the model can run without crashing
+        if not isinstance(request.tx_interval_s, (int, float)) or not np.isfinite(request.tx_interval_s):
+            raise HTTPException(
+                status_code=400,
+                detail="TX Interval must be a finite number"
+            )
+        if not isinstance(request.rssi_dbm, (int, float)) or not np.isfinite(request.rssi_dbm):
+            raise HTTPException(
+                status_code=400,
+                detail="RSSI must be a finite number"
+            )
+        if not isinstance(request.snr_db, (int, float)) or not np.isfinite(request.snr_db):
+            raise HTTPException(
+                status_code=400,
+                detail="SNR must be a finite number"
+            )
+        if not isinstance(request.battery_pct, (int, float)) or not np.isfinite(request.battery_pct):
+            raise HTTPException(
+                status_code=400,
+                detail="Battery % must be a finite number"
+            )
+        if not isinstance(request.battery_voltage_v, (int, float)) or not np.isfinite(request.battery_voltage_v):
+            raise HTTPException(
+                status_code=400,
+                detail="Battery voltage must be a finite number"
+            )
+        if not isinstance(request.current_ma, (int, float)) or not np.isfinite(request.current_ma):
+            raise HTTPException(
+                status_code=400,
+                detail="Current must be a finite number"
+            )
+        if not isinstance(request.retry_count, int) or request.retry_count < 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Retry count must be a non-negative integer"
+            )
+        if not isinstance(request.reboot_count_24h, int) or request.reboot_count_24h < 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Reboot count must be a non-negative integer"
+            )
+        if request.freshness_status not in ["fresh", "delayed", "stale"]:
+            raise HTTPException(
+                status_code=400,
+                detail="Freshness status must be 'fresh', 'delayed', or 'stale'"
+            )
+
+        # Flag if inputs appear unrealistic (for experimental labeling only)
+        # This does not reject the input, only adds a warning label
+        is_unrealistic = (
+            request.tx_interval_s <= 0 or
+            request.battery_voltage_v <= 0 or
+            request.current_ma < 0 or
+            request.rssi_dbm > 0 or  # Positive RSSI is unusual for LoRa
+            request.battery_pct < 0 or request.battery_pct > 100
+        )
+
         # Get the default runtime model
         default_entry = next(
             (entry for entry in MODEL_CATALOG if entry.runtime_default),
@@ -625,8 +683,7 @@ async def predict_manual_features(request: ManualPredictionRequest) -> dict[str,
         explorer = C4ModelExplorer.from_catalog(default_entry.key)
 
         # Prepare the feature row
-        import pandas as pd
-        import numpy as np
+        # numpy and pandas are already imported at module level
 
         # Map freshness status to encoded value
         freshness_mapping = {
@@ -634,20 +691,22 @@ async def predict_manual_features(request: ManualPredictionRequest) -> dict[str,
             "delayed": 1,
             "stale": 2,
         }
-        freshness_encoded = freshness_mapping.get(request.freshness_status.lower(), 0)
+        freshness_encoded = freshness_mapping[request.freshness_status]
 
         # Calculate derived features
-        rx_delay_s = 5.0  # Simulated typical delay
-        rssi_deviation_db = 0.0  # No history for deviation calculation
-        packet_size_bytes = 256  # Simulated packet size
+        # Note: For manual demo without device history, we use reasonable defaults
+        # In production runtime, these would be calculated from actual device history
+        rx_delay_s = 5.0  # Simulated typical delay between observation and reception
+        rssi_deviation_db = 0.0  # No history available, assume no deviation
+        packet_size_bytes = 256  # Estimated typical telemetry packet size
 
-        # Rolling features - use the current value as mean for single-packet demo
-        # Add small random variation to std to make it realistic
-        rolling_interval_mean = request.tx_interval_s
-        rolling_interval_std = abs(request.tx_interval_s * 0.05)  # 5% variation
-        rolling_rssi_mean = request.rssi_dbm
-        rolling_rssi_std = abs(request.rssi_dbm * 0.03)  # 3% variation
-        rolling_retry_mean = request.retry_count
+        # Corrected training fills absent prior history with zero.
+        # Do not invent history or variability from the current observation.
+        rolling_interval_mean = 0.0
+        rolling_interval_std = 0.0
+        rolling_rssi_mean = 0.0
+        rolling_rssi_std = 0.0
+        rolling_retry_mean = 0.0
 
         # Build feature row matching the expected schema
         feature_row = {
@@ -686,46 +745,38 @@ async def predict_manual_features(request: ManualPredictionRequest) -> dict[str,
 
         predicted_label = str(scored.iloc[0]["predicted_label"])
 
+        # Ensure consistent capitalization for frontend comparison
+        # The model returns label as encoded (e.g., "Trusted"), we keep it as-is
+        # Frontend handles case-insensitive comparison
+
         # Get behavioral score from the model
-        if "anomaly_score" in scored.columns:
-            behavioral_score = float(scored.iloc[0]["anomaly_score"])
-        else:
-            # Fallback to probability-based score
-            behavioral_score = 0.5
-            if "p_trusted" in scored.columns:
-                behavioral_score = 1.0 - float(scored.iloc[0]["p_trusted"])
+        behavioral_score = float(scored.iloc[0]["anomaly_score"])
+        input_health_warnings = []
+        for condition, warning in (
+            (request.tx_interval_s <= 0, "TX interval is zero or negative."),
+            (request.battery_pct <= 0, "Battery percentage is zero or negative."),
+            (request.battery_voltage_v <= 0, "Battery voltage is zero or negative."),
+            (request.sensor_fault_flag, "Device reports a sensor fault."),
+            (request.freshness_status == "stale", "Telemetry is stale."),
+        ):
+            if condition:
+                input_health_warnings.append(warning)
 
-        # Map label to trust label if needed
+        # Use the actual model prediction without override
         trust_label = predicted_label
-
-        # DEMO MODE: Override prediction for clearly normal inputs
-        # This ensures the demo works for viva presentations
-        is_normal_input = (
-            200 <= request.tx_interval_s <= 400 and
-            -90 <= request.rssi_dbm <= -50 and
-            0 <= request.snr_db <= 30 and
-            request.retry_count <= 2 and
-            50 <= request.battery_pct <= 100 and
-            3.0 <= request.battery_voltage_v <= 4.5 and
-            request.reboot_count_24h <= 2 and
-            not request.sensor_fault_flag and
-            request.freshness_status.lower() == "fresh"
-        )
-
-        demo_override = False
-        if is_normal_input and trust_label != "TRUSTED":
-            # Override to TRUSTED for demo purposes with a good score
-            trust_label = "TRUSTED"
-            behavioral_score = 0.25
-            demo_override = True
-            logger_message = "DEMO OVERRIDE: Normal input forced to TRUSTED for viva demonstration"
-        else:
-            logger_message = f"ML model prediction: {trust_label} (score: {behavioral_score:.4f})"
+        logger_message = f"ML model prediction: {trust_label} (anomaly score: {behavioral_score:.4f})"
 
         return {
             "predicted_label": trust_label,
             "behavioural_score": behavioral_score,
             "raw_prediction": predicted_label,
+            "input_health_warnings": input_health_warnings,
+            "feature_assumptions": {
+                "rx_delay_s": "Assumed 5 seconds; timestamps are not supplied.",
+                "packet_size_bytes": "Assumed 256 bytes; no serialized packet is supplied.",
+                "rssi_deviation_db": "Assumed zero; device mean RSSI is unavailable.",
+                "rolling_features": "No prior history: all five rolling features are zero, matching corrected training cold-start fill.",
+            },
             "features": json_safe(feature_row),
             "scored_results": json_safe(scored.iloc[0].to_dict()),
             "debug_info": {
@@ -733,7 +784,8 @@ async def predict_manual_features(request: ManualPredictionRequest) -> dict[str,
                 "anomaly_score": float(scored.iloc[0].get("anomaly_score", "N/A")),
                 "ml_decision": str(scored.iloc[0].get("ml_decision", "N/A")),
                 "p_trusted": float(scored.iloc[0].get("p_trusted", "N/A")) if "p_trusted" in scored.columns else "N/A",
-                "demo_override": demo_override,
+                "demo_override": False,
+                "is_experimental": is_unrealistic,
             },
             "message": logger_message
         }

@@ -1,5 +1,6 @@
 
 import { useEffect, useState } from "react";
+import ManualPredictionResult, { type ManualResult } from "./ManualPredictionResult";
 
 interface ModelOption {
   key: string;
@@ -158,7 +159,7 @@ const [manualFeatures, setManualFeatures] = useState<FeatureInput>({
   sensor_fault_flag: false,
   freshness_status: "fresh",
 });
-const [manualPrediction, setManualPrediction] = useState<{ label: string; score: number; debugInfo?: any } | null>(null);
+const [manualPrediction, setManualPrediction] = useState<ManualResult | null>(null);
 const [manualPredictionLoading, setManualPredictionLoading] = useState(false);
 const [manualPredictionError, setManualPredictionError] = useState("");
 
@@ -231,7 +232,8 @@ async function predictManualFeatures() {
     setManualPrediction({
       label: result.predicted_label,
       score: result.behavioural_score,
-      debugInfo: result.debug_info,
+      warnings: result.input_health_warnings,
+      assumptions: result.feature_assumptions,
     });
   } catch (err) {
     setManualPredictionError(
@@ -656,13 +658,13 @@ async function predictManualFeatures() {
               </div>
 
               <div className="c4-ml-input-group">
-                <label>RSSI (dBm) <span style={{color: manualFeatures.rssi_dbm > -30 ? "#dc2626" : "#64748b", fontSize: "10px"}}>{manualFeatures.rssi_dbm > -30 ? "(⚠ Unusual)" : ""}</span></label>
+                <label>RSSI (dBm) <span style={{color: (manualFeatures.rssi_dbm > -30 || manualFeatures.rssi_dbm < -150) ? "#dc2626" : "#64748b", fontSize: "10px"}}>{(manualFeatures.rssi_dbm > -30 || manualFeatures.rssi_dbm < -150) ? "(⚠ Unusual)" : ""}</span></label>
                 <input
                   type="number"
                   step="0.1"
                   value={manualFeatures.rssi_dbm}
                   onChange={(e) => setManualFeatures({...manualFeatures, rssi_dbm: parseFloat(e.target.value) || 0})}
-                  style={{borderColor: manualFeatures.rssi_dbm > -30 ? "#dc2626" : "#e2e8f0"}}
+                  style={{borderColor: (manualFeatures.rssi_dbm > -30 || manualFeatures.rssi_dbm < -150) ? "#dc2626" : "#e2e8f0"}}
                 />
                 <span style={{fontSize: "10px", color: "#64748b"}}>Normal: -60 to -80 dBm</span>
               </div>
@@ -769,48 +771,8 @@ async function predictManualFeatures() {
               </div>
             )}
 
-            {manualPrediction && (
-              <div className="c4-ml-manual-result" style={{ marginTop: "20px", padding: "20px", background: manualPrediction.label === "TRUSTED" ? "#f0fdf4" : "#fef2f2", border: `2px solid ${manualPrediction.label === "TRUSTED" ? "#22c55e" : "#dc2626"}`, borderRadius: "8px" }}>
-                <h4 style={{ margin: "0 0 12px 0", color: manualPrediction.label === "TRUSTED" ? "#166534" : "#991b1b" }}>ML Model Prediction Result</h4>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px" }}>
-                  <div>
-                    <span style={{ display: "block", fontSize: "12px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>Predicted Label</span>
-                    <strong style={{ fontSize: "24px", color: manualPrediction.label === "TRUSTED" ? "#16a34a" : "#dc2626" }}>
-                      {manualPrediction.label}
-                    </strong>
-                  </div>
-                  <div>
-                    <span style={{ display: "block", fontSize: "12px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>Behavioral Score</span>
-                    <strong style={{ fontSize: "24px", color: manualPrediction.label === "TRUSTED" ? "#16a34a" : "#dc2626" }}>
-                      {manualPrediction.score.toFixed(4)}
-                    </strong>
-                  </div>
-                </div>
-                <p style={{ margin: "12px 0 0 0", fontSize: "13px", color: "#475569" }}>
-                  {manualPrediction.label === "TRUSTED"
-                    ? "✓ The ML model predicts this packet is from a trusted device with normal behavior."
-                    : "⚠ The ML model predicts this packet shows suspicious or anomalous behavior."}
-                </p>
-                {manualPrediction.label !== "TRUSTED" && (
-                  <div style={{ marginTop: "12px", padding: "12px", background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: "6px", fontSize: "12px", color: "#9a3412" }}>
-                    <strong>Why Untrusted?</strong>
-                    <ul style={{ margin: "8px 0 0 0", paddingLeft: "20px" }}>
-                      <li>RSSI of {manualFeatures.rssi_dbm} dBm is {manualFeatures.rssi_dbm > -30 ? "extremely high" : "unusual"} (normal: -60 to -80 dBm)</li>
-                      <li>Check if your RSSI value is realistic</li>
-                      <li>Try: RSSI = -75, SNR = 10, Battery = 85% for TRUSTED</li>
-                    </ul>
-                    {manualPrediction.debugInfo && (
-                      <details style={{ marginTop: "8px" }}>
-                        <summary style={{ cursor: "pointer", fontWeight: "bold" }}>Debug Info</summary>
-                        <pre style={{ marginTop: "8px", padding: "8px", background: "#fff", border: "1px solid #fed7aa", borderRadius: "4px", fontSize: "11px", overflow: "auto" }}>
-                          {JSON.stringify(manualPrediction.debugInfo, null, 2)}
-                        </pre>
-                      </details>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+            {manualPrediction && <ManualPredictionResult result={manualPrediction} />}
+
           </section>
 
 <section className="c4-ml-section c4-ml-csv-panel">
