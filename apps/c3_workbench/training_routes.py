@@ -1,17 +1,50 @@
-"""Training job API for GeoNex C3."""
+"""
+GeoNex C3 Training Job API.
 
-import subprocess
-import sys
-from pathlib import Path
+Phase 1.4.5 — Dedicated Training Database Integration.
 
-from fastapi import APIRouter, HTTPException, Query
+Responsibilities:
+    - List training jobs.
+    - Retrieve training job details.
+    - Verify approved training artifacts.
+    - Create or reuse queued training jobs.
+    - Prevent duplicate active jobs.
+    - Preserve existing API response structures.
 
-from apps.c3_workbench.training_artifact_integrity import verify_training_artifacts
+Database ownership:
+    c3_training_jobs -> Dedicated Training Database
+
+IMPORTANT:
+    Automatic worker execution is intentionally disabled
+    during Phase 1 database migration.
+
+    Creating a job does not start model training.
+"""
+
+from __future__ import annotations
+
+import sqlite3
+
+from fastapi import (
+    APIRouter,
+    HTTPException,
+    Query,
+)
+
+from apps.c3_workbench.training_database import (
+    connect_training_db,
+)
+
+from apps.c3_workbench.training_artifact_integrity import (
+    verify_training_artifacts,
+)
+
 from apps.c3_workbench.training_queue import (
     enqueue_training_job,
     get_training_job,
     list_training_jobs,
 )
+
 
 router = APIRouter(
     prefix="/training",
@@ -19,16 +52,77 @@ router = APIRouter(
 )
 
 
+ACTIVE_JOB_STATUSES = (
+    "QUEUED",
+    "PREPARING",
+    "TRAINING",
+    "EVALUATING",
+)
+
+
+def find_active_training_job(
+    dataset_id: str,
+) -> dict | None:
+    """
+    Find an existing active job for the dataset.
+
+    Unlike a limited job listing, this searches all
+    matching records in the dedicated Training Database.
+    """
+
+    with connect_training_db() as connection:
+
+        connection.row_factory = sqlite3.Row
+
+        row = connection.execute(
+            """
+            SELECT job_id
+            FROM c3_training_jobs
+            WHERE dataset_id = ?
+              AND status IN (
+                  'QUEUED',
+                  'PREPARING',
+                  'TRAINING',
+                  'EVALUATING'
+              )
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (dataset_id,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return get_training_job(
+        row["job_id"]
+    )
+
+
 @router.get("/jobs")
 def training_jobs(
-    limit: int = Query(default=50, ge=1, le=200),
+    limit: int = Query(
+        default=50,
+        ge=1,
+        le=200,
+    ),
 ):
-    return list_training_jobs(limit=limit)
+    """List training jobs from the Training Database."""
+
+    return list_training_jobs(
+        limit=limit
+    )
 
 
 @router.get("/jobs/{job_id}")
-def training_job_details(job_id: str):
-    job = get_training_job(job_id)
+def training_job_details(
+    job_id: str,
+):
+    """Retrieve a training job from the Training Database."""
+
+    job = get_training_job(
+        job_id
+    )
 
     if job is None:
         raise HTTPException(
@@ -40,32 +134,84 @@ def training_job_details(job_id: str):
 
 
 @router.post("/jobs/{dataset_id}")
-def create_training_job(dataset_id: str):
+def create_training_job(
+    dataset_id: str,
+):
+    """
+    Verify training artifacts and create or reuse a job.
+
+    Automatic worker execution remains disabled
+    until Phase 1 integration testing is complete.
+    """
+
     try:
-        # Authorization and exported data integrity must pass before scheduling.
-        verify_training_artifacts(dataset_id)
-        active = [j for j in list_training_jobs(limit=200)['jobs'] if j['dataset_id'] == dataset_id and j['status'] in ('QUEUED', 'PREPARING', 'TRAINING', 'EVALUATING')]
-        if active:
-            return {**active[0], 'automatic_worker_launched': False, 'note': 'An existing active job was reused. No second worker launched.'}
-        job = enqueue_training_job(dataset_id)
-        # Never start a second process for an already claimed/existing job.
-        if job['status'] != 'QUEUED' or job.get('current_stage') != 'WAITING_FOR_WORKER':
-            return job
-        # A detached process survives the HTTP request; its progress is persisted.
-        # The process uses the same interpreter/environment as the API.
-        root = Path(__file__).resolve().parents[2]
-        log_dir = root / 'data' / 'workbench' / 'c3' / 'auto_worker_logs'
-        log_dir.mkdir(parents=True, exist_ok=True)
-        with (log_dir / f"{job['job_id']}.log").open('ab') as log:
-            subprocess.Popen(
-                [sys.executable, '-m', 'apps.c3_workbench.training_auto_runner', job['job_id']],
-                cwd=str(root), stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
-                start_new_session=True,
+
+        # -------------------------------------------------
+        # Step 1 — Validate dataset approval and integrity.
+        # -------------------------------------------------
+
+        verification = verify_training_artifacts(
+            dataset_id
+        )
+
+        if verification["integrity_status"] != "VERIFIED":
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "Training dataset integrity "
+                    "verification failed."
+                ),
             )
-        return {**job, 'automatic_worker_launched': True}
+
+        # -------------------------------------------------
+        # Step 2 — Reuse an existing active job.
+        # -------------------------------------------------
+
+        existing_job = find_active_training_job(
+            dataset_id
+        )
+
+        if existing_job is not None:
+            return {
+                **existing_job,
+                "automatic_worker_launched": False,
+                "note": (
+                    "An existing active training job "
+                    "was reused. No worker launched."
+                ),
+            }
+
+        # -------------------------------------------------
+        # Step 3 — Create a queued training job.
+        # -------------------------------------------------
+
+        job = enqueue_training_job(
+            dataset_id
+        )
+
+        return {
+            **job,
+            "automatic_worker_launched": False,
+            "note": (
+                "Training job queued successfully. "
+                "Automatic execution is disabled "
+                "during Phase 1 database migration."
+            ),
+        }
+
+    except HTTPException:
+        raise
 
     except ValueError as error:
         raise HTTPException(
-            status_code=404,
+            status_code=422,
             detail=str(error),
+        ) from error
+
+    except sqlite3.Error as error:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Training Database operation failed."
+            ),
         ) from error

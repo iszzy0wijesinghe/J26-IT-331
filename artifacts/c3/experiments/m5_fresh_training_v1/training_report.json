@@ -1,0 +1,421 @@
+{
+  "model": "M5_MULTIVARIATE_GRU",
+  "status": "EXPERIMENTAL",
+  "dataset_approved_for_research": false,
+  "input_dataset": "geonex_c3_export.csv",
+  "total_observations": 4320,
+  "train_samples": 2875,
+  "validation_samples": 575,
+  "test_samples": 690,
+  "best_validation_mse": 0.1507204805744124,
+  "sampling_interval_audit": {
+    "DEEP_SLEEP": {
+      "count": 511,
+      "median_seconds": 300.0,
+      "minimum_seconds": 300.0,
+      "maximum_seconds": 300.0,
+      "within_expected_range_pct": 0.0
+    },
+    "IDLE": {
+      "count": 1618,
+      "median_seconds": 300.0,
+      "minimum_seconds": 300.0,
+      "maximum_seconds": 300.0,
+      "within_expected_range_pct": 0.0
+    },
+    "RISK": {
+      "count": 1880,
+      "median_seconds": 300.0,
+      "minimum_seconds": 300.0,
+      "maximum_seconds": 300.0,
+      "within_expected_range_pct": 0.0
+    },
+    "WARNING": {
+      "count": 275,
+      "median_seconds": 300.0,
+      "minimum_seconds": 300.0,
+      "maximum_seconds": 300.0,
+      "within_expected_range_pct": 0.0
+    },
+    "EMERGENCY": {
+      "count": 0,
+      "median_seconds": null,
+      "minimum_seconds": null,
+      "maximum_seconds": null,
+      "within_expected_range_pct": null
+    }
+  },
+  "split_manifest": {
+    "train_groups": [
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-002",
+        "SYN-EP-020"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-003",
+        "SYN-EP-003"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-001",
+        "SYN-EP-031"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-005",
+        "SYN-EP-023"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-006",
+        "SYN-EP-018"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-004",
+        "SYN-EP-010"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-006",
+        "SYN-EP-006"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-005",
+        "SYN-EP-011"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-004",
+        "SYN-EP-028"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-005",
+        "SYN-EP-017"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-006",
+        "SYN-EP-012"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-002",
+        "SYN-EP-026"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-002",
+        "SYN-EP-032"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-005",
+        "SYN-EP-029"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-002",
+        "SYN-EP-014"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-004",
+        "SYN-EP-016"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-003",
+        "SYN-EP-027"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-006",
+        "SYN-EP-036"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-002",
+        "SYN-EP-002"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-005",
+        "SYN-EP-005"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-001",
+        "SYN-EP-001"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-006",
+        "SYN-EP-030"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-003",
+        "SYN-EP-009"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-004",
+        "SYN-EP-004"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-001",
+        "SYN-EP-013"
+      ]
+    ],
+    "validation_groups": [
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-006",
+        "SYN-EP-024"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-005",
+        "SYN-EP-035"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-004",
+        "SYN-EP-022"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-001",
+        "SYN-EP-019"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-004",
+        "SYN-EP-034"
+      ]
+    ],
+    "test_groups": [
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-001",
+        "SYN-EP-025"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-003",
+        "SYN-EP-015"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-003",
+        "SYN-EP-021"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-003",
+        "SYN-EP-033"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-001",
+        "SYN-EP-007"
+      ],
+      [
+        "c3raw_cf19059376cd4dd7",
+        "GN-C3-002",
+        "SYN-EP-008"
+      ]
+    ]
+  },
+  "training_history": [
+    {
+      "epoch": 1,
+      "train_mse": 0.5925372480934447,
+      "validation_mse": 0.23099564908592551
+    },
+    {
+      "epoch": 2,
+      "train_mse": 0.24856891901106448,
+      "validation_mse": 0.18010279391262982
+    },
+    {
+      "epoch": 3,
+      "train_mse": 0.21696465148224128,
+      "validation_mse": 0.16597511924064912
+    },
+    {
+      "epoch": 4,
+      "train_mse": 0.19683335444411715,
+      "validation_mse": 0.16165965024952417
+    },
+    {
+      "epoch": 5,
+      "train_mse": 0.18051948220790687,
+      "validation_mse": 0.16679763546935072
+    },
+    {
+      "epoch": 6,
+      "train_mse": 0.1719945244191287,
+      "validation_mse": 0.1537631315690977
+    },
+    {
+      "epoch": 7,
+      "train_mse": 0.17207348831870534,
+      "validation_mse": 0.15368980706275046
+    },
+    {
+      "epoch": 8,
+      "train_mse": 0.1639456708957483,
+      "validation_mse": 0.15949555036720928
+    },
+    {
+      "epoch": 9,
+      "train_mse": 0.15914411540503975,
+      "validation_mse": 0.1507204805744124
+    },
+    {
+      "epoch": 10,
+      "train_mse": 0.15960016748479178,
+      "validation_mse": 0.15313876867294313
+    },
+    {
+      "epoch": 11,
+      "train_mse": 0.15749896865080784,
+      "validation_mse": 0.15857878389122249
+    },
+    {
+      "epoch": 12,
+      "train_mse": 0.15292948319478794,
+      "validation_mse": 0.15754020243614644
+    },
+    {
+      "epoch": 13,
+      "train_mse": 0.15069529102102772,
+      "validation_mse": 0.16105500843610848
+    },
+    {
+      "epoch": 14,
+      "train_mse": 0.14729223240334707,
+      "validation_mse": 0.1825884298429833
+    }
+  ],
+  "test_metrics": {
+    "15": {
+      "soil_moisture_pct": {
+        "count": 690,
+        "mae": 2.171245813369751,
+        "rmse": 2.771946430206299
+      },
+      "rainfall_proxy_counts": {
+        "count": 690,
+        "mae": 1.2942003011703491,
+        "rmse": 1.9848617315292358
+      },
+      "tilt_deg": {
+        "count": 690,
+        "mae": 0.14539723098278046,
+        "rmse": 0.19695456326007843
+      },
+      "vibration_g": {
+        "count": 690,
+        "mae": 0.0029725737404078245,
+        "rmse": 0.003845757571980357
+      },
+      "fsr_adc": {
+        "count": 690,
+        "mae": 26.208351135253906,
+        "rmse": 32.436641693115234
+      },
+      "air_temperature_c": {
+        "count": 690,
+        "mae": 0.32212260365486145,
+        "rmse": 0.40113258361816406
+      },
+      "humidity_pct": {
+        "count": 690,
+        "mae": 2.065242290496826,
+        "rmse": 2.803251028060913
+      }
+    },
+    "30": {
+      "soil_moisture_pct": {
+        "count": 672,
+        "mae": 2.389871597290039,
+        "rmse": 2.995152711868286
+      },
+      "rainfall_proxy_counts": {
+        "count": 672,
+        "mae": 1.5322699546813965,
+        "rmse": 2.329192638397217
+      },
+      "tilt_deg": {
+        "count": 672,
+        "mae": 0.1422244757413864,
+        "rmse": 0.1957070231437683
+      },
+      "vibration_g": {
+        "count": 672,
+        "mae": 0.00318908947519958,
+        "rmse": 0.004119332879781723
+      },
+      "fsr_adc": {
+        "count": 672,
+        "mae": 25.924489974975586,
+        "rmse": 32.055259704589844
+      },
+      "air_temperature_c": {
+        "count": 672,
+        "mae": 0.3504559099674225,
+        "rmse": 0.43832218647003174
+      },
+      "humidity_pct": {
+        "count": 672,
+        "mae": 2.2903029918670654,
+        "rmse": 3.078514814376831
+      }
+    },
+    "60": {
+      "soil_moisture_pct": {
+        "count": 636,
+        "mae": 2.789828062057495,
+        "rmse": 3.517852544784546
+      },
+      "rainfall_proxy_counts": {
+        "count": 636,
+        "mae": 1.9520694017410278,
+        "rmse": 2.8451805114746094
+      },
+      "tilt_deg": {
+        "count": 636,
+        "mae": 0.1439758837223053,
+        "rmse": 0.19485439360141754
+      },
+      "vibration_g": {
+        "count": 636,
+        "mae": 0.0035262699238955975,
+        "rmse": 0.00454122805967927
+      },
+      "fsr_adc": {
+        "count": 636,
+        "mae": 30.291608810424805,
+        "rmse": 37.24689483642578
+      },
+      "air_temperature_c": {
+        "count": 636,
+        "mae": 0.3524545431137085,
+        "rmse": 0.4385586977005005
+      },
+      "humidity_pct": {
+        "count": 636,
+        "mae": 2.6540112495422363,
+        "rmse": 3.6035714149475098
+      }
+    }
+  }
+}

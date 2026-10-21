@@ -72,11 +72,7 @@ def _verify_database(path: Path) -> None:
             )
 
         required_tables = {
-            "c3_datasets",
             "c3_golden_observations",
-            "c3_training_jobs",
-            "c3_training_events",
-            "c3_model_versions",
             "c3_forecast_runs",
             "c3_forecast_values",
             "c3_alert_events",

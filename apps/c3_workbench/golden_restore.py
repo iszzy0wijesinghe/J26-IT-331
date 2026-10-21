@@ -38,11 +38,7 @@ def verify_database(path: Path) -> dict:
             )
 
         required_tables = {
-            "c3_datasets",
             "c3_golden_observations",
-            "c3_training_jobs",
-            "c3_training_events",
-            "c3_model_versions",
             "c3_forecast_runs",
             "c3_forecast_values",
             "c3_alert_events",
@@ -72,7 +68,10 @@ def verify_database(path: Path) -> dict:
             )
 
         datasets = connection.execute(
-            "SELECT COUNT(*) FROM c3_datasets"
+            """
+            SELECT COUNT(DISTINCT dataset_id)
+            FROM c3_golden_observations
+            """
         ).fetchone()[0]
 
         observations = connection.execute(

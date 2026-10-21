@@ -1,0 +1,36 @@
+{
+  "total_rows": 300,
+  "group_count": 3,
+  "synthetic_episode_groups": 0,
+  "mode_distribution": {
+    "DEEP_SLEEP": 60,
+    "IDLE": 90,
+    "RISK": 90,
+    "WARNING": 60
+  },
+  "unknown_modes": {},
+  "duplicate_observations": 0,
+  "invalid_timestamps": 0,
+  "missing_sensor_values": {},
+  "invalid_sensor_values": {},
+  "horizon_target_coverage": {
+    "15": {
+      "matched_origins": 291,
+      "coverage_pct": 97.0
+    },
+    "30": {
+      "matched_origins": 282,
+      "coverage_pct": 94.0
+    },
+    "60": {
+      "matched_origins": 264,
+      "coverage_pct": 88.0
+    }
+  },
+  "issues": [
+    "No EMERGENCY-mode observations."
+  ],
+  "training_approved": false,
+  "approval_note": "Manual provenance and research-quality review required before final training.",
+  "input_file": "data/sample_c3_golden_test.csv"
+}

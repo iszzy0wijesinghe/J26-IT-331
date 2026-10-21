@@ -1,53 +1,132 @@
-"""GeoNex C3 controlled model activation infrastructure."""
+"""
+GeoNex C3 controlled model activation infrastructure.
+
+Phase 1.5.3 — Dedicated Training Database Cutover.
+
+Responsibilities
+----------------
+1. Maintain active model assignments.
+2. Maintain activation and rollback history.
+3. Validate model eligibility.
+4. Verify approved training artifacts.
+5. Preserve optimistic concurrency protection.
+6. Prevent implicit operational deployment.
+
+Database ownership
+------------------
+c3_model_versions             -> Training Database
+c3_training_jobs              -> Training Database
+c3_active_model_assignments   -> Training Database
+c3_model_activation_history   -> Training Database
+
+Research activation does not authorize operational
+landslide warning deployment.
+"""
 
 from __future__ import annotations
 
+import sqlite3
 import uuid
-from pathlib import Path
 
-from apps.c3_workbench.golden_db import (
-    get_connection,
-    initialize_golden_database,
-    utc_now,
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+from apps.c3_workbench.training_database import (
+    connect_training_db,
+    get_training_db_path,
 )
+
 from apps.c3_workbench.model_registry import (
     collect_model_candidates,
 )
+
 from apps.c3_workbench.training_artifact_integrity import (
     verify_training_artifacts,
 )
 
+
 HORIZONS = (15, 30, 60)
+
+RESEARCH_PROFILE = "SYNTHETIC_RESEARCH"
 
 
 class ModelActivationError(ValueError):
     """Raised when model activation requirements are not satisfied."""
 
 
+def utc_now() -> str:
+    """Return the current UTC timestamp."""
+
+    return datetime.now(UTC).isoformat()
+
+
+def get_activation_connection() -> sqlite3.Connection:
+    """
+    Connect exclusively to the dedicated Training Database.
+
+    Required migrated tables must already exist.
+    """
+
+    database_path = get_training_db_path()
+
+    if not database_path.is_file():
+        raise ModelActivationError(
+            "GeoNex C3 Training Database does not exist: "
+            f"{database_path}"
+        )
+
+    connection = connect_training_db()
+    connection.row_factory = sqlite3.Row
+
+    required_tables = {
+        "c3_training_jobs",
+        "c3_model_versions",
+        "c3_training_approvals",
+    }
+
+    existing_tables = {
+        row["name"]
+        for row in connection.execute(
+            """
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'table'
+            """
+        ).fetchall()
+    }
+
+    missing = required_tables - existing_tables
+
+    if missing:
+        connection.close()
+
+        raise ModelActivationError(
+            "Training Database is missing required tables: "
+            + ", ".join(sorted(missing))
+        )
+
+    return connection
+
+
 def initialize_model_activation() -> None:
     """
-    Create active model assignment and activation history tables.
+    Ensure activation tables exist in the Training Database.
 
-    Safe to run repeatedly.
+    This operation is safe to repeat.
 
-    This function does not activate or modify any existing model.
+    Existing assignments and activation history are preserved.
     """
 
-    initialize_golden_database()
-
-    with get_connection() as connection:
+    with get_activation_connection() as connection:
 
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS c3_active_model_assignments (
                 horizon_minutes INTEGER PRIMARY KEY,
-
                 model_version_id TEXT NOT NULL,
-
                 activated_at TEXT NOT NULL,
-
                 activated_by TEXT NOT NULL,
-
                 activation_reason TEXT NOT NULL,
 
                 FOREIGN KEY (model_version_id)
@@ -62,23 +141,15 @@ def initialize_model_activation() -> None:
             """
             CREATE TABLE IF NOT EXISTS c3_model_activation_history (
                 activation_id TEXT PRIMARY KEY,
-
                 horizon_minutes INTEGER NOT NULL,
-
                 previous_model_version_id TEXT,
-
                 new_model_version_id TEXT NOT NULL,
-
                 action TEXT NOT NULL,
-
                 activated_at TEXT NOT NULL,
-
                 activated_by TEXT NOT NULL,
-
                 activation_reason TEXT NOT NULL,
 
                 CHECK (horizon_minutes IN (15, 30, 60)),
-
                 CHECK (action IN ('ACTIVATE', 'ROLLBACK')),
 
                 FOREIGN KEY (previous_model_version_id)
@@ -102,19 +173,13 @@ def initialize_model_activation() -> None:
             """
         )
 
-        connection.commit()
 
-
-def list_active_model_assignments() -> list[dict]:
-    """
-    Return active model assignments.
-
-    Missing horizons remain unassigned.
-    """
+def list_active_model_assignments() -> list[dict[str, Any]]:
+    """Return the currently assigned research models."""
 
     initialize_model_activation()
 
-    with get_connection() as connection:
+    with get_activation_connection() as connection:
 
         rows = connection.execute(
             """
@@ -147,10 +212,8 @@ def list_active_model_assignments() -> list[dict]:
 
 def list_model_activation_history(
     horizon_minutes: int | None = None,
-) -> list[dict]:
-    """
-    Return model activation and rollback history.
-    """
+) -> list[dict[str, Any]]:
+    """Return research activation and rollback history."""
 
     initialize_model_activation()
 
@@ -173,9 +236,12 @@ def list_model_activation_history(
         query += " WHERE horizon_minutes = ?"
         parameters = (horizon_minutes,)
 
-    query += " ORDER BY activated_at DESC, activation_id DESC"
+    query += (
+        " ORDER BY activated_at DESC, activation_id DESC"
+    )
 
-    with get_connection() as connection:
+    with get_activation_connection() as connection:
+
         rows = connection.execute(
             query,
             parameters,
@@ -185,12 +251,12 @@ def list_model_activation_history(
 
 
 def _validate_model_for_activation(
-    connection,
+    connection: sqlite3.Connection,
     model_version_id: str,
     horizon_minutes: int,
-) -> dict:
+) -> dict[str, Any]:
     """
-    Verify that the requested model is eligible for activation.
+    Verify that a model is eligible for research activation.
 
     Must be called within the activation transaction.
     """
@@ -207,12 +273,19 @@ def _validate_model_for_activation(
             m.validation_mae,
             m.validation_rmse,
             m.status,
-            j.status AS job_status
+
+            j.status AS job_status,
+
+            a.approval_status,
+            a.research_profile
 
         FROM c3_model_versions m
 
         INNER JOIN c3_training_jobs j
             ON j.job_id = m.job_id
+
+        INNER JOIN c3_training_approvals a
+            ON a.dataset_id = m.dataset_id
 
         WHERE m.model_version_id = ?
         """,
@@ -221,7 +294,7 @@ def _validate_model_for_activation(
 
     if row is None:
         raise ModelActivationError(
-            f"Unknown model version: {model_version_id}"
+            f"Unknown or unapproved model version: {model_version_id}"
         )
 
     model = dict(row)
@@ -233,18 +306,42 @@ def _validate_model_for_activation(
 
     if model["job_status"] != "COMPLETED":
         raise ModelActivationError(
-            "Only models from completed training jobs can be activated."
+            "Only models from completed training jobs "
+            "can be activated."
         )
 
-    if model["status"] not in ("CANDIDATE", "ACTIVE", "INACTIVE"):
+    if model["status"] not in (
+        "CANDIDATE",
+        "ACTIVE",
+        "INACTIVE",
+    ):
         raise ModelActivationError(
-            f"Model status does not allow activation: {model['status']}"
+            "Model status does not allow activation: "
+            f"{model['status']}"
+        )
+
+    if model["approval_status"] != "APPROVED":
+        raise ModelActivationError(
+            "Dataset approval is not active."
+        )
+
+    if model["research_profile"] != RESEARCH_PROFILE:
+        raise ModelActivationError(
+            "Only approved synthetic research models "
+            "are eligible for this research activation workflow."
         )
 
     # Revalidate approved training export and source restrictions.
-    verify_training_artifacts(model["dataset_id"])
+    verification = verify_training_artifacts(
+        model["dataset_id"]
+    )
 
-    # Revalidate the original training artifacts and reported metrics.
+    if verification["integrity_status"] != "VERIFIED":
+        raise ModelActivationError(
+            "Training dataset integrity verification failed."
+        )
+
+    # Revalidate all expected model artifacts and metrics.
     candidates = collect_model_candidates(
         job_id=model["job_id"],
         dataset_id=model["dataset_id"],
@@ -262,12 +359,14 @@ def _validate_model_for_activation(
 
     if expected is None:
         raise ModelActivationError(
-            "Registered model is missing from validated training artifacts."
+            "Registered model is missing from "
+            "validated training artifacts."
         )
 
     if model["checkpoint_path"] != expected["checkpoint_path"]:
         raise ModelActivationError(
-            "Registered checkpoint path does not match validated artifact."
+            "Registered checkpoint path does not match "
+            "validated artifact."
         )
 
     if (
@@ -275,12 +374,18 @@ def _validate_model_for_activation(
         or model["validation_rmse"] != expected["validation_rmse"]
     ):
         raise ModelActivationError(
-            "Registered validation metrics do not match training artifacts."
+            "Registered validation metrics do not match "
+            "training artifacts."
         )
 
-    checkpoint = Path(model["checkpoint_path"])
+    checkpoint = Path(
+        model["checkpoint_path"]
+    )
 
-    if not checkpoint.is_file() or checkpoint.stat().st_size == 0:
+    if (
+        not checkpoint.is_file()
+        or checkpoint.stat().st_size == 0
+    ):
         raise ModelActivationError(
             "Model checkpoint is missing or empty."
         )
@@ -294,13 +399,14 @@ def activate_model(
     activated_by: str,
     reason: str,
     expected_current_model_version_id: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """
-    Activate a model for one forecast horizon.
+    Activate a model for one research forecasting horizon.
 
-    expected_current_model_version_id is an optimistic concurrency guard.
+    expected_current_model_version_id provides optimistic
+    concurrency protection.
 
-    Pass None only when no model is currently assigned.
+    This does not authorize operational deployment.
     """
 
     initialize_model_activation()
@@ -310,18 +416,21 @@ def activate_model(
             f"Unsupported horizon: {horizon_minutes}"
         )
 
-    if not activated_by.strip():
+    if not isinstance(activated_by, str) or not activated_by.strip():
         raise ModelActivationError(
             "activated_by must not be empty."
         )
 
-    if not reason.strip():
+    if not isinstance(reason, str) or not reason.strip():
         raise ModelActivationError(
             "Activation reason must not be empty."
         )
 
-    with get_connection() as connection:
-        connection.execute("BEGIN IMMEDIATE")
+    with get_activation_connection() as connection:
+
+        connection.execute(
+            "BEGIN IMMEDIATE"
+        )
 
         model = _validate_model_for_activation(
             connection,
@@ -344,19 +453,26 @@ def activate_model(
             else None
         )
 
-        if previous_model_version_id != expected_current_model_version_id:
+        if (
+            previous_model_version_id
+            != expected_current_model_version_id
+        ):
             raise ModelActivationError(
-                "Active model changed since the request was prepared. "
-                "Refresh the assignment before activating."
+                "Active model changed since the request "
+                "was prepared. Refresh before activating."
             )
 
         if previous_model_version_id == model_version_id:
             raise ModelActivationError(
-                "This model is already active for the selected horizon."
+                "This model is already active for "
+                "the selected horizon."
             )
 
         activated_at = utc_now()
-        activation_id = f"c3activation_{uuid.uuid4().hex[:16]}"
+
+        activation_id = (
+            f"c3activation_{uuid.uuid4().hex[:16]}"
+        )
 
         connection.execute(
             """
@@ -428,11 +544,11 @@ def rollback_model(
     activated_by: str,
     reason: str,
     expected_current_model_version_id: str,
-) -> dict:
+) -> dict[str, Any]:
     """
-    Roll back to the model replaced by the latest activation event.
+    Roll back to the model replaced by the latest event.
 
-    The current assignment must match expected_current_model_version_id.
+    The current assignment must match the expected model.
     """
 
     initialize_model_activation()
@@ -442,13 +558,21 @@ def rollback_model(
             f"Unsupported horizon: {horizon_minutes}"
         )
 
-    if not activated_by.strip() or not reason.strip():
+    if not isinstance(activated_by, str) or not activated_by.strip():
         raise ModelActivationError(
-            "Rollback actor and reason are required."
+            "Rollback actor must not be empty."
         )
 
-    with get_connection() as connection:
-        connection.execute("BEGIN IMMEDIATE")
+    if not isinstance(reason, str) or not reason.strip():
+        raise ModelActivationError(
+            "Rollback reason must not be empty."
+        )
+
+    with get_activation_connection() as connection:
+
+        connection.execute(
+            "BEGIN IMMEDIATE"
+        )
 
         current = connection.execute(
             """
@@ -466,7 +590,10 @@ def rollback_model(
 
         current_model_id = current["model_version_id"]
 
-        if current_model_id != expected_current_model_version_id:
+        if (
+            current_model_id
+            != expected_current_model_version_id
+        ):
             raise ModelActivationError(
                 "Active model changed before rollback."
             )
@@ -493,16 +620,23 @@ def rollback_model(
                 "No activation history exists for rollback."
             )
 
-        if latest["new_model_version_id"] != current_model_id:
+        if (
+            latest["new_model_version_id"]
+            != current_model_id
+        ):
             raise ModelActivationError(
-                "Activation history does not match current assignment."
+                "Activation history does not match "
+                "current assignment."
             )
 
-        previous_model_id = latest["previous_model_version_id"]
+        previous_model_id = latest[
+            "previous_model_version_id"
+        ]
 
         if previous_model_id is None:
             raise ModelActivationError(
-                "No previously active model is available for rollback."
+                "No previously active model is available "
+                "for rollback."
             )
 
         model = _validate_model_for_activation(
@@ -512,7 +646,10 @@ def rollback_model(
         )
 
         activated_at = utc_now()
-        activation_id = f"c3activation_{uuid.uuid4().hex[:16]}"
+
+        activation_id = (
+            f"c3activation_{uuid.uuid4().hex[:16]}"
+        )
 
         connection.execute(
             """

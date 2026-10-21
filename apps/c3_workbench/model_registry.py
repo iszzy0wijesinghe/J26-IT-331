@@ -1,46 +1,144 @@
-"""GeoNex C3 model artifact validation and candidate registration."""
+"""
+GeoNex C3 model artifact validation and candidate registration.
+
+Phase 1.5.2 — Dedicated Training Database Cutover.
+
+Responsibilities:
+    - Verify approved training artifacts.
+    - Validate M1–M4 model checkpoints.
+    - Validate evaluation metrics.
+    - Register model candidates in the Training Database.
+    - Preserve existing model versions.
+    - Prevent duplicate registrations.
+    - Identify validation winners without activating models.
+
+Database ownership:
+    c3_training_jobs     -> Training Database
+    c3_model_versions    -> Training Database
+
+This module never writes to the Golden Database.
+"""
 
 from __future__ import annotations
 
 import hashlib
 import json
 import math
-from pathlib import Path
+import sqlite3
 
-from apps.c3_workbench.golden_db import (
-    get_connection,
-    initialize_golden_database,
-    utc_now,
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+from apps.c3_workbench.training_database import (
+    connect_training_db,
+    get_training_db_path,
 )
+
 from apps.c3_workbench.training_artifact_integrity import (
     verify_training_artifacts,
 )
 
-MODEL_RUNS_ROOT = Path("data/workbench/c3/model_runs")
+
+MODEL_RUNS_ROOT = Path(
+    "data/workbench/c3/model_runs"
+)
+
 HORIZONS = (15, 30, 60)
+
+EXPECTED_MODEL_COUNT = 18
 
 
 class ModelRegistrationError(ValueError):
-    pass
+    """Raised when model validation or registration fails."""
+
+
+def utc_now() -> str:
+    """Return the current UTC timestamp."""
+
+    return datetime.now(UTC).isoformat()
+
+
+def get_registry_connection() -> sqlite3.Connection:
+    """
+    Connect exclusively to the dedicated Training Database.
+
+    Refuse to operate if the database or required migrated
+    tables are missing.
+    """
+
+    database_path = get_training_db_path()
+
+    if not database_path.is_file():
+        raise ModelRegistrationError(
+            "GeoNex C3 Training Database does not exist: "
+            f"{database_path}"
+        )
+
+    connection = connect_training_db()
+    connection.row_factory = sqlite3.Row
+
+    required_tables = {
+        "c3_training_jobs",
+        "c3_model_versions",
+    }
+
+    existing_tables = {
+        row["name"]
+        for row in connection.execute(
+            """
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'table'
+            """
+        ).fetchall()
+    }
+
+    missing_tables = required_tables - existing_tables
+
+    if missing_tables:
+        connection.close()
+
+        raise ModelRegistrationError(
+            "Training Database is missing required tables: "
+            + ", ".join(sorted(missing_tables))
+        )
+
+    return connection
 
 
 def sha256_file(path: Path) -> str:
+    """Calculate a file's SHA-256 checksum."""
+
     digest = hashlib.sha256()
 
     with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+        for chunk in iter(
+            lambda: stream.read(1024 * 1024),
+            b"",
+        ):
             digest.update(chunk)
 
     return digest.hexdigest()
 
 
-def load_json(path: Path) -> dict:
+def load_json(path: Path) -> dict[str, Any]:
+    """Load and validate a model metrics JSON file."""
+
     if not path.is_file():
         raise ModelRegistrationError(
             f"Missing metrics file: {path}"
         )
 
-    data = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        data = json.loads(
+            path.read_text(encoding="utf-8")
+        )
+
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise ModelRegistrationError(
+            f"Invalid metrics JSON file: {path}"
+        ) from error
 
     if not isinstance(data, dict):
         raise ModelRegistrationError(
@@ -50,7 +148,12 @@ def load_json(path: Path) -> dict:
     return data
 
 
-def valid_metric(value, label: str) -> float:
+def valid_metric(
+    value: Any,
+    label: str,
+) -> float:
+    """Require a finite, non-negative numerical metric."""
+
     if isinstance(value, bool):
         raise ModelRegistrationError(
             f"Invalid metric {label}: {value}"
@@ -58,10 +161,11 @@ def valid_metric(value, label: str) -> float:
 
     try:
         result = float(value)
-    except (TypeError, ValueError) as exc:
+
+    except (TypeError, ValueError) as error:
         raise ModelRegistrationError(
             f"Invalid metric {label}: {value}"
-        ) from exc
+        ) from error
 
     if not math.isfinite(result) or result < 0:
         raise ModelRegistrationError(
@@ -75,7 +179,15 @@ def validate_checkpoint(
     path: Path,
     expected_sha256: str | None = None,
 ) -> str:
-    if not path.is_file() or path.stat().st_size == 0:
+    """
+    Verify that a checkpoint exists, is non-empty,
+    and matches its expected checksum when supplied.
+    """
+
+    if (
+        not path.is_file()
+        or path.stat().st_size == 0
+    ):
         raise ModelRegistrationError(
             f"Missing or empty checkpoint: {path}"
         )
@@ -93,33 +205,81 @@ def validate_checkpoint(
     return actual_sha256
 
 
+def resolve_model_run_directory(
+    job_id: str,
+) -> Path:
+    """Resolve a model run directory safely."""
+
+    if (
+        not isinstance(job_id, str)
+        or not job_id
+        or job_id in {".", ".."}
+        or "/" in job_id
+        or "\\" in job_id
+        or "\x00" in job_id
+    ):
+        raise ModelRegistrationError(
+            "Invalid training job identifier."
+        )
+
+    root = MODEL_RUNS_ROOT.resolve()
+
+    run_directory = (
+        root / job_id / "worker_run"
+    ).resolve()
+
+    if root not in run_directory.parents:
+        raise ModelRegistrationError(
+            "Model run directory escapes the configured root."
+        )
+
+    return run_directory
+
+
 def collect_model_candidates(
     job_id: str,
     dataset_id: str,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """
     Validate every expected model artifact.
 
-    This function only reads files. It does not modify SQLite.
+    This function only reads files.
+
+    Expected candidates:
+        M1 Ridge:               3
+        M2 Gradient Boosting:   3
+        M3 Standard GRU:        3
+        M4 Ablation A:          3
+        M4 Ablation B:          3
+        M4 Ablation C:          3
+
+    Total: 18
     """
 
-    verification = verify_training_artifacts(dataset_id)
+    verification = verify_training_artifacts(
+        dataset_id
+    )
 
     if verification["integrity_status"] != "VERIFIED":
         raise ModelRegistrationError(
             "Training dataset integrity verification failed."
         )
 
-    root = MODEL_RUNS_ROOT / job_id / "worker_run"
+    root = resolve_model_run_directory(
+        job_id
+    )
 
     if not root.is_dir():
         raise ModelRegistrationError(
             f"Model run directory does not exist: {root}"
         )
 
-    candidates = []
+    candidates: list[dict[str, Any]] = []
 
-    # M1 and M2: three horizons per metrics file.
+    # -----------------------------------------------------
+    # M1 and M2 — Tabular models
+    # -----------------------------------------------------
+
     tabular_models = (
         (
             "M1_RIDGE",
@@ -134,8 +294,12 @@ def collect_model_candidates(
     )
 
     for model_name, folder, filename_prefix in tabular_models:
+
         model_dir = root / folder
-        metrics = load_json(model_dir / "metrics.json")
+
+        metrics = load_json(
+            model_dir / "metrics.json"
+        )
 
         results = metrics.get("results")
 
@@ -145,18 +309,24 @@ def collect_model_candidates(
             )
 
         for horizon in HORIZONS:
-            result = results.get(str(horizon))
+
+            result = results.get(
+                str(horizon)
+            )
 
             if not isinstance(result, dict):
                 raise ModelRegistrationError(
-                    f"Missing {model_name} {horizon}min results"
+                    f"Missing {model_name} "
+                    f"{horizon}min results"
                 )
 
-            validation = result.get("validation")
+            validation = result.get(
+                "validation"
+            )
 
             if not isinstance(validation, dict):
                 raise ModelRegistrationError(
-                    f"Missing validation metrics: "
+                    "Missing validation metrics: "
                     f"{model_name} {horizon}min"
                 )
 
@@ -166,10 +336,13 @@ def collect_model_candidates(
 
             if result.get("model_file") != expected_filename:
                 raise ModelRegistrationError(
-                    f"Checkpoint filename mismatch: {model_name}"
+                    "Checkpoint filename mismatch: "
+                    f"{model_name}"
                 )
 
-            checkpoint = model_dir / expected_filename
+            checkpoint = (
+                model_dir / expected_filename
+            )
 
             checkpoint_sha256 = validate_checkpoint(
                 checkpoint,
@@ -180,7 +353,9 @@ def collect_model_candidates(
                 {
                     "model_name": model_name,
                     "horizon_minutes": horizon,
-                    "checkpoint_path": str(checkpoint.resolve()),
+                    "checkpoint_path": str(
+                        checkpoint.resolve()
+                    ),
                     "checkpoint_sha256": checkpoint_sha256,
                     "validation_mae": valid_metric(
                         validation.get("mae"),
@@ -193,8 +368,12 @@ def collect_model_candidates(
                 }
             )
 
-    # M3: standard GRU.
+    # -----------------------------------------------------
+    # M3 — Standard GRU
+    # -----------------------------------------------------
+
     for horizon in HORIZONS:
+
         model_dir = root / "m3"
 
         metrics = load_json(
@@ -206,23 +385,34 @@ def collect_model_candidates(
                 f"M3 horizon mismatch: {horizon}"
             )
 
-        expected_filename = f"gru_{horizon}min.pt"
+        expected_filename = (
+            f"gru_{horizon}min.pt"
+        )
 
         if metrics.get("checkpoint") != expected_filename:
             raise ModelRegistrationError(
                 f"M3 checkpoint mismatch: {horizon}"
             )
 
-        validation = metrics.get("best_validation_metrics", {})
+        validation = metrics.get(
+            "best_validation_metrics",
+            {},
+        )
 
-        checkpoint = model_dir / expected_filename
+        checkpoint = (
+            model_dir / expected_filename
+        )
 
         candidates.append(
             {
                 "model_name": "M3_STANDARD_GRU",
                 "horizon_minutes": horizon,
-                "checkpoint_path": str(checkpoint.resolve()),
-                "checkpoint_sha256": validate_checkpoint(checkpoint),
+                "checkpoint_path": str(
+                    checkpoint.resolve()
+                ),
+                "checkpoint_sha256": validate_checkpoint(
+                    checkpoint
+                ),
                 "validation_mae": valid_metric(
                     validation.get("mae"),
                     f"M3 {horizon}min MAE",
@@ -234,12 +424,19 @@ def collect_model_candidates(
             }
         )
 
-    # M4: three ablations × three horizons.
+    # -----------------------------------------------------
+    # M4 — GRU ablation models
+    # -----------------------------------------------------
+
     for ablation in ("A", "B", "C"):
+
         for horizon in HORIZONS:
+
             model_dir = root / "m4"
 
-            prefix = f"m4_{ablation.lower()}_{horizon}min"
+            prefix = (
+                f"m4_{ablation.lower()}_{horizon}min"
+            )
 
             metrics = load_json(
                 model_dir / f"{prefix}_metrics.json"
@@ -247,7 +444,8 @@ def collect_model_candidates(
 
             if metrics.get("horizon_minutes") != horizon:
                 raise ModelRegistrationError(
-                    f"M4-{ablation} horizon mismatch: {horizon}"
+                    "M4 horizon mismatch: "
+                    f"{ablation} {horizon}"
                 )
 
             if metrics.get("ablation") != ablation:
@@ -255,7 +453,9 @@ def collect_model_candidates(
                     f"M4-{ablation} ablation mismatch"
                 )
 
-            expected_filename = f"{prefix}.pt"
+            expected_filename = (
+                f"{prefix}.pt"
+            )
 
             if metrics.get("checkpoint") != expected_filename:
                 raise ModelRegistrationError(
@@ -267,14 +467,20 @@ def collect_model_candidates(
                 {},
             )
 
-            checkpoint = model_dir / expected_filename
+            checkpoint = (
+                model_dir / expected_filename
+            )
 
             candidates.append(
                 {
                     "model_name": f"M4_{ablation}_GRU",
                     "horizon_minutes": horizon,
-                    "checkpoint_path": str(checkpoint.resolve()),
-                    "checkpoint_sha256": validate_checkpoint(checkpoint),
+                    "checkpoint_path": str(
+                        checkpoint.resolve()
+                    ),
+                    "checkpoint_sha256": validate_checkpoint(
+                        checkpoint
+                    ),
                     "validation_mae": valid_metric(
                         validation.get("mae"),
                         f"M4-{ablation} {horizon}min MAE",
@@ -286,9 +492,11 @@ def collect_model_candidates(
                 }
             )
 
-    if len(candidates) != 18:
+    if len(candidates) != EXPECTED_MODEL_COUNT:
         raise ModelRegistrationError(
-            f"Expected 18 model candidates, got {len(candidates)}"
+            "Expected "
+            f"{EXPECTED_MODEL_COUNT} model candidates, "
+            f"got {len(candidates)}"
         )
 
     return candidates
@@ -297,21 +505,32 @@ def collect_model_candidates(
 def register_model_candidates(
     job_id: str,
     dataset_id: str,
-) -> dict:
+) -> dict[str, Any]:
     """
-    Register validated models as CANDIDATE.
+    Register validated model candidates in the Training DB.
 
-    This does not activate models for inference.
+    This operation:
+        - Requires an EVALUATING or COMPLETED job.
+        - Rejects mismatched dataset IDs.
+        - Rejects duplicate registrations.
+        - Inserts all 18 candidates atomically.
+        - Does not change the training job status.
+        - Does not activate any model.
     """
 
-    initialize_golden_database()
-
+    # Validate artifacts before opening a write transaction.
     candidates = collect_model_candidates(
         job_id=job_id,
         dataset_id=dataset_id,
     )
 
-    with get_connection() as connection:
+    with get_registry_connection() as connection:
+
+        # Prevent concurrent registration attempts.
+        connection.execute(
+            "BEGIN IMMEDIATE"
+        )
+
         job = connection.execute(
             """
             SELECT job_id, dataset_id, status
@@ -331,9 +550,12 @@ def register_model_candidates(
                 "Training job dataset mismatch."
             )
 
-        if job["status"] not in ("EVALUATING", "COMPLETED"):
+        if job["status"] not in (
+            "EVALUATING",
+            "COMPLETED",
+        ):
             raise ModelRegistrationError(
-                f"Job is not ready for registration: "
+                "Job is not ready for registration: "
                 f"{job['status']}"
             )
 
@@ -348,10 +570,14 @@ def register_model_candidates(
 
         if existing:
             raise ModelRegistrationError(
-                "This training job already has registered models."
+                "This training job already has "
+                "registered models."
             )
 
+        created_at = utc_now()
+
         for candidate in candidates:
+
             model_version_id = (
                 f"{job_id}__"
                 f"{candidate['model_name'].lower()}__"
@@ -384,15 +610,21 @@ def register_model_candidates(
                     candidate["validation_mae"],
                     candidate["validation_rmse"],
                     "CANDIDATE",
-                    utc_now(),
+                    created_at,
                 ),
             )
 
         connection.commit()
 
-    winners = {}
+    # -----------------------------------------------------
+    # Determine validation winners.
+    # This does NOT activate models.
+    # -----------------------------------------------------
+
+    winners: dict[str, dict[str, Any]] = {}
 
     for horizon in HORIZONS:
+
         horizon_candidates = [
             candidate
             for candidate in candidates

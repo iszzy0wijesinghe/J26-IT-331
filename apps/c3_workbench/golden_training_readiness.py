@@ -10,6 +10,9 @@ from apps.c3_workbench.golden_db import (
     get_connection,
     initialize_golden_database,
 )
+from apps.c3_workbench.training_database import (
+    connect_training_db,
+)
 
 HORIZONS_MINUTES = (15, 30, 60)
 
@@ -42,12 +45,26 @@ def parse_timestamp(value: str) -> datetime:
 def load_dataset_observations(
     dataset_id: str,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    """Load only observations belonging to the selected dataset."""
+    """
+    Load dataset metadata and Golden observations
+    from their respective databases.
 
-    initialize_golden_database()
+    Training Database:
+        c3_datasets
 
-    with get_connection() as connection:
-        dataset = connection.execute(
+    Golden Database:
+        c3_golden_observations
+
+    No training execution or model activation occurs.
+    """
+
+    # -------------------------------------------------
+    # Step 1 — Retrieve dataset metadata from Training DB.
+    # -------------------------------------------------
+
+    with connect_training_db() as training_connection:
+
+        dataset = training_connection.execute(
             """
             SELECT *
             FROM c3_datasets
@@ -56,12 +73,20 @@ def load_dataset_observations(
             (dataset_id,),
         ).fetchone()
 
-        if dataset is None:
-            raise ValueError(
-                f"Golden dataset not found: {dataset_id}"
-            )
+    if dataset is None:
+        raise ValueError(
+            f"Golden dataset not found: {dataset_id}"
+        )
 
-        observations = connection.execute(
+    # -------------------------------------------------
+    # Step 2 — Retrieve observations from Golden DB.
+    # -------------------------------------------------
+
+    initialize_golden_database()
+
+    with get_connection() as golden_connection:
+
+        observations = golden_connection.execute(
             """
             SELECT
                 observation_id,
@@ -71,16 +96,29 @@ def load_dataset_observations(
                 timestamp,
                 operating_mode,
                 soil_moisture_pct
+
             FROM c3_golden_observations
+
             WHERE dataset_id = ?
-            ORDER BY device_id, episode_id, timestamp
+
+            ORDER BY
+                device_id,
+                episode_id,
+                timestamp
             """,
             (dataset_id,),
         ).fetchall()
 
+    # -------------------------------------------------
+    # Step 3 — Preserve existing return structure.
+    # -------------------------------------------------
+
     return (
         dict(dataset),
-        [dict(row) for row in observations],
+        [
+            dict(row)
+            for row in observations
+        ],
     )
 
 

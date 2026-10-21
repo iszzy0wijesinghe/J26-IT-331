@@ -13,12 +13,18 @@ from apps.c3_workbench.golden_db import (
     initialize_golden_database,
 )
 
+from apps.c3_workbench.training_database import (
+    connect_training_db,
+)
+
 router = APIRouter(
     prefix="/datasets/golden",
     tags=["C3 Golden Datasets"],
 )
 
-DATASET_ID_PATTERN = re.compile(r"^c3raw_[a-f0-9]{16}$")
+DATASET_ID_PATTERN = re.compile(
+    r"^c3raw_[a-f0-9]{16}$"
+)
 
 
 def _serialize_dataset(row: Any) -> dict[str, Any]:
@@ -38,20 +44,22 @@ def _serialize_dataset(row: Any) -> dict[str, Any]:
 
 @router.get("")
 def list_golden_datasets() -> dict[str, Any]:
-    """List registered raw CSV datasets."""
+    """List registered Golden datasets from Training DB."""
 
-    initialize_golden_database()
-
-    with get_connection() as connection:
+    with connect_training_db() as connection:
         rows = connection.execute(
             """
             SELECT *
             FROM c3_datasets
+            WHERE quality_status = 'GOLDEN'
             ORDER BY uploaded_at DESC
             """
         ).fetchall()
 
-    datasets = [_serialize_dataset(row) for row in rows]
+    datasets = [
+        _serialize_dataset(row)
+        for row in rows
+    ]
 
     return {
         "datasets": datasets,
@@ -60,8 +68,10 @@ def list_golden_datasets() -> dict[str, Any]:
 
 
 @router.get("/{dataset_id}")
-def get_golden_dataset(dataset_id: str) -> dict[str, Any]:
-    """Retrieve one Golden dataset's metadata and validation report."""
+def get_golden_dataset(
+    dataset_id: str,
+) -> dict[str, Any]:
+    """Retrieve Golden dataset metadata and observation count."""
 
     if not DATASET_ID_PATTERN.fullmatch(dataset_id):
         raise HTTPException(
@@ -69,24 +79,26 @@ def get_golden_dataset(dataset_id: str) -> dict[str, Any]:
             detail="Invalid Golden dataset ID",
         )
 
-    initialize_golden_database()
-
-    with get_connection() as connection:
+    with connect_training_db() as connection:
         row = connection.execute(
             """
             SELECT *
             FROM c3_datasets
             WHERE dataset_id = ?
+              AND quality_status = 'GOLDEN'
             """,
             (dataset_id,),
         ).fetchone()
 
-        if row is None:
-            raise HTTPException(
-                status_code=404,
-                detail="Golden dataset not found",
-            )
+    if row is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Golden dataset not found",
+        )
 
+    initialize_golden_database()
+
+    with get_connection() as connection:
         observation_count = connection.execute(
             """
             SELECT COUNT(*)
@@ -99,5 +111,7 @@ def get_golden_dataset(dataset_id: str) -> dict[str, Any]:
     return {
         **_serialize_dataset(row),
         "stored_observations": observation_count,
-        "validation": json.loads(row["validation_report"]),
+        "validation": json.loads(
+            row["validation_report"]
+        ),
     }

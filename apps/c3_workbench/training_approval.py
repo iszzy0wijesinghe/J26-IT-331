@@ -1,19 +1,50 @@
-"""Persistent dataset training approval for GeoNex C3."""
+"""
+Persistent dataset training approval for GeoNex C3.
+
+Phase 1.5.1 — Dedicated Training Database Cutover
+
+Database responsibilities
+-------------------------
+Golden Database:
+    - Operational sensor observations
+    - Temporal readiness assessment
+    - Source data quality validation
+
+Training Database:
+    - c3_datasets (migrated training dataset metadata)
+    - c3_training_approvals
+    - Training jobs and model metadata
+
+Filesystem:
+    - Training export manifest
+    - Training and validation datasets
+
+Synthetic research approval never authorizes operational
+deployment of a trained model.
+"""
 
 from __future__ import annotations
 
 import hashlib
-from pathlib import Path
+import json
+import sqlite3
 
-from apps.c3_workbench.golden_db import (
-    get_connection,
-    initialize_golden_database,
-    utc_now,
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+from apps.c3_workbench.training_database import (
+    connect_training_db,
+    get_training_db_path,
 )
+
 from apps.c3_workbench.golden_training_readiness import (
     assess_training_readiness,
 )
 
+
+# Preserve existing storage paths during Phase 1.
+# Dataset relocation is handled separately in Phase 1.6.
 EXPORT_ROOT = Path(
     "data/workbench/c3/training_datasets"
 )
@@ -21,10 +52,57 @@ EXPORT_ROOT = Path(
 APPROVED_PROFILE = "SYNTHETIC_RESEARCH"
 
 
-def initialize_training_approvals() -> None:
-    initialize_golden_database()
+def utc_now() -> str:
+    return datetime.now(UTC).isoformat()
 
-    with get_connection() as connection:
+
+def get_approval_connection() -> sqlite3.Connection:
+    """
+    Connect to the migrated Training Database.
+
+    The database and its migrated dataset table must exist.
+    """
+
+    database_path = get_training_db_path()
+
+    if not database_path.is_file():
+        raise RuntimeError(
+            "GeoNex C3 Training Database does not exist: "
+            f"{database_path}"
+        )
+
+    connection = connect_training_db()
+    connection.row_factory = sqlite3.Row
+
+    dataset_table = connection.execute(
+        """
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = 'c3_datasets'
+        """
+    ).fetchone()
+
+    if dataset_table is None:
+        connection.close()
+
+        raise RuntimeError(
+            "Training Database is missing the migrated "
+            "c3_datasets table."
+        )
+
+    return connection
+
+
+def initialize_training_approvals() -> None:
+    """
+    Ensure the training approval table exists in the
+    dedicated Training Database.
+
+    This function never modifies the Golden Database.
+    """
+
+    with get_approval_connection() as connection:
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS c3_training_approvals (
@@ -44,6 +122,8 @@ def initialize_training_approvals() -> None:
 
 
 def calculate_sha256(path: Path) -> str:
+    """Calculate a file's SHA-256 checksum."""
+
     digest = hashlib.sha256()
 
     with path.open("rb") as stream:
@@ -56,10 +136,46 @@ def calculate_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def get_training_approval(dataset_id: str) -> dict:
+def resolve_export_directory(dataset_id: str) -> Path:
+    """
+    Resolve an export directory without allowing
+    dataset path traversal.
+    """
+
+    if (
+        not isinstance(dataset_id, str)
+        or not dataset_id
+        or dataset_id in {".", ".."}
+        or "/" in dataset_id
+        or "\\" in dataset_id
+        or "\x00" in dataset_id
+    ):
+        raise ValueError(
+            "Invalid training dataset ID."
+        )
+
+    root = EXPORT_ROOT.resolve()
+    dataset_dir = (root / dataset_id).resolve()
+
+    if dataset_dir.parent != root:
+        raise ValueError(
+            "Training dataset directory escapes export root."
+        )
+
+    return dataset_dir
+
+
+def get_training_approval(
+    dataset_id: str,
+) -> dict[str, Any]:
+    """
+    Read training approval exclusively from
+    the dedicated Training Database.
+    """
+
     initialize_training_approvals()
 
-    with get_connection() as connection:
+    with get_approval_connection() as connection:
         row = connection.execute(
             """
             SELECT *
@@ -83,17 +199,30 @@ def approve_synthetic_dataset(
     *,
     approved_by: str,
     reason: str,
-) -> dict:
-    """Approve an explicitly identified synthetic research dataset."""
+) -> dict[str, Any]:
+    """
+    Approve an explicitly identified synthetic research dataset.
+
+    Approval is limited to research training and evaluation.
+    It does not authorize operational model deployment.
+    """
 
     initialize_training_approvals()
 
-    if not approved_by.strip():
-        raise ValueError("Approver is required.")
+    if not isinstance(approved_by, str) or not approved_by.strip():
+        raise ValueError(
+            "Approver is required."
+        )
 
-    if not reason.strip():
-        raise ValueError("Approval reason is required.")
+    if not isinstance(reason, str) or not reason.strip():
+        raise ValueError(
+            "Approval reason is required."
+        )
 
+    dataset_dir = resolve_export_directory(dataset_id)
+
+    # Temporal readiness is assessed against the Golden
+    # operational data and its existing readiness pipeline.
     readiness = assess_training_readiness(dataset_id)
 
     if not readiness["temporal_ready"]:
@@ -101,7 +230,8 @@ def approve_synthetic_dataset(
             "Dataset is not temporally ready."
         )
 
-    with get_connection() as connection:
+    # Dataset metadata was migrated to the Training Database.
+    with get_approval_connection() as connection:
         dataset = connection.execute(
             """
             SELECT filename, file_hash, quality_status
@@ -112,31 +242,57 @@ def approve_synthetic_dataset(
         ).fetchone()
 
     if dataset is None:
-        raise ValueError("Dataset not found.")
+        raise ValueError(
+            "Training dataset metadata not found."
+        )
 
     if dataset["quality_status"] != "GOLDEN":
-        raise ValueError("Dataset must have GOLDEN quality status.")
+        raise ValueError(
+            "Dataset must have GOLDEN quality status."
+        )
 
-    # A human declaration is recorded, not treated as verified provenance.
-    # Synthetic experiments are NEVER approved for operational deployment.
-    manifest_path = EXPORT_ROOT / dataset_id / "manifest.json"
+    manifest_path = dataset_dir / "manifest.json"
+
     if not manifest_path.is_file():
-        raise ValueError("Training export manifest does not exist. Prepare the export first.")
+        raise ValueError(
+            "Training export manifest does not exist. "
+            "Prepare the export first."
+        )
 
-    import json
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if (manifest.get("dataset_id") != dataset_id
+    try:
+        manifest = json.loads(
+            manifest_path.read_text(encoding="utf-8")
+        )
+
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise ValueError(
+            "Training export manifest is invalid."
+        ) from error
+
+    if not isinstance(manifest, dict):
+        raise ValueError(
+            "Training export manifest must be a JSON object."
+        )
+
+    if (
+        manifest.get("dataset_id") != dataset_id
         or manifest.get("source_file_sha256") != dataset["file_hash"]
         or manifest.get("source_filename") != dataset["filename"]
         or manifest.get("source_provenance_verified") is not False
-        or manifest.get("training_approved") is not False):
-        raise ValueError("Export manifest/source mismatch or unsupported provenance flags.")
+        or manifest.get("training_approved") is not False
+    ):
+        raise ValueError(
+            "Export manifest/source mismatch or "
+            "unsupported provenance flags."
+        )
 
     manifest_sha256 = calculate_sha256(manifest_path)
-
     now = utc_now()
 
-    with get_connection() as connection:
+    # Approval is written only to the Training Database.
+    with get_approval_connection() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+
         connection.execute(
             """
             INSERT INTO c3_training_approvals (
@@ -178,10 +334,18 @@ def approve_synthetic_dataset(
 
 def revoke_training_approval(
     dataset_id: str,
-) -> dict:
+) -> dict[str, Any]:
+    """
+    Revoke an existing research training approval.
+
+    Revocation is stored exclusively in the Training Database.
+    """
+
     initialize_training_approvals()
 
-    with get_connection() as connection:
+    with get_approval_connection() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+
         cursor = connection.execute(
             """
             UPDATE c3_training_approvals
@@ -205,8 +369,19 @@ def revoke_training_approval(
     return get_training_approval(dataset_id)
 
 
-def require_training_approval(dataset_id: str) -> dict:
-    """Verify approval and exported-manifest integrity."""
+def require_training_approval(
+    dataset_id: str,
+) -> dict[str, Any]:
+    """
+    Require valid research training approval.
+
+    Checks:
+        1. Training Database approval status.
+        2. Approved manifest SHA-256.
+        3. Golden temporal readiness.
+
+    This does not authorize operational deployment.
+    """
 
     approval = get_training_approval(dataset_id)
 
@@ -215,9 +390,9 @@ def require_training_approval(dataset_id: str) -> dict:
             "Dataset is not approved for training."
         )
 
-    manifest_path = (
-        EXPORT_ROOT / dataset_id / "manifest.json"
-    )
+    dataset_dir = resolve_export_directory(dataset_id)
+
+    manifest_path = dataset_dir / "manifest.json"
 
     if not manifest_path.is_file():
         raise ValueError(

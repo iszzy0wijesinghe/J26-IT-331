@@ -1,16 +1,38 @@
-"""Persistent training queue for GeoNex C3."""
+"""
+Persistent training queue for GeoNex C3.
+
+Database architecture
+---------------------
+Training Database:
+    - c3_datasets
+    - c3_training_jobs
+    - c3_training_events
+
+Golden Database:
+    - Operational sensor observations
+    - Operational forecasts
+    - Operational alerts
+
+All training queue operations are performed against the
+dedicated Training Database.
+
+Existing function signatures and response formats are
+preserved for compatibility with the current backend.
+"""
 
 from __future__ import annotations
 
 import sqlite3
 import uuid
+
 from datetime import UTC, datetime
 from typing import Any
 
-from apps.c3_workbench.golden_db import (
-    get_connection,
-    initialize_golden_database,
+from apps.c3_workbench.training_database import (
+    connect_training_db,
+    get_training_db_path,
 )
+
 
 TRAINING_STATUSES = {
     "QUEUED",
@@ -20,6 +42,19 @@ TRAINING_STATUSES = {
     "COMPLETED",
     "FAILED",
     "CANCELLED",
+}
+
+TERMINAL_STATUSES = {
+    "COMPLETED",
+    "FAILED",
+    "CANCELLED",
+}
+
+ACTIVE_STATUSES = {
+    "QUEUED",
+    "PREPARING",
+    "TRAINING",
+    "EVALUATING",
 }
 
 
@@ -37,6 +72,62 @@ def row_to_dict(
     return dict(row) if row is not None else None
 
 
+def get_training_connection() -> sqlite3.Connection:
+    """
+    Open the dedicated Training Database.
+
+    Do not initialize the database here.
+
+    The database must already contain the migrated
+    c3_* training tables before this service is used.
+
+    This prevents an accidentally empty database from
+    silently replacing the migrated training store.
+    """
+
+    database_path = get_training_db_path()
+
+    if not database_path.is_file():
+        raise RuntimeError(
+            "GeoNex C3 Training Database does not exist: "
+            f"{database_path}. "
+            "Complete the training store migration first."
+        )
+
+    connection = connect_training_db()
+
+    connection.row_factory = sqlite3.Row
+
+    required_tables = {
+        "c3_datasets",
+        "c3_training_jobs",
+        "c3_training_events",
+    }
+
+    existing_tables = {
+        row[0]
+        for row in connection.execute(
+            """
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'table'
+            """
+        ).fetchall()
+    }
+
+    missing_tables = required_tables - existing_tables
+
+    if missing_tables:
+        connection.close()
+
+        raise RuntimeError(
+            "Training Database is missing required tables: "
+            + ", ".join(sorted(missing_tables))
+        )
+
+    return connection
+
+
 def append_training_event(
     connection: sqlite3.Connection,
     *,
@@ -45,6 +136,13 @@ def append_training_event(
     stage: str,
     message: str,
 ) -> None:
+    """
+    Append a training event using an existing transaction.
+
+    The caller is responsible for committing or rolling
+    back the transaction.
+    """
+
     connection.execute(
         """
         INSERT INTO c3_training_events (
@@ -72,14 +170,24 @@ def enqueue_training_job(
     """
     Create a persistent training job for a registered dataset.
 
-    Readiness checks must be completed before this function
-    is called by the automatic upload workflow.
+    Readiness and training approval must be verified by
+    the calling workflow before this function is invoked.
+
+    Existing active jobs are returned instead of creating
+    duplicate training jobs.
     """
 
-    initialize_golden_database()
+    if not dataset_id or not dataset_id.strip():
+        raise ValueError(
+            "dataset_id must not be empty."
+        )
 
-    with get_connection() as connection:
-        connection.row_factory = sqlite3.Row
+    with get_training_connection() as connection:
+
+        # Acquire the write lock before checking for an
+        # existing active job to avoid duplicate enqueue
+        # operations from concurrent requests.
+        connection.execute("BEGIN IMMEDIATE")
 
         dataset = connection.execute(
             """
@@ -92,7 +200,8 @@ def enqueue_training_job(
 
         if dataset is None:
             raise ValueError(
-                f"Golden dataset does not exist: {dataset_id}"
+                "Training dataset does not exist: "
+                f"{dataset_id}"
             )
 
         existing = connection.execute(
@@ -116,6 +225,7 @@ def enqueue_training_job(
             return dict(existing)
 
         job_id = generate_job_id()
+
         now = utc_now()
 
         connection.execute(
@@ -168,10 +278,15 @@ def list_training_jobs(
     *,
     limit: int = 50,
 ) -> dict[str, Any]:
-    initialize_golden_database()
+    """
+    Return training jobs from the Training Database.
 
-    with get_connection() as connection:
-        connection.row_factory = sqlite3.Row
+    Response format remains compatible with existing APIs.
+    """
+
+    limit = max(1, min(int(limit), 1000))
+
+    with get_training_connection() as connection:
 
         rows = connection.execute(
             """
@@ -191,7 +306,10 @@ def list_training_jobs(
         ).fetchone()[0]
 
     return {
-        "jobs": [dict(row) for row in rows],
+        "jobs": [
+            dict(row)
+            for row in rows
+        ],
         "total": total,
     }
 
@@ -199,10 +317,11 @@ def list_training_jobs(
 def get_training_job(
     job_id: str,
 ) -> dict[str, Any] | None:
-    initialize_golden_database()
+    """
+    Retrieve a training job and its event history.
+    """
 
-    with get_connection() as connection:
-        connection.row_factory = sqlite3.Row
+    with get_training_connection() as connection:
 
         job = connection.execute(
             """
@@ -228,21 +347,26 @@ def get_training_job(
 
     return {
         **dict(job),
-        "events": [dict(event) for event in events],
+        "events": [
+            dict(event)
+            for event in events
+        ],
     }
 
 
 def claim_next_training_job() -> dict[str, Any] | None:
     """
-    Atomically claim one queued job.
+    Atomically claim the oldest queued training job.
 
-    Only the background worker should call this function.
+    IMPORTANT:
+    This function only performs queue claiming.
+
+    It does not verify training approval or artifact
+    integrity. Callers must enforce those checks
+    before executing model training.
     """
 
-    initialize_golden_database()
-
-    with get_connection() as connection:
-        connection.row_factory = sqlite3.Row
+    with get_training_connection() as connection:
 
         connection.execute("BEGIN IMMEDIATE")
 
@@ -261,12 +385,14 @@ def claim_next_training_job() -> dict[str, Any] | None:
 
         job_id = job["job_id"]
 
-        connection.execute(
+        cursor = connection.execute(
             """
             UPDATE c3_training_jobs
-            SET status = 'PREPARING',
+            SET
+                status = 'PREPARING',
                 current_stage = 'DATA_PREPARATION',
-                started_at = ?
+                started_at = ?,
+                error_message = NULL
             WHERE job_id = ?
               AND status = 'QUEUED'
             """,
@@ -276,12 +402,17 @@ def claim_next_training_job() -> dict[str, Any] | None:
             ),
         )
 
+        if cursor.rowcount != 1:
+            return None
+
         append_training_event(
             connection,
             job_id=job_id,
             level="INFO",
             stage="PREPARING",
-            message="Background worker claimed training job.",
+            message=(
+                "Background worker claimed training job."
+            ),
         )
 
         updated = connection.execute(
@@ -294,24 +425,24 @@ def claim_next_training_job() -> dict[str, Any] | None:
         ).fetchone()
 
         return dict(updated)
-    
+
 
 def claim_training_job(
     job_id: str,
 ) -> dict[str, Any] | None:
     """
-    Atomically claim a specific queued job.
+    Atomically claim a specific queued training job.
 
-    The caller must verify training approval and
-    artifact integrity before invoking this function.
+    The caller must verify:
+        1. Training approval.
+        2. Dataset readiness.
+        3. Artifact integrity.
 
-    This function does not itself authorize training.
+    This function does not independently authorize
+    model training.
     """
 
-    initialize_golden_database()
-
-    with get_connection() as connection:
-        connection.row_factory = sqlite3.Row
+    with get_training_connection() as connection:
 
         connection.execute("BEGIN IMMEDIATE")
 
@@ -369,8 +500,8 @@ def claim_training_job(
         ).fetchone()
 
         return dict(updated)
-    
-    
+
+
 def update_training_job(
     job_id: str,
     *,
@@ -380,17 +511,21 @@ def update_training_job(
     level: str = "INFO",
     error_message: str | None = None,
 ) -> dict[str, Any]:
-    """Persist a training status transition and event."""
+    """
+    Persist a training status transition and event.
+
+    Both updates are performed within the same
+    database transaction.
+    """
 
     if status not in TRAINING_STATUSES:
         raise ValueError(
             f"Unsupported training status: {status}"
         )
 
-    initialize_golden_database()
+    with get_training_connection() as connection:
 
-    with get_connection() as connection:
-        connection.row_factory = sqlite3.Row
+        connection.execute("BEGIN IMMEDIATE")
 
         existing = connection.execute(
             """
@@ -408,11 +543,7 @@ def update_training_job(
 
         completed_at = (
             utc_now()
-            if status in {
-                "COMPLETED",
-                "FAILED",
-                "CANCELLED",
-            }
+            if status in TERMINAL_STATUSES
             else None
         )
 

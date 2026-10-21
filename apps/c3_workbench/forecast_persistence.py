@@ -29,6 +29,9 @@ from apps.c3_workbench.golden_db import (
     get_connection,
     initialize_golden_database,
 )
+from apps.c3_workbench.training_database import (
+    connect_training_db,
+)
 
 VALID_HORIZONS = {15, 30, 60}
 
@@ -349,18 +352,19 @@ def save_forecast_predictions(
                     "checkpoint_sha256"
                 ]
 
-                model_row = connection.execute(
-                    """
-                    SELECT
-                        model_version_id,
-                        dataset_id,
-                        model_name,
-                        horizon_minutes
-                    FROM c3_model_versions
-                    WHERE model_version_id = ?
-                    """,
-                    (model_version_id,),
-                ).fetchone()
+                with connect_training_db() as training_connection:
+                    model_row = training_connection.execute(
+                        """
+                        SELECT
+                            model_version_id,
+                            dataset_id,
+                            model_name,
+                            horizon_minutes
+                        FROM c3_model_versions
+                        WHERE model_version_id = ?
+                        """,
+                        (model_version_id,),
+                    ).fetchone()
 
                 if model_row is None:
                     raise ForecastPersistenceError(

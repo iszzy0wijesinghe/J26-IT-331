@@ -1,0 +1,464 @@
+{
+  "model": "M5_MULTIVARIATE_GRU",
+  "status": "EXPERIMENTAL",
+  "created_at": "2026-10-20T20:46:00.943419+00:00",
+  "dataset_approved_for_research": false,
+  "target_source": "REFERENCE_TIMELINE",
+  "input_dataset": "data/processed/c3_m5_variable_rate_v3/variable_rate_observations.csv",
+  "input_sha256": "95b28ae04055230624dcfefc5d288684a2ebdda634e14a22128c28ba4bdabc7e",
+  "reference_dataset": "data/processed/c3_m5_variable_rate_v3/reference_timeline.csv",
+  "reference_sha256": "0038af5df0ad1e6e583400647cb0f7ecd749497817341771fa88137e2b254140",
+  "total_observations": 16115,
+  "total_episode_groups": 36,
+  "train_samples": 11059,
+  "validation_samples": 2323,
+  "test_samples": 2639,
+  "best_epoch": 9,
+  "best_validation_mse": 0.01479597946094295,
+  "mode_distribution": {
+    "DEEP_SLEEP": 1168,
+    "IDLE": 1250,
+    "RISK": 2569,
+    "WARNING": 8630,
+    "EMERGENCY": 2498
+  },
+  "missing_modes": [],
+  "sampling_interval_audit": {
+    "DEEP_SLEEP": {
+      "count": 1132,
+      "median_seconds": 1208.5,
+      "minimum_seconds": 900.0,
+      "maximum_seconds": 1500.0,
+      "within_expected_range_pct": 100.0
+    },
+    "IDLE": {
+      "count": 1250,
+      "median_seconds": 562.0,
+      "minimum_seconds": 420.0,
+      "maximum_seconds": 720.0,
+      "within_expected_range_pct": 100.0
+    },
+    "RISK": {
+      "count": 2569,
+      "median_seconds": 180.0,
+      "minimum_seconds": 120.0,
+      "maximum_seconds": 240.0,
+      "within_expected_range_pct": 100.0
+    },
+    "WARNING": {
+      "count": 8630,
+      "median_seconds": 61.0,
+      "minimum_seconds": 30.0,
+      "maximum_seconds": 90.0,
+      "within_expected_range_pct": 100.0
+    },
+    "EMERGENCY": {
+      "count": 2498,
+      "median_seconds": 17.0,
+      "minimum_seconds": 8.0,
+      "maximum_seconds": 25.0,
+      "within_expected_range_pct": 100.0
+    }
+  },
+  "split_manifest": {
+    "train_groups": [
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_009",
+        "SYN_VR_EP_009"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_012",
+        "SYN_VR_EP_012"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_005",
+        "SYN_VR_EP_005"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_027",
+        "SYN_VR_EP_027"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_032",
+        "SYN_VR_EP_032"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_019",
+        "SYN_VR_EP_019"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_030",
+        "SYN_VR_EP_030"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_025",
+        "SYN_VR_EP_025"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_022",
+        "SYN_VR_EP_022"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_026",
+        "SYN_VR_EP_026"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_031",
+        "SYN_VR_EP_031"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_010",
+        "SYN_VR_EP_010"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_011",
+        "SYN_VR_EP_011"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_028",
+        "SYN_VR_EP_028"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_008",
+        "SYN_VR_EP_008"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_020",
+        "SYN_VR_EP_020"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_016",
+        "SYN_VR_EP_016"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_035",
+        "SYN_VR_EP_035"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_006",
+        "SYN_VR_EP_006"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_024",
+        "SYN_VR_EP_024"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_000",
+        "SYN_VR_EP_000"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_034",
+        "SYN_VR_EP_034"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_013",
+        "SYN_VR_EP_013"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_018",
+        "SYN_VR_EP_018"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_002",
+        "SYN_VR_EP_002"
+      ]
+    ],
+    "validation_groups": [
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_033",
+        "SYN_VR_EP_033"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_029",
+        "SYN_VR_EP_029"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_021",
+        "SYN_VR_EP_021"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_003",
+        "SYN_VR_EP_003"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_023",
+        "SYN_VR_EP_023"
+      ]
+    ],
+    "test_groups": [
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_004",
+        "SYN_VR_EP_004"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_014",
+        "SYN_VR_EP_014"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_015",
+        "SYN_VR_EP_015"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_017",
+        "SYN_VR_EP_017"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_001",
+        "SYN_VR_EP_001"
+      ],
+      [
+        "M5_SYNTHETIC_VARIABLE_RATE",
+        "PIPE_007",
+        "SYN_VR_EP_007"
+      ]
+    ]
+  },
+  "training_history": [
+    {
+      "epoch": 1,
+      "train_mse": 0.1644542770111125,
+      "validation_mse": 0.031531615444716964
+    },
+    {
+      "epoch": 2,
+      "train_mse": 0.023369618756461676,
+      "validation_mse": 0.021149854529445452
+    },
+    {
+      "epoch": 3,
+      "train_mse": 0.016330529944744737,
+      "validation_mse": 0.025854760824188673
+    },
+    {
+      "epoch": 4,
+      "train_mse": 0.01391814980664911,
+      "validation_mse": 0.030257219845642808
+    },
+    {
+      "epoch": 5,
+      "train_mse": 0.012973641167092253,
+      "validation_mse": 0.02224863446479664
+    },
+    {
+      "epoch": 6,
+      "train_mse": 0.011848507112792622,
+      "validation_mse": 0.020370956705971537
+    },
+    {
+      "epoch": 7,
+      "train_mse": 0.010833910607707935,
+      "validation_mse": 0.01893451562789337
+    },
+    {
+      "epoch": 8,
+      "train_mse": 0.010139178096549831,
+      "validation_mse": 0.019030644526696575
+    },
+    {
+      "epoch": 9,
+      "train_mse": 0.010117424839609335,
+      "validation_mse": 0.01479597946094295
+    },
+    {
+      "epoch": 10,
+      "train_mse": 0.00949107917406035,
+      "validation_mse": 0.021461712185621287
+    },
+    {
+      "epoch": 11,
+      "train_mse": 0.008904567627235403,
+      "validation_mse": 0.01692211577175402
+    },
+    {
+      "epoch": 12,
+      "train_mse": 0.00877317332603142,
+      "validation_mse": 0.021383178265814057
+    },
+    {
+      "epoch": 13,
+      "train_mse": 0.008362462573943992,
+      "validation_mse": 0.021070016803032953
+    },
+    {
+      "epoch": 14,
+      "train_mse": 0.007917139670725649,
+      "validation_mse": 0.019343462022479975
+    }
+  ],
+  "test_metrics": {
+    "15": {
+      "soil_moisture_pct": {
+        "count": 2639,
+        "mae": 0.5894439220428467,
+        "rmse": 0.7787083387374878
+      },
+      "rainfall_proxy_counts": {
+        "count": 2639,
+        "mae": 1.1995631456375122,
+        "rmse": 1.49660062789917
+      },
+      "tilt_deg": {
+        "count": 2639,
+        "mae": 0.11862713098526001,
+        "rmse": 0.13407078385353088
+      },
+      "vibration_g": {
+        "count": 2639,
+        "mae": 0.007255477365106344,
+        "rmse": 0.008105198852717876
+      },
+      "fsr_adc": {
+        "count": 2639,
+        "mae": 37.80155944824219,
+        "rmse": 42.079734802246094
+      },
+      "air_temperature_c": {
+        "count": 2639,
+        "mae": 0.21163250505924225,
+        "rmse": 0.25473007559776306
+      },
+      "humidity_pct": {
+        "count": 2639,
+        "mae": 0.4297793507575989,
+        "rmse": 0.5317321419715881
+      }
+    },
+    "30": {
+      "soil_moisture_pct": {
+        "count": 2635,
+        "mae": 0.804530918598175,
+        "rmse": 0.9984765648841858
+      },
+      "rainfall_proxy_counts": {
+        "count": 2635,
+        "mae": 2.0104124546051025,
+        "rmse": 2.4534049034118652
+      },
+      "tilt_deg": {
+        "count": 2635,
+        "mae": 0.127085879445076,
+        "rmse": 0.15040019154548645
+      },
+      "vibration_g": {
+        "count": 2635,
+        "mae": 0.008105427026748657,
+        "rmse": 0.009452217258512974
+      },
+      "fsr_adc": {
+        "count": 2635,
+        "mae": 41.5345344543457,
+        "rmse": 49.2495231628418
+      },
+      "air_temperature_c": {
+        "count": 2635,
+        "mae": 0.23113089799880981,
+        "rmse": 0.29431310296058655
+      },
+      "humidity_pct": {
+        "count": 2635,
+        "mae": 0.6792920827865601,
+        "rmse": 0.8550050854682922
+      }
+    },
+    "60": {
+      "soil_moisture_pct": {
+        "count": 2625,
+        "mae": 1.3599656820297241,
+        "rmse": 1.634377121925354
+      },
+      "rainfall_proxy_counts": {
+        "count": 2625,
+        "mae": 2.9601876735687256,
+        "rmse": 3.8214895725250244
+      },
+      "tilt_deg": {
+        "count": 2625,
+        "mae": 0.17214705049991608,
+        "rmse": 0.2200462967157364
+      },
+      "vibration_g": {
+        "count": 2625,
+        "mae": 0.011121819727122784,
+        "rmse": 0.014488045126199722
+      },
+      "fsr_adc": {
+        "count": 2625,
+        "mae": 63.55866622924805,
+        "rmse": 81.52081298828125
+      },
+      "air_temperature_c": {
+        "count": 2625,
+        "mae": 0.3017294704914093,
+        "rmse": 0.38347721099853516
+      },
+      "humidity_pct": {
+        "count": 2625,
+        "mae": 1.164110541343689,
+        "rmse": 1.4561983346939087
+      }
+    }
+  },
+  "training_configuration": {
+    "epochs": 30,
+    "batch_size": 32,
+    "learning_rate": 0.001,
+    "patience": 5,
+    "seed": 42,
+    "sequence_length": 32,
+    "forecast_horizons": [
+      15,
+      30,
+      60
+    ],
+    "sensor_features": [
+      "soil_moisture_pct",
+      "rainfall_proxy_counts",
+      "tilt_deg",
+      "vibration_g",
+      "fsr_adc",
+      "air_temperature_c",
+      "humidity_pct"
+    ]
+  },
+  "limitations": [
+    "Synthetic engineering data is not independently validated landslide data.",
+    "Episode-isolated splitting does not guarantee independent environmental patterns across simulated episodes.",
+    "The model predicts sensor values, not verified landslide events.",
+    "Forecasting beyond validated horizons is unsupported."
+  ]
+}

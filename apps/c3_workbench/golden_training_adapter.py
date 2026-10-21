@@ -25,6 +25,10 @@ from apps.c3_workbench.golden_db import (
     get_connection,
     initialize_golden_database,
 )
+from apps.c3_workbench.training_database import (
+    connect_training_db,
+    get_training_db_path,
+)
 from apps.c3_workbench.golden_training_readiness import (
     assess_training_readiness,
 )
@@ -113,11 +117,36 @@ def write_jsonl_gz(
 def load_golden_dataset(
     dataset_id: str,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """
+    Load dataset metadata from the dedicated Training Database
+    and source observations from the Golden Database.
 
-    initialize_golden_database()
+    Database ownership:
+        c3_datasets             -> Training Database
+        c3_golden_observations  -> Golden Database
 
-    with get_connection() as connection:
-        dataset_row = connection.execute(
+    Both operations are read-only.
+    """
+
+    # -------------------------------------------------
+    # Step 1 — Read dataset metadata from Training DB.
+    # -------------------------------------------------
+
+    training_db_path = get_training_db_path()
+
+    if not training_db_path.is_file():
+        raise ValueError(
+            "Training Database does not exist: "
+            f"{training_db_path}"
+        )
+
+    with connect_training_db() as training_connection:
+
+        training_connection.row_factory = __import__(
+            "sqlite3"
+        ).Row
+
+        dataset_row = training_connection.execute(
             """
             SELECT *
             FROM c3_datasets
@@ -126,12 +155,26 @@ def load_golden_dataset(
             (dataset_id,),
         ).fetchone()
 
-        if dataset_row is None:
-            raise ValueError(
-                f"Dataset not found: {dataset_id}"
-            )
+    if dataset_row is None:
+        raise ValueError(
+            f"Dataset not found in Training Database: {dataset_id}"
+        )
 
-        observation_rows = connection.execute(
+    dataset = dict(dataset_row)
+
+    # -------------------------------------------------
+    # Step 2 — Read observations from Golden DB.
+    # -------------------------------------------------
+
+    initialize_golden_database()
+
+    with get_connection() as golden_connection:
+
+        golden_connection.row_factory = __import__(
+            "sqlite3"
+        ).Row
+
+        observation_rows = golden_connection.execute(
             """
             SELECT
                 observation_id,
@@ -148,8 +191,11 @@ def load_golden_dataset(
                 air_temperature_c,
                 humidity_pct,
                 created_at
+
             FROM c3_golden_observations
+
             WHERE dataset_id = ?
+
             ORDER BY
                 episode_id,
                 device_id,
@@ -159,8 +205,14 @@ def load_golden_dataset(
             (dataset_id,),
         ).fetchall()
 
+    if not observation_rows:
+        raise ValueError(
+            "No Golden observations found for dataset: "
+            f"{dataset_id}"
+        )
+
     return (
-        dict(dataset_row),
+        dataset,
         [dict(row) for row in observation_rows],
     )
 
@@ -560,6 +612,31 @@ def validate_feature_compatibility(
 
     return checked
 
+def validate_export_dataset_id(
+    dataset_id: str,
+) -> str:
+    """
+    Validate a dataset identifier before using it
+    as a filesystem directory name.
+    """
+
+    import re
+
+    if not isinstance(dataset_id, str):
+        raise ValueError(
+            "Dataset ID must be a string."
+        )
+
+    if not re.fullmatch(
+        r"[A-Za-z0-9_-]{1,128}",
+        dataset_id,
+    ):
+        raise ValueError(
+            "Invalid dataset ID. Only letters, numbers, "
+            "underscores, and hyphens are permitted."
+        )
+
+    return dataset_id
 
 def export_golden_training_dataset(
     dataset_id: str,

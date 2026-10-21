@@ -10,6 +10,10 @@ from typing import Any
 
 from apps.c3_workbench.golden_db import DATABASE_PATH
 
+from apps.c3_workbench.training_database import (
+    connect_training_db,
+)
+
 OBSERVATION_COLUMNS = (
     "observation_id",
     "dataset_id",
@@ -251,17 +255,22 @@ def get_observation_filters(
     where_clause = "WHERE dataset_id = ?" if dataset_id else ""
     parameters = [dataset_id] if dataset_id else []
 
-    with open_readonly_connection() as connection:
+    with connect_training_db() as training_connection:
         datasets = [
             dict(row)
-            for row in connection.execute(
+            for row in training_connection.execute(
                 """
-                SELECT dataset_id, filename, total_rows
+                SELECT
+                    dataset_id,
+                    filename,
+                    total_rows
                 FROM c3_datasets
                 ORDER BY uploaded_at DESC
                 """
             ).fetchall()
         ]
+
+    with open_readonly_connection() as connection:
 
         devices = [
             row[0]

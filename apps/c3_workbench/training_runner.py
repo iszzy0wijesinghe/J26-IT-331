@@ -1,26 +1,61 @@
-"""Execute GeoNex C3 forecasting training scripts."""
+"""
+Execute GeoNex C3 forecasting training scripts.
+
+Phase 1.4.3 — Dedicated Training Database Integration
+
+Database ownership
+------------------
+Training Database:
+    - c3_training_jobs
+    - c3_training_events
+    - Training approval and model metadata
+
+Golden Database:
+    - Operational sensor observations
+    - Operational forecasting results
+    - Operational alerts
+
+Training subprocess output is persisted exclusively to
+the dedicated Training Database.
+
+The existing M1–M4 training pipeline is preserved.
+"""
 
 from __future__ import annotations
 
 import os
 import subprocess
 import sys
-from pathlib import Path
+import traceback
 
-from apps.c3_workbench.golden_db import get_connection
+from pathlib import Path
+from typing import Any
+
+from apps.c3_workbench.training_database import (
+    connect_training_db,
+)
+
 from apps.c3_workbench.training_artifact_integrity import (
     verify_training_artifacts,
 )
+
 from apps.c3_workbench.training_queue import (
     append_training_event,
+    get_training_job,
     update_training_job,
 )
 
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+# Preserve the existing model artifact location during
+# Phase 1.4 to avoid breaking downstream consumers.
+#
+# Artifact storage separation will be addressed in
+# Phase 1.6 after model registry dependencies are reviewed.
 MODEL_RUN_ROOT = Path(
     "data/workbench/c3/model_runs"
 )
-
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def log_training_output(
@@ -29,9 +64,13 @@ def log_training_output(
     stage: str,
     message: str,
 ) -> None:
-    """Persist actual subprocess output as a training event."""
+    """
+    Persist subprocess output to the Training Database.
 
-    with get_connection() as connection:
+    Never write training events to the Golden Database.
+    """
+
+    with connect_training_db() as connection:
         append_training_event(
             connection,
             job_id=job_id,
@@ -48,7 +87,21 @@ def run_training_command(
     command: list[str],
     log_path: Path,
 ) -> None:
-    """Run one training process and capture its output."""
+    """
+    Execute one training subprocess.
+
+    Output is written to:
+        1. The stage-specific log file.
+        2. The dedicated Training Database.
+        3. The console.
+
+    A nonzero subprocess exit code raises RuntimeError.
+    """
+
+    if not command:
+        raise ValueError(
+            "Training command cannot be empty."
+        )
 
     log_path.parent.mkdir(
         parents=True,
@@ -56,6 +109,7 @@ def run_training_command(
     )
 
     environment = os.environ.copy()
+
     environment["PYTHONUNBUFFERED"] = "1"
 
     with log_path.open(
@@ -75,13 +129,16 @@ def run_training_command(
 
         assert process.stdout is not None
 
-        for line in process.stdout:
-            message = line.rstrip("\n")
+        try:
+            for line in process.stdout:
+                message = line.rstrip("\r\n")
 
-            log_file.write(line)
-            log_file.flush()
+                log_file.write(line)
+                log_file.flush()
 
-            if message.strip():
+                if not message.strip():
+                    continue
+
                 print(
                     f"[{stage}] {message}",
                     flush=True,
@@ -93,7 +150,25 @@ def run_training_command(
                     message=message,
                 )
 
-        return_code = process.wait()
+            return_code = process.wait()
+
+        except Exception:
+            # Avoid leaving a training subprocess running
+            # if output handling or database logging fails.
+            if process.poll() is None:
+                process.terminate()
+
+                try:
+                    process.wait(timeout=10)
+
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait()
+
+            raise
+
+        finally:
+            process.stdout.close()
 
         if return_code != 0:
             raise RuntimeError(
@@ -110,9 +185,55 @@ def build_training_commands(
     patience: int = 6,
     device: str = "auto",
 ) -> list[tuple[str, list[str]]]:
-    """Build isolated commands for M1–M4."""
+    """
+    Build the existing M1–M4 training commands.
 
-    commands = []
+    M1:
+        Ridge Regression
+
+    M2:
+        Gradient Boosting
+
+    M3:
+        GRU for 15, 30, and 60 minutes
+
+    M4:
+        GRU ablations A/B/C for 15, 30, and 60 minutes
+
+    Total:
+        14 training commands.
+    """
+
+    if max_epochs < 1:
+        raise ValueError(
+            "max_epochs must be greater than zero."
+        )
+
+    if patience < 1:
+        raise ValueError(
+            "patience must be greater than zero."
+        )
+
+    if device not in {
+        "auto",
+        "cpu",
+        "mps",
+    }:
+        raise ValueError(
+            f"Unsupported training device: {device}"
+        )
+
+    dataset_dir = Path(dataset_dir).resolve()
+
+    job_dir = Path(job_dir).resolve()
+
+    if not dataset_dir.is_dir():
+        raise FileNotFoundError(
+            "Training dataset directory does not exist: "
+            f"{dataset_dir}"
+        )
+
+    commands: list[tuple[str, list[str]]] = []
 
     def base_command(
         module: str,
@@ -128,6 +249,10 @@ def build_training_commands(
             str(output_dir),
         ]
 
+    # --------------------------------------------------
+    # M1 — Ridge Regression
+    # --------------------------------------------------
+
     commands.append(
         (
             "TRAINING_M1",
@@ -138,6 +263,10 @@ def build_training_commands(
         )
     )
 
+    # --------------------------------------------------
+    # M2 — Gradient Boosting
+    # --------------------------------------------------
+
     commands.append(
         (
             "TRAINING_M2",
@@ -147,6 +276,10 @@ def build_training_commands(
             ),
         )
     )
+
+    # --------------------------------------------------
+    # M3 — GRU
+    # --------------------------------------------------
 
     for horizon in (15, 30, 60):
         commands.append(
@@ -168,6 +301,10 @@ def build_training_commands(
                 ],
             )
         )
+
+    # --------------------------------------------------
+    # M4 — GRU Ablation Experiments
+    # --------------------------------------------------
 
     for ablation in ("A", "B", "C"):
         for horizon in (15, 30, 60):
@@ -203,9 +340,45 @@ def run_training_pipeline(
     max_epochs: int = 30,
     patience: int = 6,
     device: str = "auto",
-) -> dict:
-    """Execute M1–M4 against one approved dataset."""
+) -> dict[str, Any]:
+    """
+    Execute the existing M1–M4 training pipeline.
 
+    Preconditions:
+        - Training job exists.
+        - Job belongs to the specified dataset.
+        - Job has already been claimed by an authorized worker.
+        - Dataset approval and artifact integrity are valid.
+
+    The pipeline does not claim queued jobs itself.
+    """
+
+    job = get_training_job(job_id)
+
+    if job is None:
+        raise ValueError(
+            f"Training job not found: {job_id}"
+        )
+
+    if job["dataset_id"] != dataset_id:
+        raise ValueError(
+            "Training job dataset mismatch. "
+            f"Job dataset: {job['dataset_id']}; "
+            f"requested dataset: {dataset_id}"
+        )
+
+    if job["status"] not in {
+        "PREPARING",
+        "TRAINING",
+    }:
+        raise ValueError(
+            "Training pipeline requires a claimed job "
+            "with PREPARING or TRAINING status. "
+            f"Current status: {job['status']}"
+        )
+
+    # Verify dataset approval and artifact integrity
+    # before starting the training pipeline.
     verification = verify_training_artifacts(
         dataset_id
     )
@@ -231,48 +404,89 @@ def run_training_pipeline(
         device=device,
     )
 
-    for index, (stage, command) in enumerate(
-        commands,
-        start=1,
-    ):
-        # Recheck approval and integrity before each model.
-        verify_training_artifacts(dataset_id)
+    try:
+        for index, (stage, command) in enumerate(
+            commands,
+            start=1,
+        ):
+            # Approval can be revoked between tasks.
+            verify_training_artifacts(
+                dataset_id
+            )
+
+            update_training_job(
+                job_id,
+                status="TRAINING",
+                stage=stage,
+                message=(
+                    f"Starting training task "
+                    f"{index}/{len(commands)}: {stage}"
+                ),
+            )
+
+            log_path = (
+                job_dir
+                / "logs"
+                / f"{stage}.log"
+            )
+
+            run_training_command(
+                job_id=job_id,
+                stage=stage,
+                command=command,
+                log_path=log_path,
+            )
+
+            update_training_job(
+                job_id,
+                status="TRAINING",
+                stage=stage,
+                message=(
+                    f"Completed training task "
+                    f"{index}/{len(commands)}: {stage}"
+                ),
+            )
 
         update_training_job(
             job_id,
-            status="TRAINING",
-            stage=stage,
+            status="EVALUATING",
+            stage="ARTIFACT_REVIEW",
             message=(
-                f"Starting training task "
-                f"{index}/{len(commands)}: {stage}"
+                f"All {len(commands)} model training "
+                "commands finished. "
+                "Awaiting model artifact evaluation."
             ),
         )
 
-        log_path = (
-            job_dir / "logs" / f"{stage}.log"
-        )
+        return {
+            "job_id": job_id,
+            "dataset_id": dataset_id,
+            "job_dir": str(job_dir),
+            "tasks_completed": len(commands),
+            "status": "EVALUATING",
+        }
 
-        run_training_command(
-            job_id=job_id,
-            stage=stage,
-            command=command,
-            log_path=log_path,
-        )
+    except Exception as error:
+        try:
+            update_training_job(
+                job_id,
+                status="FAILED",
+                stage="TRAINING_FAILED",
+                level="ERROR",
+                message=(
+                    f"Training pipeline failed: {error}"
+                ),
+                error_message=str(error),
+            )
 
-    update_training_job(
-        job_id,
-        status="EVALUATING",
-        stage="ARTIFACT_REVIEW",
-        message=(
-            "All model training commands finished. "
-            "Awaiting model artifact evaluation."
-        ),
-    )
+        except Exception as persistence_error:
+            print(
+                "WARNING: Failed to persist training "
+                f"pipeline error: {persistence_error}",
+                file=sys.stderr,
+                flush=True,
+            )
 
-    return {
-        "job_id": job_id,
-        "dataset_id": dataset_id,
-        "job_dir": str(job_dir),
-        "tasks_completed": len(commands),
-        "status": "EVALUATING",
-    }
+        traceback.print_exc()
+
+        raise

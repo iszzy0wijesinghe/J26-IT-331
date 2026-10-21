@@ -1,0 +1,233 @@
+{
+  "experiment": "M5_V3_MATCHED_PERSISTENCE_BASELINE",
+  "dataset_type": "SYNTHETIC_ENGINEERING_SIMULATION",
+  "research_status": "EXPERIMENTAL",
+  "test_episode_groups": 6,
+  "test_samples": 2639,
+  "persistence_metrics": {
+    "15": {
+      "soil_moisture_pct": {
+        "mae": 0.750530697532385,
+        "rmse": 0.8950194777374144,
+        "count": 2639
+      },
+      "rainfall_proxy_counts": {
+        "mae": 1.6363176529284504,
+        "rmse": 1.9408424467132537,
+        "count": 2639
+      },
+      "tilt_deg": {
+        "mae": 0.09352268108638591,
+        "rmse": 0.11232283484153822,
+        "count": 2639
+      },
+      "vibration_g": {
+        "mae": 0.005614234270424204,
+        "rmse": 0.006744953178138337,
+        "count": 2639
+      },
+      "fsr_adc": {
+        "mae": 29.94257669568107,
+        "rmse": 35.97313298078851,
+        "count": 2639
+      },
+      "air_temperature_c": {
+        "mae": 0.14957302942019424,
+        "rmse": 0.16215179897984913,
+        "count": 2639
+      },
+      "humidity_pct": {
+        "mae": 0.5727111278677041,
+        "rmse": 0.6792947656860094,
+        "count": 2639
+      }
+    },
+    "30": {
+      "soil_moisture_pct": {
+        "mae": 1.5240029148630219,
+        "rmse": 1.8150556462789647,
+        "count": 2635
+      },
+      "rainfall_proxy_counts": {
+        "mae": 3.27983819269293,
+        "rmse": 3.8864614489238023,
+        "count": 2635
+      },
+      "tilt_deg": {
+        "mae": 0.18737271054872298,
+        "rmse": 0.22483749598613734,
+        "count": 2635
+      },
+      "vibration_g": {
+        "mae": 0.011257729941954309,
+        "rmse": 0.013513693690938943,
+        "count": 2635
+      },
+      "fsr_adc": {
+        "mae": 60.041200977303724,
+        "rmse": 72.07302049103428,
+        "count": 2635
+      },
+      "air_temperature_c": {
+        "mae": 0.294164942790254,
+        "rmse": 0.31977462212664043,
+        "count": 2635
+      },
+      "humidity_pct": {
+        "mae": 1.147943414908885,
+        "rmse": 1.360261550096729,
+        "count": 2635
+      }
+    },
+    "60": {
+      "soil_moisture_pct": {
+        "mae": 3.164952662150065,
+        "rmse": 3.7448746262991017,
+        "count": 2625
+      },
+      "rainfall_proxy_counts": {
+        "mae": 6.63510097588229,
+        "rmse": 7.83796051556647,
+        "count": 2625
+      },
+      "tilt_deg": {
+        "mae": 0.37892679756028314,
+        "rmse": 0.4534488841715832,
+        "count": 2625
+      },
+      "vibration_g": {
+        "mae": 0.02280753604003361,
+        "rmse": 0.027300903175915246,
+        "count": 2625
+      },
+      "fsr_adc": {
+        "mae": 121.64017833891369,
+        "rmse": 145.6048184172162,
+        "count": 2625
+      },
+      "air_temperature_c": {
+        "mae": 0.5683465845017206,
+        "rmse": 0.6211544901990173,
+        "count": 2625
+      },
+      "humidity_pct": {
+        "mae": 2.3222852652413506,
+        "rmse": 2.743286093543632,
+        "count": 2625
+      }
+    }
+  },
+  "comparison": {
+    "15": {
+      "soil_moisture_pct": {
+        "gru_mae": 0.5894439220428467,
+        "persistence_mae": 0.750530697532385,
+        "improvement_pct": 21.46304954869451
+      },
+      "rainfall_proxy_counts": {
+        "gru_mae": 1.1995631456375122,
+        "persistence_mae": 1.6363176529284504,
+        "improvement_pct": 26.69130327533267
+      },
+      "tilt_deg": {
+        "gru_mae": 0.11862713098526001,
+        "persistence_mae": 0.09352268108638591,
+        "improvement_pct": -26.843167461896634
+      },
+      "vibration_g": {
+        "gru_mae": 0.007255477365106344,
+        "persistence_mae": 0.005614234270424204,
+        "improvement_pct": -29.2336054326805
+      },
+      "fsr_adc": {
+        "gru_mae": 37.80155944824219,
+        "persistence_mae": 29.94257669568107,
+        "improvement_pct": -26.246848534230192
+      },
+      "air_temperature_c": {
+        "gru_mae": 0.21163250505924225,
+        "persistence_mae": 0.14957302942019424,
+        "improvement_pct": -41.49108691561288
+      },
+      "humidity_pct": {
+        "gru_mae": 0.4297793507575989,
+        "persistence_mae": 0.5727111278677041,
+        "improvement_pct": 24.957045560169792
+      }
+    },
+    "30": {
+      "soil_moisture_pct": {
+        "gru_mae": 0.804530918598175,
+        "persistence_mae": 1.5240029148630219,
+        "improvement_pct": 47.209358279312305
+      },
+      "rainfall_proxy_counts": {
+        "gru_mae": 2.0104124546051025,
+        "persistence_mae": 3.27983819269293,
+        "improvement_pct": 38.703913531952566
+      },
+      "tilt_deg": {
+        "gru_mae": 0.127085879445076,
+        "persistence_mae": 0.18737271054872298,
+        "improvement_pct": 32.174819335802084
+      },
+      "vibration_g": {
+        "gru_mae": 0.008105427026748657,
+        "persistence_mae": 0.011257729941954309,
+        "improvement_pct": 28.001230545226786
+      },
+      "fsr_adc": {
+        "gru_mae": 41.5345344543457,
+        "persistence_mae": 60.041200977303724,
+        "improvement_pct": 30.82327838504389
+      },
+      "air_temperature_c": {
+        "gru_mae": 0.23113089799880981,
+        "persistence_mae": 0.294164942790254,
+        "improvement_pct": 21.4281294682993
+      },
+      "humidity_pct": {
+        "gru_mae": 0.6792920827865601,
+        "persistence_mae": 1.147943414908885,
+        "improvement_pct": 40.82529905531301
+      }
+    },
+    "60": {
+      "soil_moisture_pct": {
+        "gru_mae": 1.3599656820297241,
+        "persistence_mae": 3.164952662150065,
+        "improvement_pct": 57.030457412723166
+      },
+      "rainfall_proxy_counts": {
+        "gru_mae": 2.9601876735687256,
+        "persistence_mae": 6.63510097588229,
+        "improvement_pct": 55.38594387141033
+      },
+      "tilt_deg": {
+        "gru_mae": 0.17214705049991608,
+        "persistence_mae": 0.37892679756028314,
+        "improvement_pct": 54.569839977461776
+      },
+      "vibration_g": {
+        "gru_mae": 0.011121819727122784,
+        "persistence_mae": 0.02280753604003361,
+        "improvement_pct": 51.23620671868774
+      },
+      "fsr_adc": {
+        "gru_mae": 63.55866622924805,
+        "persistence_mae": 121.64017833891369,
+        "improvement_pct": 47.748624593297635
+      },
+      "air_temperature_c": {
+        "gru_mae": 0.3017294704914093,
+        "persistence_mae": 0.5683465845017206,
+        "improvement_pct": 46.91100840239221
+      },
+      "humidity_pct": {
+        "gru_mae": 1.164110541343689,
+        "persistence_mae": 2.3222852652413506,
+        "improvement_pct": 49.87219878765819
+      }
+    }
+  }
+}

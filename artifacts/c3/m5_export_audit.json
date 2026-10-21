@@ -1,0 +1,37 @@
+{
+  "total_rows": 4320,
+  "group_count": 36,
+  "synthetic_episode_groups": 36,
+  "mode_distribution": {
+    "DEEP_SLEEP": 547,
+    "IDLE": 1618,
+    "WARNING": 275,
+    "RISK": 1880
+  },
+  "unknown_modes": {},
+  "duplicate_observations": 0,
+  "invalid_timestamps": 0,
+  "missing_sensor_values": {},
+  "invalid_sensor_values": {},
+  "horizon_target_coverage": {
+    "15": {
+      "matched_origins": 4212,
+      "coverage_pct": 97.5
+    },
+    "30": {
+      "matched_origins": 4104,
+      "coverage_pct": 95.0
+    },
+    "60": {
+      "matched_origins": 3888,
+      "coverage_pct": 90.0
+    }
+  },
+  "issues": [
+    "No EMERGENCY-mode observations.",
+    "Synthetic episode identifiers detected."
+  ],
+  "training_approved": false,
+  "approval_note": "Manual provenance and research-quality review required before final training.",
+  "input_file": "geonex_c3_export.csv"
+}
