@@ -6,6 +6,7 @@ docs: http://127.0.0.1:8033/docs
 """
 from __future__ import annotations
 
+import io
 import logging
 import threading
 import time
@@ -16,7 +17,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import Body, FastAPI, HTTPException, Query, Request
+import pandas as pd
+from fastapi import Body, FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import Settings, load_settings
@@ -52,7 +54,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except ModelNotReady as exc:
             state.error = str(exc)
             logger.error("model not ready: %s", exc)
-        except Exception as exc:   # keep the API up so /health can say what is wrong
+        except Exception as exc:
             state.error = f"{type(exc).__name__}: {exc}"
             logger.exception("unexpected error while loading the model")
         app.state.c1 = state
@@ -124,6 +126,46 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "confidence": res["confidence"], "probabilities": res["probabilities"],
                     "input": row, "source": "api",
                 })
+        return PredictResponse(
+            model_version=predictor.version,
+            count=len(results),
+            latency_ms=latency_ms,
+            results=[PredictionResult(**r) for r in results],
+        )
+
+    @app.post("/predict/csv", response_model=PredictResponse)
+    async def predict_csv(request: Request, file: UploadFile = File(...)) -> PredictResponse:
+        predictor = predictor_of(request)
+        state = state_of(request)
+
+        if not file.filename.endswith(".csv"):
+            raise HTTPException(status_code=422, detail="File must be a CSV")
+
+        try:
+            contents = await file.read()
+            df = pd.read_csv(io.BytesIO(contents))
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail=f"Could not read CSV: {exc}")
+
+        if df.empty:
+            raise HTTPException(status_code=422, detail="CSV is empty")
+        if len(df) > cfg.max_batch:
+            raise HTTPException(status_code=422, detail=f"CSV has too many rows: {len(df)} > {cfg.max_batch}")
+
+        rows = df.to_dict(orient="records")
+        started = time.perf_counter()
+        results = predictor.predict(rows)
+        latency_ms = round((time.perf_counter() - started) * 1000, 2)
+
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        with state.lock:
+            for row, res in zip(rows, results):
+                state.history.appendleft({
+                    "id": uuid.uuid4().hex[:8], "timestamp": now, "label": res["label"],
+                    "confidence": res["confidence"], "probabilities": res["probabilities"],
+                    "input": row, "source": "csv_upload",
+                })
+
         return PredictResponse(
             model_version=predictor.version,
             count=len(results),
