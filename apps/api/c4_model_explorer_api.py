@@ -1076,7 +1076,7 @@ def run_c4_scenario(request: ScenarioRequest) -> dict[str, Any]:
             elif not mandatory_pass:
                 ml_status = "SKIPPED - SECURITY FAILURE"
             else:
-                ml_status = "UNAVAILABLE - MISSING FEATURES"
+                ml_status = "SKIPPED - ML DISABLED (USE CSV UPLOAD)"
 
             # Add status fields
             result["security_status"] = security_status

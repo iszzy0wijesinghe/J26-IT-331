@@ -217,7 +217,7 @@ export const TelemetryExplorer: React.FC<TelemetryExplorerProps> = ({
       'Packet ID',
       'Device',
       'Security Status',
-      'Trust Label',
+      
       'Routing',
       'ML Status',
       'Score',
@@ -241,7 +241,6 @@ export const TelemetryExplorer: React.FC<TelemetryExplorerProps> = ({
         assessment.packet_id,
         assessment.device_id,
         result.security_status ?? '',
-        assessment.trust_label ?? '',
         assessment.routing_outcome ?? 'N/A',
         result.ml_status ?? '',
         assessment.behavioural_score ?? '',
@@ -293,8 +292,11 @@ export const TelemetryExplorer: React.FC<TelemetryExplorerProps> = ({
       'device_timestamp',
       'received_timestamp',
       'tx_interval_s',
-      'rssi_dbm',
+      'rx_delay_s',
       'freshness_status',
+      'freshness_status_encoded',
+      'rssi_dbm',
+      'rssi_deviation_db',
       'snr_db',
       'retry_count',
       'packet_size_bytes',
@@ -303,6 +305,11 @@ export const TelemetryExplorer: React.FC<TelemetryExplorerProps> = ({
       'current_ma',
       'reboot_count_24h',
       'sensor_fault_flag',
+      'rolling_interval_mean',
+      'rolling_interval_std',
+      'rolling_rssi_mean',
+      'rolling_rssi_std',
+      'rolling_retry_mean',
       'full_packet_json',
     ];
 
@@ -314,14 +321,28 @@ export const TelemetryExplorer: React.FC<TelemetryExplorerProps> = ({
     const rows = passResults.map((result) => {
       const packet = result.packet;
 
+      // Encode freshness_status: fresh=0, delayed=1, stale=2
+      const freshnessStatus = (packet.freshness_status ?? 'fresh').toLowerCase();
+      const freshnessEncoded = freshnessStatus === 'fresh' ? 0 :
+                               freshnessStatus === 'delayed' ? 1 :
+                               freshnessStatus === 'stale' ? 2 : 0;
+
+      // For demo purposes, set computed/rolling features to reasonable defaults
+      // In production, these would be computed from device history
+      const rssiDbm = packet.transport.rssi_dbm ?? 0;
+      const txInterval = packet.tx_interval_s ?? 300;
+
       return [
         packet.packet_id,
         packet.device_id,
         packet.observed_at,
         packet.received_at,
-        packet.tx_interval_s ?? 0,
-        packet.transport.rssi_dbm ?? 0,
-        packet.freshness_status ?? 'fresh',
+        txInterval,
+        0,  // rx_delay_s (computed from history, default 0 for demo)
+        freshnessStatus,  // original freshness_status for preprocessing
+        freshnessEncoded,
+        rssiDbm,
+        0,  // rssi_deviation_db (computed from history, default 0 for demo)
         packet.transport.snr_db ?? 0,
         packet.transport.retry_count ?? 0,
         packet.transport.packet_size_bytes ?? 256,
@@ -330,6 +351,11 @@ export const TelemetryExplorer: React.FC<TelemetryExplorerProps> = ({
         packet.device_health.supply_current ?? 0,
         packet.device_health.reboot_count_24h ?? 0,
         packet.device_health.sensor_fault_flag ? 1 : 0,
+        txInterval,  // rolling_interval_mean (default to current for demo)
+        0,  // rolling_interval_std (default 0 for demo)
+        rssiDbm,  // rolling_rssi_mean (default to current for demo)
+        0,  // rolling_rssi_std (default 0 for demo)
+        0,  // rolling_retry_mean (default 0 for demo)
         JSON.stringify(packet),
       ];
     });
@@ -439,7 +465,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
           <th>Packet ID</th>
           <th>Device</th>
           <th>Security</th>
-          <th>Trust Label</th>
+         
           <th>Routing</th>
           <th>ML</th>
           <th>Score</th>
@@ -450,7 +476,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
       <tbody>
         {results.length === 0 ? (
           <tr>
-            <td colSpan={9} className="c4-telemetry-no-results">
+            <td colSpan={8} className="c4-telemetry-no-results">
               No assessments match the selected filters.
             </td>
           </tr>
@@ -474,11 +500,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
                     {result.security_status || '-'}
                   </span>
                 </td>
-                <td>
-                  <span className={`c4-telemetry-badge ${result.assessment.trust_label === 'TRUSTED' ? 'c4-telemetry-badge-trusted' : result.assessment.trust_label === 'UNTRUSTED' ? 'c4-telemetry-badge-untrusted' : result.assessment.trust_label === 'SUSPICIOUS' ? 'c4-telemetry-badge-suspicious' : 'c4-telemetry-badge-unknown'}`}>
-                    {result.assessment.trust_label || '-'}
-                  </span>
-                </td>
+                
                 <td>{result.assessment.routing_outcome || 'N/A'}</td>
                 <td>{result.ml_status || '-'}</td>
                 <td className="c4-telemetry-score">
@@ -552,10 +574,7 @@ const PacketDetail: React.FC<PacketDetailProps> = ({ packet }) => {
       )}
 
       <div className="c4-telemetry-detail-grid c4-telemetry-detail-grid-four">
-        <MetricCard
-          label="Trust label"
-          value={assessment.trust_label}
-        />
+       
         <MetricCard
           label="Routing"
           value={assessment.routing_outcome || 'Unavailable'}

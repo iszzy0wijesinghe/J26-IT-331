@@ -18,6 +18,7 @@ from components.c4_trust import (
     create_device_certificate,
 )
 from components.c4_trust.integration import (
+    create_c4_service_deterministic_only,
     create_c4_service_with_behavioral_ml,
 )
 from components.c4_trust.pipeline import C4TelemetryGate
@@ -162,6 +163,9 @@ class C4DemoBackend:
             trusted_ca_certificates=[self._ca_cert],
         )
 
+        # Disable ML by setting behavioural_scorer to None
+        service._behavioural_scorer = None
+
         return C4TelemetryGate(
             trust_service=service,
             quarantine_manager=QuarantineManager(
@@ -259,9 +263,7 @@ class C4DemoBackend:
         else:
             sig_verification = "NOT_EVALUATED"
 
-        ml_ran = any(
-            code.startswith("BEHAVIOURAL_") for code in reason_codes
-        ) or assessment.behavioural_score is not None
+        ml_ran = False  # ML is disabled in deterministic-only mode
 
         return {
             "scenario": scenario,

@@ -167,7 +167,8 @@ export const C4Page: React.FC = () => {
       setResults((previousResults) => [...previousResults, ...apiResults]);
       setNotice(
         `${data.count} assessment result(s) recorded for ${scenario}. ` +
-          `Security gate enforced ML-only-if-PASS rule.`
+          `Security verification complete. ML is disabled in scenario mode. ` +
+          `Download ML-Ready CSV (PASS only) and upload to ML Explorer for predictions.`
       );
     } catch (err) {
       setError(

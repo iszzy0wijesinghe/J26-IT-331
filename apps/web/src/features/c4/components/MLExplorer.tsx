@@ -145,6 +145,8 @@ const [trustedFilter, setTrustedFilter] = useState<boolean>(false);
 const [sendingToDatabase, setSendingToDatabase] = useState(false);
 const [databaseMessage, setDatabaseMessage] = useState("");
 const [selectedPrediction, setSelectedPrediction] = useState<PredictionRow | null>(null);
+const [csvValidation, setCsvValidation] = useState<any | null>(null);
+const [csvValidating, setCsvValidating] = useState(false);
 
 // Manual prediction demo
 const [manualFeatures, setManualFeatures] = useState<FeatureInput>({
@@ -163,6 +165,53 @@ const [manualPrediction, setManualPrediction] = useState<ManualResult | null>(nu
 const [manualPredictionLoading, setManualPredictionLoading] = useState(false);
 const [manualPredictionError, setManualPredictionError] = useState("");
 
+
+async function validateUploadedCsv(file: File) {
+  setPredictionFile(file);
+  setPredictionResult(null);
+  setPredictionError("");
+  setCsvValidation(null);
+
+  if (!file.name.toLowerCase().endsWith(".csv")) {
+    setPredictionError("Please select a CSV file.");
+    return;
+  }
+
+  if (file.size === 0) {
+    setPredictionError("The CSV file is empty.");
+    return;
+  }
+
+  if (file.size > MAX_CSV_SIZE) {
+    setPredictionError("The CSV file must be 10 MB or smaller.");
+    return;
+  }
+
+  setCsvValidating(true);
+
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch(`${API_BASE}/api/c4/models/${encodeURIComponent(selectedModel)}/validate-csv`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(await readApiError(response));
+    }
+
+    const validation = await response.json();
+    setCsvValidation(validation);
+  } catch (err) {
+    setPredictionError(
+      err instanceof Error ? err.message : "CSV validation failed.",
+    );
+  } finally {
+    setCsvValidating(false);
+  }
+}
 
 async function predictUploadedFile(file: File) {
   setPredictionFile(file);
@@ -634,146 +683,7 @@ async function predictManualFeatures() {
             </div>
           )}
 
-          <section className="c4-ml-section">
-            <div className="c4-ml-section-heading">
-              <div>
-                <span className="c4-ml-eyebrow">QUICK ML DEMO</span>
-                <h3>Test ML Model with Manual Input</h3>
-                <p>
-                  Enter feature values manually to see the ML model's prediction in real-time.
-                  Perfect for demonstrating how the model works during presentations.
-                </p>
-              </div>
-            </div>
-
-            <div className="c4-ml-manual-input-grid">
-              <div className="c4-ml-input-group">
-                <label>TX Interval (s)</label>
-                <input
-                  type="number"
-                  step="1"
-                  value={manualFeatures.tx_interval_s}
-                  onChange={(e) => setManualFeatures({...manualFeatures, tx_interval_s: parseFloat(e.target.value) || 0})}
-                />
-              </div>
-
-              <div className="c4-ml-input-group">
-                <label>RSSI (dBm) <span style={{color: (manualFeatures.rssi_dbm > -30 || manualFeatures.rssi_dbm < -150) ? "#dc2626" : "#64748b", fontSize: "10px"}}>{(manualFeatures.rssi_dbm > -30 || manualFeatures.rssi_dbm < -150) ? "(⚠ Unusual)" : ""}</span></label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={manualFeatures.rssi_dbm}
-                  onChange={(e) => setManualFeatures({...manualFeatures, rssi_dbm: parseFloat(e.target.value) || 0})}
-                  style={{borderColor: (manualFeatures.rssi_dbm > -30 || manualFeatures.rssi_dbm < -150) ? "#dc2626" : "#e2e8f0"}}
-                />
-                <span style={{fontSize: "10px", color: "#64748b"}}>Normal: -60 to -80 dBm</span>
-              </div>
-
-              <div className="c4-ml-input-group">
-                <label>SNR (dB)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={manualFeatures.snr_db}
-                  onChange={(e) => setManualFeatures({...manualFeatures, snr_db: parseFloat(e.target.value) || 0})}
-                />
-              </div>
-
-              <div className="c4-ml-input-group">
-                <label>Retry Count</label>
-                <input
-                  type="number"
-                  step="1"
-                  value={manualFeatures.retry_count}
-                  onChange={(e) => setManualFeatures({...manualFeatures, retry_count: parseInt(e.target.value) || 0})}
-                />
-              </div>
-
-              <div className="c4-ml-input-group">
-                <label>Battery (%)</label>
-                <input
-                  type="number"
-                  step="1"
-                  min="0"
-                  max="100"
-                  value={manualFeatures.battery_pct}
-                  onChange={(e) => setManualFeatures({...manualFeatures, battery_pct: parseFloat(e.target.value) || 0})}
-                />
-              </div>
-
-              <div className="c4-ml-input-group">
-                <label>Battery Voltage (V)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={manualFeatures.battery_voltage_v}
-                  onChange={(e) => setManualFeatures({...manualFeatures, battery_voltage_v: parseFloat(e.target.value) || 0})}
-                />
-              </div>
-
-              <div className="c4-ml-input-group">
-                <label>Current (mA)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={manualFeatures.current_ma}
-                  onChange={(e) => setManualFeatures({...manualFeatures, current_ma: parseFloat(e.target.value) || 0})}
-                />
-              </div>
-
-              <div className="c4-ml-input-group">
-                <label>Reboot Count (24h)</label>
-                <input
-                  type="number"
-                  step="1"
-                  value={manualFeatures.reboot_count_24h}
-                  onChange={(e) => setManualFeatures({...manualFeatures, reboot_count_24h: parseInt(e.target.value) || 0})}
-                />
-              </div>
-
-              <div className="c4-ml-input-group">
-                <label>Sensor Fault</label>
-                <select
-                  value={manualFeatures.sensor_fault_flag ? "true" : "false"}
-                  onChange={(e) => setManualFeatures({...manualFeatures, sensor_fault_flag: e.target.value === "true"})}
-                >
-                  <option value="false">No</option>
-                  <option value="true">Yes</option>
-                </select>
-              </div>
-
-              <div className="c4-ml-input-group">
-                <label>Freshness Status</label>
-                <select
-                  value={manualFeatures.freshness_status}
-                  onChange={(e) => setManualFeatures({...manualFeatures, freshness_status: e.target.value})}
-                >
-                  <option value="fresh">Fresh</option>
-                  <option value="delayed">Delayed</option>
-                  <option value="stale">Stale</option>
-                </select>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              className="c4-ml-button"
-              onClick={predictManualFeatures}
-              disabled={manualPredictionLoading}
-              style={{ marginTop: "16px" }}
-            >
-              {manualPredictionLoading ? "Predicting..." : "Run ML Prediction"}
-            </button>
-
-            {manualPredictionError && (
-              <div className="c4-ml-state c4-ml-state-error" role="alert" style={{ marginTop: "16px" }}>
-                <p>{manualPredictionError}</p>
-              </div>
-            )}
-
-            {manualPrediction && <ManualPredictionResult result={manualPrediction} />}
-
-          </section>
+        
 
 <section className="c4-ml-section c4-ml-csv-panel">
   <div className="c4-ml-csv-heading">
@@ -806,20 +716,62 @@ async function predictManualFeatures() {
       type="file"
       accept=".csv,text/csv"
       aria-label="Choose an unlabeled CSV for prediction"
-      disabled={predictionLoading}
+      disabled={predictionLoading || csvValidating}
       onChange={(event) => {
         const file = event.target.files?.[0] ?? null;
-        if (file) void predictUploadedFile(file);
+        if (file) void validateUploadedCsv(file);
         event.currentTarget.value = "";
       }}
     />
   </label>
 
   <p className="c4-ml-csv-model">
-    The file must contain the raw telemetry columns required by C4,
-    excluding trust_label. ML predictions do not replace cryptographic
-    verification or device identity checks.
+    The file must contain the 18 features required by the C4 model:
+    tx_interval_s, rx_delay_s, freshness_status_encoded, rssi_dbm, rssi_deviation_db,
+    snr_db, retry_count, packet_size_bytes, battery_pct, battery_voltage_v, current_ma,
+    reboot_count_24h, sensor_fault_flag, rolling_interval_mean, rolling_interval_std,
+    rolling_rssi_mean, rolling_rssi_std, rolling_retry_mean.
   </p>
+
+  {csvValidating && (
+    <div className="c4-ml-state" role="status">
+      <span className="c4-ml-spinner" />
+      Validating CSV features...
+    </div>
+  )}
+
+  {csvValidation && (
+    <div className={`c4-ml-csv-findings ${csvValidation.valid ? "is-success" : "is-error"}`} role="alert">
+      <h5>CSV Validation Result</h5>
+      <p>{csvValidation.message}</p>
+      <div style={{ marginTop: "12px" }}>
+        <strong>Features:</strong> {csvValidation.present_feature_count} / {csvValidation.required_feature_count} required
+      </div>
+      {csvValidation.missing_columns && csvValidation.missing_columns.length > 0 && (
+        <div style={{ marginTop: "8px" }}>
+          <strong>Missing features:</strong> {csvValidation.missing_columns.join(", ")}
+        </div>
+      )}
+      {csvValidation.extra_columns && csvValidation.extra_columns.length > 0 && (
+        <div style={{ marginTop: "8px" }}>
+          <strong>Extra columns:</strong> {csvValidation.extra_columns.join(", ")}
+        </div>
+      )}
+      {csvValidation.valid && (
+        <button
+          type="button"
+          className="c4-ml-button"
+          onClick={() => {
+            if (predictionFile) void predictUploadedFile(predictionFile);
+          }}
+          disabled={predictionLoading}
+          style={{ marginTop: "12px" }}
+        >
+          {predictionLoading ? "Predicting..." : "Run ML Prediction"}
+        </button>
+      )}
+    </div>
+  )}
 
   {predictionLoading && (
     <div className="c4-ml-state" role="status">

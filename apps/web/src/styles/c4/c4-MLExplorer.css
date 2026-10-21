@@ -941,6 +941,12 @@
   color: #79571a;
 }
 
+.c4-ml-csv-findings.is-success {
+  border-color: #b9e3ce;
+  background: var(--ml-green-soft);
+  color: #236344;
+}
+
 .c4-ml-csv-findings.is-error {
   border-color: #f0c8c5;
   background: var(--ml-red-soft);
