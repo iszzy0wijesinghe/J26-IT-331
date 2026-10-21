@@ -165,6 +165,7 @@ class C4DemoBackend:
 
         # Disable ML by setting behavioural_scorer to None
         service._behavioural_scorer = None
+        service._allow_deterministic_only = True
 
         return C4TelemetryGate(
             trust_service=service,
