@@ -13,9 +13,9 @@ export interface FieldMeta {
 export const FIELD_GROUPS = ["Reading", "Baseline", "Rainfall", "Neighbours", "Device"] as const;
 
 // min / max match the validation in apps/c1_api/app/schemas.py
+// dt_s removed to match the V2 model (realistic 4-year dataset)
 export const FIELDS: FieldMeta[] = [
   { key: "value", label: "Soil moisture", unit: "%", group: "Reading", step: 0.1 },
-  { key: "dt_s", label: "Sample interval", unit: "s", group: "Reading", step: 1, min: 1 },
   { key: "delta_prev_pct_per_min", label: "Change vs previous", unit: "%/min", group: "Reading", step: 0.01 },
 
   { key: "baseline_mean", label: "Baseline mean", unit: "%", group: "Baseline", step: 0.1 },
@@ -48,14 +48,14 @@ export interface Preset {
 const QUIET_RAIN = { rain_15m_mm: 0, rain_1h_mm: 0, rain_3h_mm: 0, steps_since_rain: 120 };
 
 // Simulated readings, for trying the dashboard. The model decides the label, the hint
-// only describes the situation.
+// only describes the situation. dt_s removed for V2.
 export const PRESETS: Preset[] = [
   {
     id: "stable",
     name: "Stable baseline",
     hint: "Quiet soil, no rain, neighbours steady",
     values: {
-      dt_s: 300, value: 32.8, delta_prev_pct_per_min: 0.02, baseline_mean: 32.7, baseline_std: 0.35,
+      value: 32.8, delta_prev_pct_per_min: 0.02, baseline_mean: 32.7, baseline_std: 0.35,
       value_minus_baseline: 0.1, stuck_run_len: 1, ...QUIET_RAIN, n_neighbours_fresh: 3,
       neighbour_consensus_change: 0.05, target_minus_consensus: 0.03, neighbour_change_spread: 0.12,
       neighbour_rise_agree_frac: 0, device_voltage: 3.95, history_obs: 24,
@@ -66,7 +66,7 @@ export const PRESETS: Preset[] = [
     name: "Sudden spike",
     hint: "Large jump, no rain, neighbours unmoved",
     values: {
-      dt_s: 300, value: 61.0, delta_prev_pct_per_min: 9.5, baseline_mean: 32.7, baseline_std: 0.4,
+      value: 61.0, delta_prev_pct_per_min: 9.5, baseline_mean: 32.7, baseline_std: 0.4,
       value_minus_baseline: 28.3, stuck_run_len: 1, ...QUIET_RAIN, n_neighbours_fresh: 3,
       neighbour_consensus_change: 0.04, target_minus_consensus: 28.2, neighbour_change_spread: 0.1,
       neighbour_rise_agree_frac: 0, device_voltage: 3.9, history_obs: 24,
@@ -77,7 +77,7 @@ export const PRESETS: Preset[] = [
     name: "Rain-driven rise",
     hint: "Heavy rain, neighbours rise together",
     values: {
-      dt_s: 300, value: 38.9, delta_prev_pct_per_min: 0.6, baseline_mean: 32.7, baseline_std: 0.5,
+      value: 38.9, delta_prev_pct_per_min: 0.6, baseline_mean: 32.7, baseline_std: 0.5,
       value_minus_baseline: 6.2, stuck_run_len: 1, rain_15m_mm: 2.4, rain_1h_mm: 7.8, rain_3h_mm: 14.2,
       steps_since_rain: 0, n_neighbours_fresh: 3, neighbour_consensus_change: 5.8, target_minus_consensus: 0.4,
       neighbour_change_spread: 0.9, neighbour_rise_agree_frac: 1, device_voltage: 3.9, history_obs: 24,
@@ -88,7 +88,7 @@ export const PRESETS: Preset[] = [
     name: "Stuck sensor",
     hint: "Flat line while neighbours react to rain",
     values: {
-      dt_s: 300, value: 32.8, delta_prev_pct_per_min: 0, baseline_mean: 32.8, baseline_std: 0,
+      value: 32.8, delta_prev_pct_per_min: 0, baseline_mean: 32.8, baseline_std: 0,
       value_minus_baseline: 0, stuck_run_len: 48, rain_15m_mm: 1.8, rain_1h_mm: 5.2, rain_3h_mm: 9.6,
       steps_since_rain: 0, n_neighbours_fresh: 3, neighbour_consensus_change: 4.9, target_minus_consensus: -4.9,
       neighbour_change_spread: 0.7, neighbour_rise_agree_frac: 1, device_voltage: 3.85, history_obs: 24,

@@ -1,7 +1,7 @@
 // Types shared by the C1 page, hook and API client. They mirror apps/c1_api/app/schemas.py.
 
 export const FEATURE_KEYS = [
-  "dt_s", "value", "delta_prev_pct_per_min", "baseline_mean",
+  "value", "delta_prev_pct_per_min", "baseline_mean",
   "baseline_std", "value_minus_baseline", "stuck_run_len",
   "rain_15m_mm", "rain_1h_mm", "rain_3h_mm", "steps_since_rain",
   "n_neighbours_fresh", "neighbour_consensus_change",

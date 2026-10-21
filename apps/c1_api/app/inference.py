@@ -1,10 +1,7 @@
 """Loads the trained C1 XGBoost model and turns observations into predictions.
 
-NOTE: this loads models/c1/c1_xgboost_v1.json directly with xgboost, using the same
-18 features the model was trained on. If C1CredibilityService
-(components/c1_credibility/inference/predict.py) does extra work (clipping, feature
-engineering, class mapping), call it from `C1Predictor._predict_proba` instead, that
-method is the only place that touches the model.
+NOTE: this loads models/c1/c1_xgboost_v2_realistic.json directly with xgboost, using the same
+17 features the model was trained on (dt_s removed for V2).
 """
 from __future__ import annotations
 
@@ -21,9 +18,9 @@ from .config import DEFAULT_CLASS_ORDER
 
 logger = logging.getLogger("c1_api")
 
-# the model's training feature order
+# The V2 model's training feature order (dt_s removed, 17 features)
 FEATURES: tuple[str, ...] = (
-    "dt_s", "value", "delta_prev_pct_per_min", "baseline_mean",
+    "value", "delta_prev_pct_per_min", "baseline_mean",
     "baseline_std", "value_minus_baseline", "stuck_run_len",
     "rain_15m_mm", "rain_1h_mm", "rain_3h_mm", "steps_since_rain",
     "n_neighbours_fresh", "neighbour_consensus_change",

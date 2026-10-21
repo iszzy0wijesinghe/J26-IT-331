@@ -13,7 +13,7 @@ class Observation(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    dt_s: float | None = Field(None, gt=0, **F)
+    # dt_s removed to match the V2 model (realistic 4-year dataset)
     value: float | None = Field(None, **F)
     delta_prev_pct_per_min: float | None = Field(None, **F)
     baseline_mean: float | None = Field(None, **F)
