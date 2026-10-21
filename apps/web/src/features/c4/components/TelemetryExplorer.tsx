@@ -208,71 +208,7 @@ export const TelemetryExplorer: React.FC<TelemetryExplorerProps> = ({
         )}
       </div>
 
-      <button
-  type="button"
-  className="c4-telemetry-view-button"
-  onClick={() => {
-    const headers = [
-      'Scenario',
-      'Packet ID',
-      'Device',
-      'Security Status',
       
-      'Routing',
-      'ML Status',
-      'Score',
-      'Mandatory Security',
-      'Eligible for C1',
-      'Quarantined',
-      'Persisted to Database',
-      'Reason Codes',
-    ];
-
-    const escapeCsv = (value: unknown) => {
-      const text = String(value ?? '');
-      return `"${text.replace(/"/g, '""')}"`;
-    };
-
-    const rows = filteredResults.map((result) => {
-      const assessment = result.assessment;
-
-      return [
-        result.scenario ?? '',
-        assessment.packet_id,
-        assessment.device_id,
-        result.security_status ?? '',
-        assessment.routing_outcome ?? 'N/A',
-        result.ml_status ?? '',
-        assessment.behavioural_score ?? '',
-        assessment.mandatory_security_pass,
-        result.eligible_for_c1,
-        result.quarantined,
-        result.persisted_to_database,
-        assessment.reason_codes.join(', '),
-      ];
-    });
-
-    const csv = [headers, ...rows]
-      .map((row) => row.map(escapeCsv).join(','))
-      .join('\r\n');
-
-    const blob = new Blob(['\uFEFF', csv], {
-      type: 'text/csv;charset=utf-8;',
-    });
-
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-
-    link.href = url;
-    link.download = 'geonex_c4_telemetry_assessments.csv';
-    link.click();
-
-    URL.revokeObjectURL(url);
-  }}
-  disabled={filteredResults.length === 0}
->
-  Download Assessment CSV
-</button>
 
       <button
   type="button"
@@ -379,7 +315,7 @@ export const TelemetryExplorer: React.FC<TelemetryExplorerProps> = ({
   }}
   disabled={filteredResults.length === 0}
 >
-  Download ML-Ready CSV (PASS only)
+  Download CSV 
 </button>
 
       <div className="c4-telemetry-table-card">
