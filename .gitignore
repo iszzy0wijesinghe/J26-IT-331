@@ -80,3 +80,5 @@ temp/
 # Local test outputs
 test-results/
 coverage.xml
+# Large synthetic datasets (pushed separately, not tracked by git)
+data/synthetic/c1/C1_CREDIBILITY_V1_REALISTIC_4Y/*.csv

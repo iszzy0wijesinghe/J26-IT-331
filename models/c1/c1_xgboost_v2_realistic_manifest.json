@@ -1,0 +1,46 @@
+{
+  "model_version": "c1_xgboost_v2_realistic",
+  "features": [
+    "value",
+    "delta_prev_pct_per_min",
+    "baseline_mean",
+    "baseline_std",
+    "value_minus_baseline",
+    "stuck_run_len",
+    "rain_15m_mm",
+    "rain_1h_mm",
+    "rain_3h_mm",
+    "steps_since_rain",
+    "n_neighbours_fresh",
+    "neighbour_consensus_change",
+    "target_minus_consensus",
+    "neighbour_change_spread",
+    "neighbour_rise_agree_frac",
+    "device_voltage",
+    "history_obs"
+  ],
+  "n_features": 17,
+  "target_classes": [
+    "CLEAN",
+    "ANOMALY",
+    "VALID_EVENT"
+  ],
+  "label_mapping": {
+    "CLEAN": 0,
+    "ANOMALY": 1,
+    "VALID_EVENT": 2
+  },
+  "dataset_path": "data\\synthetic\\c1\\C1_CREDIBILITY_V1_REALISTIC_4Y\\c1_credibility_4y_V1.0.0.csv",
+  "best_iteration": 98,
+  "train_size": 178387,
+  "train_class_distribution": {
+    "CLEAN": 149333,
+    "ANOMALY": 6788,
+    "VALID_EVENT": 22266
+  },
+  "class_weights": {
+    "0": 1.0,
+    "1": 10.0,
+    "2": 2.0
+  }
+}
