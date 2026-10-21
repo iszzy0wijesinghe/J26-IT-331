@@ -178,8 +178,6 @@ def test_simulation_loader_handles_empty_batch(db_session):
     assert result.created_packets == 0
     assert result.existing_packets == 0
     assert result.created_observations == 0
-<<<<<<< HEAD
-=======
 def test_c4_gated_loader_persists_only_trusted_packets(db_session, tmp_path):
     items = generate_test_items()
     gate, _, credentials = build_test_gate(tmp_path / "quarantine")
@@ -245,4 +243,3 @@ def test_c4_gated_loader_never_persists_rejected_packets(
     assert result.quarantined_packets == 1
     assert count_test_packets(db_session, packet_ids) == 0
     assert count_test_observations(db_session, packet_ids) == 0
->>>>>>> a3a0e76f7d4d51298b0cf715c59230d82010503a
