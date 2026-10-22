@@ -1,0 +1,111 @@
+{
+  "model": "XGBoost",
+  "xgboost_version": "3.4.2",
+  "accuracy": 0.85475,
+  "macro_precision": 0.8467299293294371,
+  "macro_recall": 0.8404166666666666,
+  "macro_f1": 0.8426683598851242,
+  "weighted_f1": 0.8550917107099479,
+  "training_test_prediction_seconds": 0.009020708006573841,
+  "test_samples": 4000,
+  "class_labels": [
+    "communication_failure",
+    "hardware_failure",
+    "normal",
+    "possible_zone_damage"
+  ],
+  "classification_report": {
+    "communication_failure": {
+      "precision": 0.8341143392689785,
+      "recall": 0.89,
+      "f1-score": 0.861151427189163,
+      "support": 1000.0
+    },
+    "hardware_failure": {
+      "precision": 0.7578313253012048,
+      "recall": 0.78625,
+      "f1-score": 0.7717791411042945,
+      "support": 800.0
+    },
+    "normal": {
+      "precision": 0.9097888675623801,
+      "recall": 0.88875,
+      "f1-score": 0.8991463800189693,
+      "support": 1600.0
+    },
+    "possible_zone_damage": {
+      "precision": 0.8851851851851852,
+      "recall": 0.7966666666666666,
+      "f1-score": 0.8385964912280702,
+      "support": 600.0
+    },
+    "accuracy": 0.85475,
+    "macro avg": {
+      "precision": 0.8467299293294371,
+      "recall": 0.8404166666666666,
+      "f1-score": 0.8426683598851242,
+      "support": 4000.0
+    },
+    "weighted avg": {
+      "precision": 0.8567881746802154,
+      "recall": 0.85475,
+      "f1-score": 0.8550917107099479,
+      "support": 4000.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      890,
+      46,
+      49,
+      15
+    ],
+    [
+      48,
+      629,
+      84,
+      39
+    ],
+    [
+      81,
+      89,
+      1422,
+      8
+    ],
+    [
+      48,
+      66,
+      8,
+      478
+    ]
+  ],
+  "features": [
+    "rainfall_mm",
+    "soil_moisture_1",
+    "soil_moisture_2",
+    "tilt_x",
+    "tilt_y",
+    "vibration",
+    "temperature_c",
+    "battery_voltage",
+    "rssi",
+    "snr",
+    "packet_loss_rate",
+    "heartbeat_interval_sec",
+    "last_heartbeat_age",
+    "missed_heartbeat_count",
+    "pre_silence_tilt_change",
+    "pre_silence_vibration_change",
+    "pre_silence_packet_loss_trend",
+    "pre_silence_battery_trend",
+    "deviation_from_pre_silence",
+    "backup_reachable",
+    "backup_response_time_ms",
+    "backup_tilt_x",
+    "backup_tilt_y",
+    "backup_vibration",
+    "primary_backup_deviation"
+  ],
+  "split_method": "Stratified random 80/20 split",
+  "training_seconds": 2.142602584004635
+}

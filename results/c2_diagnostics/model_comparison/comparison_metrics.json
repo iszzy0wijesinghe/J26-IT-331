@@ -1,0 +1,166 @@
+[
+  {
+    "model": "Random Forest",
+    "accuracy": 0.85575,
+    "macro_precision": 0.8445839419707248,
+    "macro_recall": 0.8453333333333334,
+    "macro_f1": 0.844486511715186,
+    "weighted_f1": 0.856339548115033,
+    "training_seconds": 0.8004773750144523,
+    "prediction_seconds_for_test_set": 0.02596724999602884,
+    "test_samples": 4000,
+    "class_labels": [
+      "communication_failure",
+      "hardware_failure",
+      "normal",
+      "possible_zone_damage"
+    ],
+    "classification_report": {
+      "communication_failure": {
+        "precision": 0.8449096098953378,
+        "recall": 0.888,
+        "f1-score": 0.8659190638712823,
+        "support": 1000.0
+      },
+      "hardware_failure": {
+        "precision": 0.7571428571428571,
+        "recall": 0.795,
+        "f1-score": 0.775609756097561,
+        "support": 800.0
+      },
+      "normal": {
+        "precision": 0.9148797920727745,
+        "recall": 0.88,
+        "f1-score": 0.897100987575661,
+        "support": 1600.0
+      },
+      "possible_zone_damage": {
+        "precision": 0.8614035087719298,
+        "recall": 0.8183333333333334,
+        "f1-score": 0.8393162393162393,
+        "support": 600.0
+      },
+      "accuracy": 0.85575,
+      "macro avg": {
+        "precision": 0.8445839419707248,
+        "recall": 0.8453333333333334,
+        "f1-score": 0.844486511715186,
+        "support": 4000.0
+      },
+      "weighted avg": {
+        "precision": 0.8578184170473052,
+        "recall": 0.85575,
+        "f1-score": 0.856339548115033,
+        "support": 4000.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        888,
+        48,
+        47,
+        17
+      ],
+      [
+        41,
+        636,
+        73,
+        50
+      ],
+      [
+        79,
+        101,
+        1408,
+        12
+      ],
+      [
+        43,
+        55,
+        11,
+        491
+      ]
+    ]
+  },
+  {
+    "model": "XGBoost",
+    "accuracy": 0.85475,
+    "macro_precision": 0.8467299293294371,
+    "macro_recall": 0.8404166666666666,
+    "macro_f1": 0.8426683598851242,
+    "weighted_f1": 0.8550917107099479,
+    "training_seconds": 2.362128542008577,
+    "prediction_seconds_for_test_set": 0.010019084002124146,
+    "test_samples": 4000,
+    "class_labels": [
+      "communication_failure",
+      "hardware_failure",
+      "normal",
+      "possible_zone_damage"
+    ],
+    "classification_report": {
+      "communication_failure": {
+        "precision": 0.8341143392689785,
+        "recall": 0.89,
+        "f1-score": 0.861151427189163,
+        "support": 1000.0
+      },
+      "hardware_failure": {
+        "precision": 0.7578313253012048,
+        "recall": 0.78625,
+        "f1-score": 0.7717791411042945,
+        "support": 800.0
+      },
+      "normal": {
+        "precision": 0.9097888675623801,
+        "recall": 0.88875,
+        "f1-score": 0.8991463800189693,
+        "support": 1600.0
+      },
+      "possible_zone_damage": {
+        "precision": 0.8851851851851852,
+        "recall": 0.7966666666666666,
+        "f1-score": 0.8385964912280702,
+        "support": 600.0
+      },
+      "accuracy": 0.85475,
+      "macro avg": {
+        "precision": 0.8467299293294371,
+        "recall": 0.8404166666666666,
+        "f1-score": 0.8426683598851242,
+        "support": 4000.0
+      },
+      "weighted avg": {
+        "precision": 0.8567881746802154,
+        "recall": 0.85475,
+        "f1-score": 0.8550917107099479,
+        "support": 4000.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        890,
+        46,
+        49,
+        15
+      ],
+      [
+        48,
+        629,
+        84,
+        39
+      ],
+      [
+        81,
+        89,
+        1422,
+        8
+      ],
+      [
+        48,
+        66,
+        8,
+        478
+      ]
+    ]
+  }
+]
