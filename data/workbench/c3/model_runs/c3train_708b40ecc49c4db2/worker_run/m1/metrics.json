@@ -1,0 +1,151 @@
+{
+  "model": "M1_RIDGE_REGRESSION",
+  "model_version": "c3-m1-ridge-v1",
+  "dataset_version": "c3-fixed-horizon-v2",
+  "source_origin": "SIMULATED",
+  "feature_count": 79,
+  "feature_names": [
+    "air_temperature_c_age_seconds",
+    "air_temperature_c_available",
+    "air_temperature_c_change",
+    "air_temperature_c_latest",
+    "air_temperature_c_max",
+    "air_temperature_c_mean",
+    "air_temperature_c_min",
+    "air_temperature_c_trend_per_minute",
+    "air_temperature_c_valid_count",
+    "air_temperature_c_valid_fraction",
+    "fsr_adc_age_seconds",
+    "fsr_adc_available",
+    "fsr_adc_change",
+    "fsr_adc_latest",
+    "fsr_adc_max",
+    "fsr_adc_mean",
+    "fsr_adc_min",
+    "fsr_adc_trend_per_minute",
+    "fsr_adc_valid_count",
+    "fsr_adc_valid_fraction",
+    "history_duration_minutes",
+    "history_step_count",
+    "humidity_pct_age_seconds",
+    "humidity_pct_available",
+    "humidity_pct_change",
+    "humidity_pct_latest",
+    "humidity_pct_max",
+    "humidity_pct_mean",
+    "humidity_pct_min",
+    "humidity_pct_trend_per_minute",
+    "humidity_pct_valid_count",
+    "humidity_pct_valid_fraction",
+    "last_interval_seconds",
+    "last_step_age_seconds",
+    "mode_DEEP_SLEEP",
+    "mode_EMERGENCY",
+    "mode_IDLE",
+    "mode_RISK",
+    "mode_WARNING",
+    "rainfall_proxy_counts_age_seconds",
+    "rainfall_proxy_counts_available",
+    "rainfall_proxy_counts_change",
+    "rainfall_proxy_counts_latest",
+    "rainfall_proxy_counts_max",
+    "rainfall_proxy_counts_mean",
+    "rainfall_proxy_counts_min",
+    "rainfall_proxy_counts_trend_per_minute",
+    "rainfall_proxy_counts_valid_count",
+    "rainfall_proxy_counts_valid_fraction",
+    "soil_moisture_pct_age_seconds",
+    "soil_moisture_pct_available",
+    "soil_moisture_pct_change",
+    "soil_moisture_pct_latest",
+    "soil_moisture_pct_max",
+    "soil_moisture_pct_mean",
+    "soil_moisture_pct_min",
+    "soil_moisture_pct_trend_per_minute",
+    "soil_moisture_pct_valid_count",
+    "soil_moisture_pct_valid_fraction",
+    "tilt_deg_age_seconds",
+    "tilt_deg_available",
+    "tilt_deg_change",
+    "tilt_deg_latest",
+    "tilt_deg_max",
+    "tilt_deg_mean",
+    "tilt_deg_min",
+    "tilt_deg_trend_per_minute",
+    "tilt_deg_valid_count",
+    "tilt_deg_valid_fraction",
+    "vibration_g_age_seconds",
+    "vibration_g_available",
+    "vibration_g_change",
+    "vibration_g_latest",
+    "vibration_g_max",
+    "vibration_g_mean",
+    "vibration_g_min",
+    "vibration_g_trend_per_minute",
+    "vibration_g_valid_count",
+    "vibration_g_valid_fraction"
+  ],
+  "regularization_candidates": [
+    0.01,
+    0.1,
+    1.0,
+    10.0,
+    100.0
+  ],
+  "selection_metric": "VALIDATION_MAE",
+  "preprocessing": "TRAIN_ONLY_STANDARD_SCALER",
+  "results": {
+    "15": {
+      "selected_alpha": 10.0,
+      "train": {
+        "mae": 0.6837970423723125,
+        "rmse": 0.8710134830232613
+      },
+      "validation": {
+        "mae": 0.6893778022293607,
+        "rmse": 0.8732797572010641
+      },
+      "train_examples": 83476,
+      "validation_examples": 32836,
+      "model_file": "ridge_15min.joblib",
+      "model_sha256": "25df16d0cd575b01070728bc10bd969933d3c714667108556b4deb0522d7405a"
+    },
+    "30": {
+      "selected_alpha": 10.0,
+      "train": {
+        "mae": 0.8598969865133308,
+        "rmse": 1.1302803201029779
+      },
+      "validation": {
+        "mae": 0.8775425025682719,
+        "rmse": 1.1360549823779433
+      },
+      "train_examples": 83791,
+      "validation_examples": 32996,
+      "model_file": "ridge_30min.joblib",
+      "model_sha256": "793782b3a5181b76e7ac714d29c49861aaa9a89d463cf77d874a3db43d67da9e"
+    },
+    "60": {
+      "selected_alpha": 10.0,
+      "train": {
+        "mae": 1.360509271784124,
+        "rmse": 1.8392293070448449
+      },
+      "validation": {
+        "mae": 1.348745468675746,
+        "rmse": 1.7980011408630794
+      },
+      "train_examples": 82575,
+      "validation_examples": 32747,
+      "model_file": "ridge_60min.joblib",
+      "model_sha256": "5f4c0321507a8980679dd692f039d7269b43278425a3c768fedac1a54c92fc10"
+    }
+  },
+  "limitations": [
+    "Synthetic sensor-value forecasting only",
+    "No landslide-event ground truth",
+    "No EMERGENCY forecast-origin examples",
+    "Test split intentionally not evaluated during tuning",
+    "Overlapping examples are not statistically independent"
+  ]
+}

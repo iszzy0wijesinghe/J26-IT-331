@@ -1,0 +1,119 @@
+{
+  "model": "standard_gru",
+  "dataset_version": "c3-fixed-horizon-v2",
+  "target_feature": "soil_moisture_pct",
+  "horizon_minutes": 15,
+  "device": "mps",
+  "seed": 20261018,
+  "train_examples": 83476,
+  "validation_examples": 32836,
+  "parameter_count": 15425,
+  "configuration": {
+    "input_size": 14,
+    "hidden_size": 64,
+    "num_layers": 1,
+    "batch_size": 64,
+    "learning_rate": 0.001,
+    "max_epochs": 30,
+    "patience": 6,
+    "optimizer": "Adam",
+    "loss": "MSE",
+    "loss_units": "standardized_target",
+    "reported_metric_units": "soil_moisture_percentage_points",
+    "selection_metric": "validation_mae"
+  },
+  "sensor_normalizer": {
+    "sensor_names": [
+      "soil_moisture_pct",
+      "rainfall_proxy_counts",
+      "tilt_deg",
+      "vibration_g",
+      "fsr_adc",
+      "air_temperature_c",
+      "humidity_pct"
+    ],
+    "means": [
+      81.6954116821289,
+      4.591453552246094,
+      1.6553882360458374,
+      0.020807083696126938,
+      2100.0947265625,
+      23.96173858642578,
+      78.4715805053711
+    ],
+    "stds": [
+      8.764525413513184,
+      6.011030197143555,
+      0.6680850386619568,
+      0.004011925775557756,
+      312.6271057128906,
+      3.799119472503662,
+      7.684800624847412
+    ]
+  },
+  "target_normalizer": {
+    "mean": 81.9645598255786,
+    "std": 8.318125828492109
+  },
+  "best_epoch": 1,
+  "best_validation_mae": 0.693282397717822,
+  "best_validation_metrics": {
+    "mae": 0.693282397717822,
+    "rmse": 0.9152705242778175,
+    "count": 32836
+  },
+  "epochs_completed": 7,
+  "history": [
+    {
+      "epoch": 1,
+      "training_mae": 0.7869700050655611,
+      "training_rmse": 1.3359879767775424,
+      "validation_mae": 0.693282397717822,
+      "validation_rmse": 0.9152705242778175
+    },
+    {
+      "epoch": 2,
+      "training_mae": 0.638233425735005,
+      "training_rmse": 0.8112293643893481,
+      "validation_mae": 0.7681722910515442,
+      "validation_rmse": 0.9786066238509864
+    },
+    {
+      "epoch": 3,
+      "training_mae": 0.6284251221984867,
+      "training_rmse": 0.7980463112806004,
+      "validation_mae": 0.7549223652971053,
+      "validation_rmse": 0.9950638667853445
+    },
+    {
+      "epoch": 4,
+      "training_mae": 0.6240283424632985,
+      "training_rmse": 0.7924909086479486,
+      "validation_mae": 0.8039978518528427,
+      "validation_rmse": 1.0493682726244864
+    },
+    {
+      "epoch": 5,
+      "training_mae": 0.6185762501452982,
+      "training_rmse": 0.784725031096329,
+      "validation_mae": 0.8132947695677863,
+      "validation_rmse": 1.0302568784958683
+    },
+    {
+      "epoch": 6,
+      "training_mae": 0.6131609511298883,
+      "training_rmse": 0.7779092216596002,
+      "validation_mae": 0.7350373972724192,
+      "validation_rmse": 0.9489785468828911
+    },
+    {
+      "epoch": 7,
+      "training_mae": 0.6100895023122026,
+      "training_rmse": 0.7727412975408117,
+      "validation_mae": 0.7273258127209504,
+      "validation_rmse": 0.9500729178484376
+    }
+  ],
+  "checkpoint": "gru_15min.pt",
+  "created_at": "2026-10-21T11:19:28.105333+00:00"
+}
