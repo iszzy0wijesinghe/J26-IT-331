@@ -80,3 +80,6 @@ temp/
 # Local test outputs
 test-results/
 coverage.xmldata/workbench/c3/training_datasets/
+
+
+data/workbench/c3/training_datasets/
